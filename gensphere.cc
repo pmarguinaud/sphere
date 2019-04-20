@@ -22,9 +22,13 @@
   } while (0)
 
 static 
-void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind)
+void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int nstripe, int indcnt[])
 {
-  int jglooff = 0;
+  int iglooff[Nj];
+  
+  iglooff[0] = 0;
+  for (int jlat = 2; jlat <= Nj-1; jlat++)
+     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
   if (pass == 1)
     *ind = 0;
@@ -33,8 +37,8 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind)
     {
       int iloen1 = pl[jlat - 1];
       int iloen2 = pl[jlat + 0];
-      int jglooff1 = jglooff + 0;
-      int jglooff2 = jglooff + iloen1;
+      int jglooff1 = iglooff[jlat-1] + 0;
+      int jglooff2 = iglooff[jlat-1] + iloen1;
 
 
       if (iloen1 == iloen2) 
@@ -117,7 +121,6 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind)
      
         }
 
-      jglooff = jglooff + pl [jlat-1];
     }
 
 
@@ -128,6 +131,8 @@ void gensphere (const int Nj, int * np, float ** xyz,
                 unsigned int * nt, unsigned int ** ind)
 {
   int * pl = NULL;
+  const int nstripe = 4;
+  int indoff[nstripe];
 
   *xyz = NULL;
 
@@ -140,9 +145,9 @@ void gensphere (const int Nj, int * np, float ** xyz,
       pl[jlat-1] = (2. * Nj * coslat);
     }
 
-  glgauss (Nj, pl, 1, nt);
+  glgauss (Nj, pl, 1, nt, nstripe, indoff);
   *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (Nj, pl, 2, *ind);
+  glgauss (Nj, pl, 2, *ind, nstripe, indoff);
 
   int v_len = 0;
   for (int jlat = 1; jlat <= Nj; jlat++)

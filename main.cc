@@ -24,20 +24,10 @@ int main (int argc, char * argv[])
   int w, h;
   unsigned char * rgb = NULL;
 
-  bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
+//bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
+//bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
+  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
-  for (int irow = 0; irow < h; irow++)
-    {
-      for (int icol = 0; icol < w; icol++)
-        {
-          printf ("|%3d,%3d,%3d", rgb[3*(w*irow+icol)+0], rgb[3*(w*irow+icol)+1], rgb[3*(w*irow+icol)+2]);
-        }
-      printf ("|\n");
-    }
-  
-  
-
-  return 0;
   gensphere (Nj, &np, &xyz, &nt, &ind);
 
   if (! glfwInit ()) 
@@ -121,18 +111,36 @@ void main()
 R"CODE(
 #version 330 core
 
-layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 0) in vec3 vertexPos;
 
 out vec4 fragmentColor;
+
 uniform mat4 MVP;
+
+uniform sampler2D texture;
 
 void main()
 {
-  gl_Position =  MVP * vec4 (vertexPosition_modelspace, 1);
-  fragmentColor.r = 1.;
-  fragmentColor.g = 1.;
-  fragmentColor.b = 1.;
+  float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
+  float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
+  gl_Position =  MVP * vec4 (vertexPos, 1);
+
+  vec4 col = texture2D (texture, vec2 (lon, lat));
+  fragmentColor.r = col.r;
+  fragmentColor.g = col.g;
+  fragmentColor.b = col.b;
   fragmentColor.a = 1.;
+
+//fragmentColor.r = lon;
+//fragmentColor.g = 0.;
+//fragmentColor.b = lat;
+//fragmentColor.a = 1.;
+
+//fragmentColor.r = 1.;
+//fragmentColor.g = 1.;
+//fragmentColor.b = 1.;
+//fragmentColor.a = 1.;
+
 }
 )CODE");
 
@@ -146,6 +154,17 @@ void main()
 
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
 
+
+  unsigned int texture;
+  glGenTextures (1, &texture);
+  glBindTexture (GL_TEXTURE_2D, texture); 
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
+
+  glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
   while (1) 
     {   

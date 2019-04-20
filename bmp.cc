@@ -19,15 +19,21 @@ void bmp (const char * file, unsigned char ** rgb, int * width, int * height)
   int ncol = S4 (&h[18]);
   int nrow = S4 (&h[22]);
   
-  printf (" ioff = %d\n", ioff);
-  printf (" ncol = %d\n", ncol);
-  printf (" nrow = %d\n", nrow);
-  
   *rgb = (unsigned char *)malloc (3 * ncol * nrow * sizeof (unsigned char));
   
   fseek (fp, ioff, SEEK_SET);
 
   fread ((*rgb), 3 * ncol * nrow, 1, fp);
+
+  for (int i = 0; i < ncol * nrow; i++)
+    {
+      unsigned char r = (*rgb)[3*i+2];
+      unsigned char g = (*rgb)[3*i+1];
+      unsigned char b = (*rgb)[3*i+0];
+      (*rgb)[3*i+0] = r;
+      (*rgb)[3*i+1] = g;
+      (*rgb)[3*i+2] = b;
+    }
   
   fclose (fp);
 
