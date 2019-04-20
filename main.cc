@@ -30,6 +30,7 @@ int main (int argc, char * argv[])
 
   gensphere (Nj, &np, &xyz, &nt, &ind);
 
+
   if (! glfwInit ()) 
     {   
       fprintf (stderr, "Failed to initialize GLFW\n");
@@ -146,7 +147,8 @@ void main()
 
   glUseProgram (programID);
 
-  glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+//glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+  glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
   glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
   glm::mat4 Model      = glm::mat4 (1.0f);
 
