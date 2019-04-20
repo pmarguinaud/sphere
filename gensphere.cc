@@ -13,7 +13,7 @@
   do {                                                                                          \
     if (pass == 1)                                                                              \
       {                                                                                         \
-        (*ind)++;                                                                               \
+        indcnt[istripe]++;                                                                      \
       }                                                                                         \
     else if (pass == 2)                                                                         \
       {                                                                                         \
@@ -33,40 +33,47 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
   if (pass == 1)
     *ind = 0;
 
-  for (int jlat = 1; jlat <= Nj-1; jlat++)
+  for (int istripe = 0; istripe < nstripe; istripe++)
     {
-      int iloen1 = pl[jlat - 1];
-      int iloen2 = pl[jlat + 0];
-      int jglooff1 = iglooff[jlat-1] + 0;
-      int jglooff2 = iglooff[jlat-1] + iloen1;
+      int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
+      int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
 
+      indcnt[istripe] = 0;
 
-      if (iloen1 == iloen2) 
+      for (int jlat = jlat1; jlat <= jlat2; jlat++)
         {
-          for (int jlon1 = 1; jlon1 <= iloen1; jlon1++)
+          int iloen1 = pl[jlat - 1];
+          int iloen2 = pl[jlat + 0];
+          int jglooff1 = iglooff[jlat-1] + 0;
+          int jglooff2 = iglooff[jlat-1] + iloen1;
+     
+     
+          if (iloen1 == iloen2) 
             {
-              int jlon2 = jlon1;
-              int ica = jglooff1 + jlon1;
-              int icb = jglooff2 + jlon2;
-              int icc = jglooff2 + JNEXT (jlon2, iloen2);
-              int icd = jglooff1 + JNEXT (jlon1, iloen1);
-	      PRINT (ica, icb, icc);
-	      PRINT (icc, icd, ica);
+              for (int jlon1 = 1; jlon1 <= iloen1; jlon1++)
+                {
+                  int jlon2 = jlon1;
+                  int ica = jglooff1 + jlon1;
+                  int icb = jglooff2 + jlon2;
+                  int icc = jglooff2 + JNEXT (jlon2, iloen2);
+                  int icd = jglooff1 + JNEXT (jlon1, iloen1);
+                  PRINT (ica, icb, icc);
+                  PRINT (icc, icd, ica);
+                }
             }
-        }
-      else 
-        {
-          int jlon1 = 1;
-          int jlon2 = 1;
-          for (;;)
+          else 
             {
-              int ica = 0, icb = 0, icc = 0;
-
-  
-              int idlonc = JDLON (jlon1, jlon2);
-              int jlon1n = JNEXT (jlon1, iloen1);
-              int jlon2n = JNEXT (jlon2, iloen2);
-              int idlonn = JDLON (jlon1n, jlon2n);
+              int jlon1 = 1;
+              int jlon2 = 1;
+              for (;;)
+                {
+                  int ica = 0, icb = 0, icc = 0;
+     
+      
+                  int idlonc = JDLON (jlon1, jlon2);
+                  int jlon1n = JNEXT (jlon1, iloen1);
+                  int jlon2n = JNEXT (jlon2, iloen2);
+                  int idlonn = JDLON (jlon1n, jlon2n);
 
 #define AV1 \
   do {                                                                        \
@@ -80,49 +87,54 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
     jlon2 = jlon2n;                                                           \
   } while (0)
 
-              if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
-                {
-                  if (jlon2n != 1)
-                    AV2;
+                  if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
+                    {
+                      if (jlon2n != 1)
+                        AV2;
+                      else
+                        AV1;
+                    }
+                  else if (idlonc < 0 || ((idlonc == 0) && (idlonn < 0))) 
+                    {
+                      if (jlon1n != 1)
+                        AV1;
+                      else
+                        AV2;
+                    }
                   else
-                    AV1;
-                }
-              else if (idlonc < 0 || ((idlonc == 0) && (idlonn < 0))) 
-                {
-                  if (jlon1n != 1)
-                    AV1;
-                  else
-                    AV2;
-                }
-              else
-                {
-                  abort ();
-                }
-         
-              PRINT (ica, icb, icc);
+                    {
+                      abort ();
+                    }
              
-              if ((jlon1 == 1) && (jlon2 == iloen2)) 
-                {
-                  ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;
                   PRINT (ica, icb, icc);
-                }
-              else if ((jlon1 == iloen1) && (jlon2 == 1)) 
-                {
-                  ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;
-                  PRINT (ica, icb, icc);
-                }
-              else
-                {
-                  continue;
-                }
-              break;
-          }
-     
-     
+                 
+                  if ((jlon1 == 1) && (jlon2 == iloen2)) 
+                    {
+                      ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;
+                      PRINT (ica, icb, icc);
+                    }
+                  else if ((jlon1 == iloen1) && (jlon2 == 1)) 
+                    {
+                      ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;
+                      PRINT (ica, icb, icc);
+                    }
+                  else
+                    {
+                      continue;
+                    }
+                  break;
+              }
+         
+         
+            }
+
         }
 
     }
 
+  if (pass == 1)
+    for (int istripe = 0; istripe < nstripe; istripe++)
+      *ind += indcnt[istripe];
 
 }
 
