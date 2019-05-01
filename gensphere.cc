@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <math.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+
 #include "gensphere.h"
 
 #define MODULO(x, y) ((x)%(y))
@@ -179,26 +183,45 @@ void gensphere (const int Nj, int * np, float ** xyz,
   
   int iglooff[Nj];
   iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj-1; jlat++)
+  for (int jlat = 2; jlat <= Nj; jlat++)
      iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
-  
+
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
-#pragma omp parallel for
+  const float angle = 45.0f;
+  const float c = 1/8.0f;
+  const float omc2 = 1.0f - c * c;
+  const float opc2 = 1.0f + c * c;
+  glm::mat4 rot = glm::rotate (glm::mat4 (1.0f), glm::radians (angle), glm::vec3 (0.0f, 1.0f, 0.0f)); 
+
+//#pragma omp parallel for
   for (int jlat = 1; jlat <= Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float coordy = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+//    float lat = atan (c * tan (coordy));
+      float sincoordy = sin (coordy);
+      float lat = asin ((omc2 + sincoordy * opc2) / (opc2 + sincoordy * omc2));
       float coslat = cos (lat); float sinlat = sin (lat);
       for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
         {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float coordx = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float lon = coordx;
           float coslon = cos (lon); float sinlon = sin (lon);
           float radius = 1.0;
-          int jglo = iglooff[jlat-1] + jlon;
-          (*xyz)[3*jglo+0] = coslon * coslat * radius;
-          (*xyz)[3*jglo+1] = sinlon * coslat * radius;
-          (*xyz)[3*jglo+2] =          sinlat * radius;
+          int jglo = iglooff[jlat-1] + jlon - 1;
+          float X = coslon * coslat * radius;
+          float Y = sinlon * coslat * radius;
+          float Z =          sinlat * radius;
+          glm::vec4 XYZ = glm::vec4 (X, Y, Z, 0.0f);
+          XYZ = rot * XYZ;
+
+          if (3*jglo+2 >= 3 * v_len)
+            abort ();
+
+          (*xyz)[3*jglo+0] = XYZ.x;
+          (*xyz)[3*jglo+1] = XYZ.y;
+          (*xyz)[3*jglo+2] = XYZ.z;
         }
     }
   
