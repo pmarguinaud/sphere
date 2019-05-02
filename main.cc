@@ -7,6 +7,7 @@
 #include "shader.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <iostream>
 
 #include <glm/glm.hpp>
@@ -16,6 +17,90 @@
 #include <unistd.h>
 
 
+static const char * type2str (GLint type)
+{
+#define case_type(x) case x: return #x
+  switch (type)
+    {
+      case_type (GL_FLOAT);
+      case_type (GL_FLOAT_VEC2);
+      case_type (GL_FLOAT_VEC3);
+      case_type (GL_FLOAT_VEC4);
+      case_type (GL_DOUBLE);
+      case_type (GL_DOUBLE_VEC2);
+      case_type (GL_DOUBLE_VEC3);
+      case_type (GL_DOUBLE_VEC4);
+      case_type (GL_INT);
+      case_type (GL_INT_VEC2);
+      case_type (GL_INT_VEC3);
+      case_type (GL_INT_VEC4);
+      case_type (GL_UNSIGNED_INT);
+      case_type (GL_UNSIGNED_INT_VEC2);
+      case_type (GL_UNSIGNED_INT_VEC3);
+      case_type (GL_UNSIGNED_INT_VEC4);
+      case_type (GL_BOOL);
+      case_type (GL_BOOL_VEC2);
+      case_type (GL_BOOL_VEC3);
+      case_type (GL_BOOL_VEC4);
+      case_type (GL_FLOAT_MAT2);
+      case_type (GL_FLOAT_MAT3);
+      case_type (GL_FLOAT_MAT4);
+      case_type (GL_FLOAT_MAT2x3);
+      case_type (GL_FLOAT_MAT2x4);
+      case_type (GL_FLOAT_MAT3x2);
+      case_type (GL_FLOAT_MAT3x4);
+      case_type (GL_FLOAT_MAT4x2);
+      case_type (GL_FLOAT_MAT4x3);
+      case_type (GL_DOUBLE_MAT2);
+      case_type (GL_DOUBLE_MAT3);
+      case_type (GL_DOUBLE_MAT4);
+      case_type (GL_DOUBLE_MAT2x3);
+      case_type (GL_DOUBLE_MAT2x4);
+      case_type (GL_DOUBLE_MAT3x2);
+      case_type (GL_DOUBLE_MAT3x4);
+      case_type (GL_DOUBLE_MAT4x2);
+      case_type (GL_DOUBLE_MAT4x3);
+      case_type (GL_SAMPLER_1D);
+      case_type (GL_SAMPLER_2D);
+      case_type (GL_SAMPLER_3D);
+      case_type (GL_SAMPLER_CUBE);
+      case_type (GL_SAMPLER_1D_SHADOW);
+      case_type (GL_SAMPLER_2D_SHADOW);
+      case_type (GL_SAMPLER_1D_ARRAY);
+      case_type (GL_SAMPLER_2D_ARRAY);
+      case_type (GL_SAMPLER_1D_ARRAY_SHADOW);
+      case_type (GL_SAMPLER_2D_ARRAY_SHADOW);
+      case_type (GL_SAMPLER_2D_MULTISAMPLE);
+      case_type (GL_SAMPLER_2D_MULTISAMPLE_ARRAY);
+      case_type (GL_SAMPLER_CUBE_SHADOW);
+      case_type (GL_SAMPLER_BUFFER);
+      case_type (GL_SAMPLER_2D_RECT);
+      case_type (GL_SAMPLER_2D_RECT_SHADOW);
+      case_type (GL_INT_SAMPLER_1D);
+      case_type (GL_INT_SAMPLER_2D);
+      case_type (GL_INT_SAMPLER_3D);
+      case_type (GL_INT_SAMPLER_CUBE);
+      case_type (GL_INT_SAMPLER_1D_ARRAY);
+      case_type (GL_INT_SAMPLER_2D_ARRAY);
+      case_type (GL_INT_SAMPLER_2D_MULTISAMPLE);
+      case_type (GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY);
+      case_type (GL_INT_SAMPLER_BUFFER);
+      case_type (GL_INT_SAMPLER_2D_RECT);
+      case_type (GL_UNSIGNED_INT_SAMPLER_1D);
+      case_type (GL_UNSIGNED_INT_SAMPLER_2D);
+      case_type (GL_UNSIGNED_INT_SAMPLER_3D);
+      case_type (GL_UNSIGNED_INT_SAMPLER_CUBE);
+      case_type (GL_UNSIGNED_INT_SAMPLER_1D_ARRAY);
+      case_type (GL_UNSIGNED_INT_SAMPLER_2D_ARRAY);
+      case_type (GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE);
+      case_type (GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY);
+      case_type (GL_UNSIGNED_INT_SAMPLER_BUFFER);
+      case_type (GL_UNSIGNED_INT_SAMPLER_2D_RECT);
+    }
+#undef case_type
+  return "GL_UNKNOWN";
+}
+
 void calc_md5 (const char * buf, int len, unsigned char out[])
 {
   MD5_CTX c;
@@ -24,41 +109,10 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
   MD5_Final (out, &c);
 }
 
-void prjlat (int jglo, int Nj, const int jglooff[])
-{
-  int jlat;
-  if ((jglooff[0] <= jglo) && (jglo <= jglooff[Nj]))
-    {
-      int jlat1 = 0, jlat2 = Nj;
-  
-
-      while (jlat1 < jlat2-1)
-        {
-          int jlatm = (jlat1 + jlat2) / 2;
-          if ((jglooff[jlat1] <= jglo) && (jglo <= jglooff[jlatm]))
-            {
-              jlat2 = jlatm;
-            }
-          else
-            {
-              jlat1 = jlatm;
-            }
-        }
-  
-      jlat = jlat1;
-    }
-  else
-    {
-      jlat = -1;
-    }
-  printf (" %8d -> %8d\n", jglo, jlat);
-}
-
 int main (int argc, char * argv[])
 {
   int Nj = atoi (argv[1]);
   int np; 
-  float * xyz;
   int * pl;
   unsigned int nt;
   unsigned int * ind;
@@ -73,32 +127,11 @@ int main (int argc, char * argv[])
 //bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
-#ifdef UNDEF
-  gensphere (Nj, &np, &xyz, &nt, &ind);
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
-
-  gensphere1 (Nj, &np, &xyz, &nt, &ind, &pl, &latitudes);
+  gensphere1 (Nj, &np, NULL, &nt, &ind, &pl, &latitudes);
 
   jglooff[0] = 0;
   for (int jlat = 2; jlat <= Nj+1; jlat++)
     jglooff[jlat-1] = jglooff[jlat-2] + pl[jlat-2];
-
-#ifdef UNDEF
-  for (int jglo = 0; jglo < np; jglo++)
-    prjlat (jglo, Nj, jglooff);
-  return 0;
-#endif
-
-#ifdef UNDEF
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
 
   if (! glfwInit ()) 
     {   
@@ -146,17 +179,11 @@ int main (int argc, char * argv[])
 
 
   GLuint VertexArrayID;
-  GLuint vertexbuffer, colorbuffer, elementbuffer;
+  GLuint elementbuffer;
 
   glGenVertexArrays (1, &VertexArrayID);
   glBindVertexArray (VertexArrayID);
 
-  glGenBuffers (1, &vertexbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-  
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
@@ -181,19 +208,29 @@ void main()
 R"CODE(
 #version 330 core
 
-layout(location = 0) in vec3 vertexPos;
 
 out vec4 fragmentColor;
 
-uniform mat4 MVP;
+layout (shared) uniform pl_block
+{
+  int pl[8000];     
+};
 
+layout (shared) uniform jglooff_block
+{
+  int jglooff[8000];     
+};
+
+layout (shared) uniform latitudes_block
+{
+  float latitudes[8000];     
+};
+
+uniform mat4 MVP;
 uniform sampler2D texture;
 uniform int Nj;
-uniform int pl[4000];
-uniform int jglooff[4000];
-uniform float latitudes[4000];
 
-void main()
+void main ()
 {
   const float pi = 3.1415926;
   int jglo = gl_VertexID;
@@ -224,16 +261,10 @@ void main()
       // Should not happen !!
     }
 
-  float lon, lat, lon1, lat1;
+  float lon, lat;
 
-  lon = atan (vertexPos.y, vertexPos.x);
-  lat = asin (vertexPos.z);
-
-  lon1 = 2.0f * pi * float (jlon) / pl[jlat];
-  lat1 = latitudes[jlat];
-
-  lat = lat1;
-  lon = lon1;
+  lon = 2.0f * pi * float (jlon) / pl[jlat];
+  lat = latitudes[jlat];
 
   float sinlat = sin (lat), coslat = cos (lat);
   float sinlon = sin (lon), coslon = cos (lon);
@@ -245,68 +276,14 @@ void main()
   float xlon = (lon / pi + 1.0) * 0.5;
   float xlat = lat / pi + 0.5;
 
-  if (true){
   vec4 col = texture2D (texture, vec2 (xlon, xlat));
   fragmentColor.r = col.r;
   fragmentColor.g = col.g;
   fragmentColor.b = col.b;
   fragmentColor.a = 1.;
-  }else{
-//fragmentColor.r = jglo/1000000.;
-//fragmentColor.r = float (jlat) / Nj;
-  fragmentColor.r = float (jlon) / pl[jlat];
-  fragmentColor.g = 0.;
-  fragmentColor.b = 0.;
-  fragmentColor.a = 1.;
-  }
-
 
 }
 )CODE");
-#ifdef UNDEF
-  GLuint programID = shader 
-(
-R"CODE(
-#version 330 core
-
-in vec4 fragmentColor;
-
-out vec4 color;
-
-void main()
-{
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = fragmentColor.a;
-}
-)CODE",
-R"CODE(
-#version 330 core
-
-layout(location = 0) in vec3 vertexPos;
-
-out vec4 fragmentColor;
-
-uniform mat4 MVP;
-
-uniform sampler2D texture;
-
-void main()
-{
-  float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
-  gl_Position =  MVP * vec4 (vertexPos, 1);
-
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-  fragmentColor.r = col.r;
-  fragmentColor.g = col.g;
-  fragmentColor.b = col.b;
-  fragmentColor.a = 1.;
-
-}
-)CODE");
-#endif
 
   glUseProgram (programID);
 
@@ -318,11 +295,6 @@ void main()
 
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
   glUniform1i (glGetUniformLocation (programID, "Nj"), Nj);
-  glUniform1iv (glGetUniformLocation (programID, "pl"), Nj, pl);
-  glUniform1iv (glGetUniformLocation (programID, "jglooff"), Nj+1, jglooff);
-  glUniform1fv (glGetUniformLocation (programID, "latitudes"), Nj, latitudes);
-
-
 
   unsigned int texture;
   glGenTextures (1, &texture);
@@ -334,6 +306,50 @@ void main()
   glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
 
   glUniform1i (glGetUniformLocation (programID, "texture"), 0);
+
+
+
+  unsigned int pl_buf;
+  glGenBuffers (1, &pl_buf);
+  glBindBuffer (GL_UNIFORM_BUFFER, pl_buf);
+  glBufferData (GL_UNIFORM_BUFFER, Nj * sizeof (int), NULL, GL_STATIC_DRAW); 
+  
+  unsigned int pl_block = glGetUniformBlockIndex (programID, "pl_block");
+  glUniformBlockBinding (programID, pl_block, 1);
+  glBindBufferBase (GL_UNIFORM_BUFFER, 1, pl_buf); 
+  
+  glBindBuffer (GL_UNIFORM_BUFFER, pl_buf);
+  glBufferSubData (GL_UNIFORM_BUFFER, 0, Nj * sizeof (int), pl); 
+  glBindBuffer (GL_UNIFORM_BUFFER, 0);
+
+
+  unsigned int jglooff_buf;
+  glGenBuffers (1, &jglooff_buf);
+  glBindBuffer (GL_UNIFORM_BUFFER, jglooff_buf);
+  glBufferData (GL_UNIFORM_BUFFER, (Nj + 1) * sizeof (int), NULL, GL_STATIC_DRAW); 
+  
+  unsigned int jglooff_block = glGetUniformBlockIndex (programID, "jglooff_block");
+  glUniformBlockBinding (programID, jglooff_block, 2);
+  glBindBufferBase (GL_UNIFORM_BUFFER, 2, jglooff_buf); 
+  
+  glBindBuffer (GL_UNIFORM_BUFFER, jglooff_buf);
+  glBufferSubData (GL_UNIFORM_BUFFER, 0, (Nj + 1) * sizeof (int), jglooff); 
+  glBindBuffer (GL_UNIFORM_BUFFER, 0);
+
+
+  unsigned int latitudes_buf;
+  glGenBuffers (1, &latitudes_buf);
+  glBindBuffer (GL_UNIFORM_BUFFER, latitudes_buf);
+  glBufferData (GL_UNIFORM_BUFFER, Nj * sizeof (float), NULL, GL_STATIC_DRAW); 
+  
+  unsigned int latitudes_block = glGetUniformBlockIndex (programID, "latitudes_block");
+  glUniformBlockBinding (programID, latitudes_block, 3);
+  glBindBufferBase (GL_UNIFORM_BUFFER, 3, latitudes_buf); 
+  
+  glBindBuffer (GL_UNIFORM_BUFFER, latitudes_buf);
+  glBufferSubData (GL_UNIFORM_BUFFER, 0, Nj * sizeof (float), latitudes); 
+  glBindBuffer (GL_UNIFORM_BUFFER, 0);
+
 
   while (1) 
     {   

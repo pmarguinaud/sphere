@@ -162,7 +162,8 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   const int nstripe = 8;
   int indoff[nstripe];
 
-  *xyz = NULL;
+  if (xyz) 
+    *xyz = NULL;
 
   pl = (int *)malloc (sizeof (int) * Nj);
   *pl_ = pl;
@@ -200,7 +201,8 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   for (int jlat = 2; jlat <= Nj; jlat++)
      iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
-  *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+  if (xyz)
+    *xyz = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
 
@@ -212,19 +214,22 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
       float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
       (*latitudes)[jlat-1] = lat;
       float coslat = cos (lat); float sinlat = sin (lat);
-      for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      if (xyz)
         {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
-          float coslon = cos (lon); float sinlon = sin (lon);
-          float radius = 1.0;
-          int jglo = iglooff[jlat-1] + jlon - 1;
-          float X = coslon * coslat * radius;
-          float Y = sinlon * coslat * radius;
-          float Z =          sinlat * radius;
+          for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+            {
+              float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+              float coslon = cos (lon); float sinlon = sin (lon);
+              float radius = 1.0;
+              int jglo = iglooff[jlat-1] + jlon - 1;
+              float X = coslon * coslat * radius;
+              float Y = sinlon * coslat * radius;
+              float Z =          sinlat * radius;
 
-          (*xyz)[3*jglo+0] = X;
-          (*xyz)[3*jglo+1] = Y;
-          (*xyz)[3*jglo+2] = Z;
+              (*xyz)[3*jglo+0] = X;
+              (*xyz)[3*jglo+1] = Y;
+              (*xyz)[3*jglo+2] = Z;
+            }
         }
     }
   
