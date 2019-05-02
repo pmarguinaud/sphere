@@ -154,6 +154,78 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 }
 
 
+void gensphere1 (const int Nj, int * np, float ** xyz, 
+                 unsigned int * nt, unsigned int ** ind)
+{
+  int * pl = NULL;
+  const int nstripe = 8;
+  int indoff[nstripe];
+
+  *xyz = NULL;
+
+  pl = (int *)malloc (sizeof (int) * Nj);
+
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    {
+      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float coslat = cos (lat);
+      pl[jlat-1] = (2. * Nj * coslat);
+    }
+
+  *nt = 0;
+  for (int jlat = 1; jlat < Nj; jlat++)
+    *nt += pl[jlat-1] + pl[jlat];
+
+  for (int istripe = 0; istripe < nstripe; istripe++)
+    {
+      int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
+      int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
+      indoff[istripe] = 0;
+      for (int jlat = jlat1; jlat <= jlat2; jlat++)
+        indoff[istripe] += pl[jlat-1] + pl[jlat];
+    }
+  
+  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+  glgauss (Nj, pl, 2, *ind, nstripe, indoff);
+
+
+  int v_len = 0;
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    v_len += pl[jlat-1];
+  
+  int iglooff[Nj];
+  iglooff[0] = 0;
+  for (int jlat = 2; jlat <= Nj; jlat++)
+     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
+
+  *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+  *np  = v_len;
+
+//#pragma omp parallel for
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    {
+      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float coslat = cos (lat); float sinlat = sin (lat);
+      for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+        {
+          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float coslon = cos (lon); float sinlon = sin (lon);
+          float radius = 1.0;
+          int jglo = iglooff[jlat-1] + jlon - 1;
+          float X = coslon * coslat * radius;
+          float Y = sinlon * coslat * radius;
+          float Z =          sinlat * radius;
+
+          (*xyz)[3*jglo+0] = X;
+          (*xyz)[3*jglo+1] = Y;
+          (*xyz)[3*jglo+2] = Z;
+        }
+    }
+  
+  free (pl);
+
+  
+}
 void gensphere (const int Nj, int * np, float ** xyz, 
                 unsigned int * nt, unsigned int ** ind)
 {

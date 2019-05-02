@@ -12,6 +12,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <openssl/md5.h>
+#include <unistd.h>
+
+
+void calc_md5 (const char * buf, int len, unsigned char out[])
+{
+  MD5_CTX c;
+  MD5_Init (&c);
+  MD5_Update (&c, buf, len);
+  MD5_Final (out, &c);
+}
 
 
 int main (int argc, char * argv[])
@@ -19,19 +30,32 @@ int main (int argc, char * argv[])
   int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
-  unsigned int nt; 
+  unsigned int nt;
   unsigned int * ind;
   const int width = 1024, height = 1024;
   int w, h;
   unsigned char * rgb = NULL;
+  unsigned char md5[MD5_DIGEST_LENGTH];
 
 //bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
 //bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
+#ifdef UNDEF
   gensphere (Nj, &np, &xyz, &nt, &ind);
+  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
+  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
+     printf ("%02x", md5[i]);
+  printf ("\n");
+#endif
 
-
+  gensphere1 (Nj, &np, &xyz, &nt, &ind);
+#ifdef UNDEF
+  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
+  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
+     printf ("%02x", md5[i]);
+  printf ("\n");
+#endif
 
   if (! glfwInit ()) 
     {   
@@ -133,16 +157,6 @@ void main()
   fragmentColor.g = col.g;
   fragmentColor.b = col.b;
   fragmentColor.a = 1.;
-
-//fragmentColor.r = lon;
-//fragmentColor.g = 0.;
-//fragmentColor.b = lat;
-//fragmentColor.a = 1.;
-
-//fragmentColor.r = 1.;
-//fragmentColor.g = 1.;
-//fragmentColor.b = 1.;
-//fragmentColor.a = 1.;
 
 }
 )CODE");
