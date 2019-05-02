@@ -24,18 +24,50 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
   MD5_Final (out, &c);
 }
 
+void prjlat (int jglo, int Nj, const int jglooff[])
+{
+  int jlat;
+  if ((jglooff[0] <= jglo) && (jglo <= jglooff[Nj]))
+    {
+      int jlat1 = 0, jlat2 = Nj;
+  
+
+      while (jlat1 < jlat2-1)
+        {
+          int jlatm = (jlat1 + jlat2) / 2;
+          if ((jglooff[jlat1] <= jglo) && (jglo <= jglooff[jlatm]))
+            {
+              jlat2 = jlatm;
+            }
+          else
+            {
+              jlat1 = jlatm;
+            }
+        }
+  
+      jlat = jlat1;
+    }
+  else
+    {
+      jlat = -1;
+    }
+  printf (" %8d -> %8d\n", jglo, jlat);
+}
 
 int main (int argc, char * argv[])
 {
   int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
+  int * pl;
   unsigned int nt;
   unsigned int * ind;
   const int width = 1024, height = 1024;
   int w, h;
   unsigned char * rgb = NULL;
   unsigned char md5[MD5_DIGEST_LENGTH];
+  float * latitudes;
+  int jglooff[Nj+1];
 
 //bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
 //bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
@@ -49,7 +81,18 @@ int main (int argc, char * argv[])
   printf ("\n");
 #endif
 
-  gensphere1 (Nj, &np, &xyz, &nt, &ind);
+  gensphere1 (Nj, &np, &xyz, &nt, &ind, &pl, &latitudes);
+
+  jglooff[0] = 0;
+  for (int jlat = 2; jlat <= Nj+1; jlat++)
+    jglooff[jlat-1] = jglooff[jlat-2] + pl[jlat-2];
+
+#ifdef UNDEF
+  for (int jglo = 0; jglo < np; jglo++)
+    prjlat (jglo, Nj, jglooff);
+  return 0;
+#endif
+
 #ifdef UNDEF
   calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
   for (int i=0; i < MD5_DIGEST_LENGTH; i++)
@@ -145,6 +188,109 @@ out vec4 fragmentColor;
 uniform mat4 MVP;
 
 uniform sampler2D texture;
+uniform int Nj;
+uniform int pl[4000];
+uniform int jglooff[4000];
+uniform float latitudes[4000];
+
+void main()
+{
+  const float pi = 3.1415926;
+  int jglo = gl_VertexID;
+
+  int jlat, jlon;
+
+  // Lookup latitude & longitude indices
+  if ((jglooff[0] <= jglo) && (jglo <= jglooff[Nj]))
+    {
+      int jlat1 = 0, jlat2 = Nj;
+  
+      while (jlat1 < jlat2-1)
+        {
+          int jlatm = (jlat1 + jlat2) / 2;
+          if ((jglooff[jlat1] <= jglo) && (jglo <= jglooff[jlatm]))
+            jlat2 = jlatm;
+          else
+            jlat1 = jlatm;
+        }
+  
+      jlat = jlat1;
+
+      jlon = jglo - jglooff[jlat];
+
+    }
+  else
+    {
+      // Should not happen !!
+    }
+
+  float lon, lat, lon1, lat1;
+
+  lon = atan (vertexPos.y, vertexPos.x);
+  lat = asin (vertexPos.z);
+
+  lon1 = 2.0f * pi * float (jlon) / pl[jlat];
+  lat1 = latitudes[jlat];
+
+  lat = lat1;
+  lon = lon1;
+
+  float sinlat = sin (lat), coslat = cos (lat);
+  float sinlon = sin (lon), coslon = cos (lon);
+
+  vec3 xyz = vec3 (coslon * coslat, sinlon * coslat, sinlat);
+
+  gl_Position =  MVP * vec4 (xyz, 1);
+
+  float xlon = (lon / pi + 1.0) * 0.5;
+  float xlat = lat / pi + 0.5;
+
+  if (true){
+  vec4 col = texture2D (texture, vec2 (xlon, xlat));
+  fragmentColor.r = col.r;
+  fragmentColor.g = col.g;
+  fragmentColor.b = col.b;
+  fragmentColor.a = 1.;
+  }else{
+//fragmentColor.r = jglo/1000000.;
+//fragmentColor.r = float (jlat) / Nj;
+  fragmentColor.r = float (jlon) / pl[jlat];
+  fragmentColor.g = 0.;
+  fragmentColor.b = 0.;
+  fragmentColor.a = 1.;
+  }
+
+
+}
+)CODE");
+#ifdef UNDEF
+  GLuint programID = shader 
+(
+R"CODE(
+#version 330 core
+
+in vec4 fragmentColor;
+
+out vec4 color;
+
+void main()
+{
+  color.r = fragmentColor.r;
+  color.g = fragmentColor.g;
+  color.b = fragmentColor.b;
+  color.a = fragmentColor.a;
+}
+)CODE",
+R"CODE(
+#version 330 core
+
+layout(location = 0) in vec3 vertexPos;
+
+out vec4 fragmentColor;
+
+uniform mat4 MVP;
+
+uniform sampler2D texture;
 
 void main()
 {
@@ -160,18 +306,22 @@ void main()
 
 }
 )CODE");
+#endif
 
   glUseProgram (programID);
 
   glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
   glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-//glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (3.0f,0.0f,5.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
   glm::mat4 Model      = glm::mat4 (1.0f);
 
   glm::mat4 MVP = Projection * View * Model; 
 
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+  glUniform1i (glGetUniformLocation (programID, "Nj"), Nj);
+  glUniform1iv (glGetUniformLocation (programID, "pl"), Nj, pl);
+  glUniform1iv (glGetUniformLocation (programID, "jglooff"), Nj+1, jglooff);
+  glUniform1fv (glGetUniformLocation (programID, "latitudes"), Nj, latitudes);
+
 
 
   unsigned int texture;

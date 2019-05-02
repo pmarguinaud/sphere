@@ -5,3 +5,6 @@ main.x: main.cc gensphere.cc shader.cc bmp.cc
 
 clean:
 	\rm -f *.o *.x
+
+test: main.x
+	./main.x 1000

@@ -155,7 +155,8 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 
 
 void gensphere1 (const int Nj, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind)
+                 unsigned int * nt, unsigned int ** ind, 
+		 int ** pl_, float ** latitudes)
 {
   int * pl = NULL;
   const int nstripe = 8;
@@ -164,6 +165,7 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   *xyz = NULL;
 
   pl = (int *)malloc (sizeof (int) * Nj);
+  *pl_ = pl;
 
   for (int jlat = 1; jlat <= Nj; jlat++)
     {
@@ -201,10 +203,14 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
+
+  *latitudes = (float *)malloc (sizeof (float) * Nj);
+
 //#pragma omp parallel for
   for (int jlat = 1; jlat <= Nj; jlat++)
     {
       float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      (*latitudes)[jlat-1] = lat;
       float coslat = cos (lat); float sinlat = sin (lat);
       for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
         {
@@ -222,7 +228,6 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
         }
     }
   
-  free (pl);
 
   
 }
