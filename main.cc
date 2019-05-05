@@ -160,7 +160,7 @@ void main()
             glUseProgram (programID);
             glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
             float COL[3] = {0., 0., 0.};
-            COL[i] = 1.;
+            COL[i%3] = 1.;
             glUniform3fv (glGetUniformLocation (programID, "COL"), 1, COL);
 
             glViewport (0, 0, width, height);
