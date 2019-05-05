@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <eccodes.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,7 +27,7 @@
   } while (0)
 
 static 
-void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int nstripe, int indcnt[])
+void glgauss (const long int Nj, const long int pl[], int pass, unsigned int * ind, int nstripe, int indcnt[])
 {
   int iglooff[Nj];
   int indcntoff[nstripe];
@@ -154,23 +155,33 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 }
 
 
-void gensphere1 (const int Nj, int * np, float ** xyz, 
+void gensphere1 (const char * file, int * np, float ** xyz, 
                  unsigned int * nt, unsigned int ** ind)
 {
-  int * pl = NULL;
+  long int Nj;
+  long int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  pl = (int *)malloc (sizeof (int) * Nj);
+  FILE * in = fopen (file, "r");
 
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
-      float coslat = cos (lat);
-      pl[jlat-1] = (2. * Nj * coslat);
-    }
+  int err = 0;
+  size_t v_len = 0;
+  codes_handle * h = codes_handle_new_from_file (0, in, PRODUCT_GRIB, &err);
+
+  size_t pl_len;
+  codes_get_long (h, "Nj", &Nj);
+  codes_get_size (h, "pl", &pl_len);
+
+  pl = (long int *)malloc (sizeof (long int) * pl_len);
+  codes_get_long_array (h, "pl", pl, &pl_len);
+  codes_handle_delete (h);
+
+  fclose (in);
+
+
 
   *nt = 0;
   for (int jlat = 1; jlat < Nj; jlat++)
@@ -189,7 +200,7 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   glgauss (Nj, pl, 2, *ind, nstripe, indoff);
 
 
-  int v_len = 0;
+  v_len = 0;
   for (int jlat = 1; jlat <= Nj; jlat++)
     v_len += pl[jlat-1];
   
@@ -229,13 +240,13 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
 void gensphere (const int Nj, int * np, float ** xyz, 
                 unsigned int * nt, unsigned int ** ind)
 {
-  int * pl = NULL;
+  long int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  pl = (int *)malloc (sizeof (int) * Nj);
+  pl = (long int *)malloc (sizeof (long int) * Nj);
 
   for (int jlat = 1; jlat <= Nj; jlat++)
     {

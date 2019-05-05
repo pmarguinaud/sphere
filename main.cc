@@ -14,6 +14,7 @@
 
 #include <openssl/md5.h>
 #include <unistd.h>
+#include "load.h"
 
 
 void calc_md5 (const char * buf, int len, unsigned char out[])
@@ -27,7 +28,6 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
 
 int main (int argc, char * argv[])
 {
-  int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
   unsigned int nt;
@@ -37,25 +37,8 @@ int main (int argc, char * argv[])
   unsigned char * rgb = NULL;
   unsigned char md5[MD5_DIGEST_LENGTH];
 
-//bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
-//bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
-
-#ifdef UNDEF
-  gensphere (Nj, &np, &xyz, &nt, &ind);
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
-
-  gensphere1 (Nj, &np, &xyz, &nt, &ind);
-#ifdef UNDEF
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
+  gensphere1 (argv[1], &np, &xyz, &nt, &ind);
+  glgrib_load_rgb (argv[1], &rgb);
 
   if (! glfwInit ()) 
     {   
@@ -113,6 +96,14 @@ int main (int argc, char * argv[])
   glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+
+  const int ncol = 3;
+  glGenBuffers (1, &colorbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, colorbuffer);
+  glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), rgb, GL_STATIC_DRAW);
+  glEnableVertexAttribArray (1); 
+  glVertexAttribPointer (1, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
+
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
@@ -139,23 +130,19 @@ R"CODE(
 #version 330 core
 
 layout(location = 0) in vec3 vertexPos;
+layout(location = 1) in vec3 vertexCol;
 
 out vec4 fragmentColor;
 
 uniform mat4 MVP;
 
-uniform sampler2D texture;
-
 void main()
 {
-  float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
   gl_Position =  MVP * vec4 (vertexPos, 1);
 
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-  fragmentColor.r = col.r;
-  fragmentColor.g = col.g;
-  fragmentColor.b = col.b;
+  fragmentColor.r = vertexCol.r;
+  fragmentColor.g = vertexCol.g;
+  fragmentColor.b = vertexCol.b;
   fragmentColor.a = 1.;
 
 }
@@ -172,18 +159,6 @@ void main()
   glm::mat4 MVP = Projection * View * Model; 
 
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
-
-  unsigned int texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
-
-  glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
   while (1) 
     {   
