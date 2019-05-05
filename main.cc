@@ -44,7 +44,7 @@ int main (int argc, char * argv[])
       return -1;
     }   
 
-  GLFWwindow * window1, * window2;
+  GLFWwindow * window[2];
   
   glfwWindowHint (GLFW_SAMPLES, 4);
   glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -52,17 +52,17 @@ int main (int argc, char * argv[])
   glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window1 = glfwCreateWindow (width, height, "", NULL, NULL);
-  window2 = glfwCreateWindow (width, height, "", NULL, window1);
+  window[0] = glfwCreateWindow (width, height, "", NULL, NULL);
+  window[1] = glfwCreateWindow (width, height, "", NULL, window[0]);
     
-  if (window1 == NULL)
+  if (window[0] == NULL)
     { 
-      fprintf (stderr, "Failed to open GLFW window1\n");
+      fprintf (stderr, "Failed to open GLFW window[0]\n");
       glfwTerminate ();
       return -1;
     }
   
-  glfwMakeContextCurrent (window1);
+  glfwMakeContextCurrent (window[0]);
   glfwSwapInterval(1);
 
 
@@ -116,16 +116,15 @@ layout(location = 0) in vec3 vertexPos;
 out vec4 fragmentColor;
 
 uniform mat4 MVP;
+uniform vec3 COL = vec3 (1.0, 1.0, 1.0);
 
 void main()
 {
   gl_Position =  MVP * vec4 (vertexPos, 1);
-
-  fragmentColor.r = 1.;
-  fragmentColor.g = 0.;
-  fragmentColor.b = 1.;
+  fragmentColor.r = COL.r;
+  fragmentColor.g = COL.g;
+  fragmentColor.b = COL.b;
   fragmentColor.a = 1.;
-
 }
 )CODE");
 
@@ -136,13 +135,8 @@ void main()
 
   glm::mat4 MVP = Projection * View * Model; 
 
-  glUseProgram (programID);
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
 
-
-  glfwMakeContextCurrent (window2);
-  glUseProgram (programID);
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+  glfwMakeContextCurrent (window[1]);
 
   GLuint VertexArrayID2;
 
@@ -158,34 +152,39 @@ void main()
 
   while (1) 
     {   
-      //
-      glfwMakeContextCurrent (window1);
-      glViewport (0, 0, width, height);
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      for (int i = 0; i < 2; i++)
+        if (window[i])
+          {
+            glfwMakeContextCurrent (window[i]);
+            glUseProgram (programID);
+            glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+            float COL[3] = {0., 0., 0.};
+            COL[i] = 1.;
+            glUniform3fv (glGetUniformLocation (programID, "COL"), 1, COL);
 
-      glBindVertexArray (VertexArrayID1);
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+            glViewport (0, 0, width, height);
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      glfwSwapBuffers (window1);
-      glfwPollEvents (); 
+            glBindVertexArray (VertexArrayID1);
+            glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+
+            glfwSwapBuffers (window[i]);
+            glfwPollEvents (); 
   
-      //
-      glfwMakeContextCurrent (window2);
-      glViewport (0, 0, width, height);
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      glBindVertexArray (VertexArrayID2);
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
-
-      glfwSwapBuffers (window2);
-      glfwPollEvents (); 
-  
-      if (glfwGetKey (window1, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        break;
-      if (glfwWindowShouldClose (window1) != 0)  
-        break;
+            if ((glfwGetKey (window[i], GLFW_KEY_ESCAPE) == GLFW_PRESS) 
+             || (glfwWindowShouldClose (window[i]) != 0))
+              {
+                glfwDestroyWindow (window[i]);
+                window[i] = NULL;
+              }
+           }
+      for (int i = 0; i < 2; i++)
+        if (window[i])
+          goto cont;
+      break;
+      cont:
+      continue;
     }   
-
 
   glfwTerminate ();
 
