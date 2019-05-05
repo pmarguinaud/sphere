@@ -14,6 +14,7 @@
 
 #include <openssl/md5.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "load.h"
 
 
@@ -160,6 +161,11 @@ void main()
 
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
 
+  struct timeval tv1, tv2;
+  struct timezone tz; 
+
+  gettimeofday (&tv1, &tz);
+  int count = 0;
   while (1) 
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -174,7 +180,13 @@ void main()
         break;
       if (glfwWindowShouldClose (window) != 0)  
         break;
+      count++;
+      if (count == 200)
+        break;
     }   
+  gettimeofday (&tv2, &tz);
+
+  printf ("%lf\n", tv2.tv_sec + (double)tv2.tv_usec / 1000000. - tv1.tv_sec - (double)tv1.tv_usec / 1000000.);
 
 
   glfwTerminate ();
