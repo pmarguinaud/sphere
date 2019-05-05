@@ -44,7 +44,8 @@ int main (int argc, char * argv[])
       return -1;
     }   
 
-  GLFWwindow * window[2];
+  const int nwin = 3;
+  GLFWwindow * window[nwin] = {NULL, NULL, NULL};
   
   glfwWindowHint (GLFW_SAMPLES, 4);
   glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -52,20 +53,19 @@ int main (int argc, char * argv[])
   glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window[0] = glfwCreateWindow (width, height, "", NULL, NULL);
-  window[1] = glfwCreateWindow (width, height, "", NULL, window[0]);
-    
-  if (window[0] == NULL)
-    { 
-      fprintf (stderr, "Failed to open GLFW window[0]\n");
-      glfwTerminate ();
-      return -1;
+  // Create windows
+  for (int i = 0; i < nwin; i++)
+    {
+      window[i] = glfwCreateWindow (width, height, "", NULL, window[0]);
+      if (window[i] == NULL)
+        { 
+          fprintf (stderr, "Failed to open GLFW window\n");
+          glfwTerminate ();
+          return -1;
+        }
     }
   
   glfwMakeContextCurrent (window[0]);
-  glfwSwapInterval(1);
-
-
   
   glewExperimental = true; 
   if (glewInit () != GLEW_OK)
@@ -75,22 +75,18 @@ int main (int argc, char * argv[])
       return -1;
     }
 
-  GLuint VertexArrayID1;
+  // Create buffers
   GLuint vertexbuffer, elementbuffer;
-
-  glGenVertexArrays (1, &VertexArrayID1);
-  glBindVertexArray (VertexArrayID1);
 
   glGenBuffers (1, &vertexbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
   glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
 
+  // Create shaders
   GLuint programID = shader 
 (
 R"CODE(
@@ -136,23 +132,28 @@ void main()
   glm::mat4 MVP = Projection * View * Model; 
 
 
-  glfwMakeContextCurrent (window[1]);
 
-  GLuint VertexArrayID2;
+  // Create VAOs
+  GLuint VertexArrayID[nwin];
 
-  glGenVertexArrays (1, &VertexArrayID2);
-  glBindVertexArray (VertexArrayID2);
+  for (int i = 0; i < nwin; i++)
+    {
+      glfwMakeContextCurrent (window[i]);
+      glGenVertexArrays (1, &VertexArrayID[i]);
+      glBindVertexArray (VertexArrayID[i]);
 
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-  
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
+      glEnableVertexAttribArray (0); 
+      glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+      
+      glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+    }
 
 
   while (1) 
     {   
-      for (int i = 0; i < 2; i++)
+      // Render windows
+      for (int i = 0; i < nwin; i++)
         if (window[i])
           {
             glfwMakeContextCurrent (window[i]);
@@ -165,7 +166,7 @@ void main()
             glViewport (0, 0, width, height);
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            glBindVertexArray (VertexArrayID1);
+            glBindVertexArray (VertexArrayID[i]);
             glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
 
             glfwSwapBuffers (window[i]);
@@ -178,7 +179,7 @@ void main()
                 window[i] = NULL;
               }
            }
-      for (int i = 0; i < 2; i++)
+      for (int i = 0; i < nwin; i++)
         if (window[i])
           goto cont;
       break;
