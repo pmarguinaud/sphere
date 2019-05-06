@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <memory>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,12 +25,39 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
   MD5_Final (out, &c);
 }
 
+class opengl_buffer
+{
+public:
+  GLuint id;
+  bool allocated = false;
+  opengl_buffer (size_t size, void * data)
+  {
+    glGenBuffers (1, &id);
+    glBindBuffer (GL_ARRAY_BUFFER, id);
+    glBufferData (GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    allocated = true;
+  }
+  ~opengl_buffer ()
+  {
+    if (allocated)
+      glDeleteBuffers (1, &id);
+    std::cout << "~opengl_buffer" << std::endl;
+    allocated = false;
+  }
+};
+
+typedef std::shared_ptr<opengl_buffer> opengl_buffer_ptr;
+opengl_buffer_ptr new_opengl_buffer_ptr (size_t size, void * data)
+{
+  return std::make_shared<opengl_buffer>(size, data);
+}
+
 
 class mywindow
 {
 public:
   mywindow (int, int, int, class mywindow *);
-  void init (GLuint, int, GLuint, GLuint);
+  void init (GLuint, int, opengl_buffer_ptr, opengl_buffer_ptr);
   void run (const glm::mat4 &);
   GLFWwindow * window = NULL;
   ~mywindow ();
@@ -39,6 +67,7 @@ public:
   int width, height;
   int rank;
   int nt;
+  opengl_buffer_ptr elementbuffer, vertexbuffer;
 };
 
 mywindow::mywindow (int w, int h, int r, class mywindow * ctx)
@@ -80,8 +109,11 @@ void mywindow::run (const glm::mat4 & MVP)
     close = true;
 }
 
-void mywindow::init (GLuint program, int nt_, GLuint vertexbuffer, GLuint elementbuffer)
+void mywindow::init (GLuint program, int nt_, opengl_buffer_ptr vb, opengl_buffer_ptr eb)
 {
+  elementbuffer = eb;
+  vertexbuffer = vb;
+
   nt = nt_;
   programID = program;
   // Create VAOs
@@ -90,11 +122,11 @@ void mywindow::init (GLuint program, int nt_, GLuint vertexbuffer, GLuint elemen
   glGenVertexArrays (1, &VertexArrayID);
   glBindVertexArray (VertexArrayID);
 
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer->id);
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
   
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer->id);
 }
 
 
@@ -148,17 +180,6 @@ int main (int argc, char * argv[])
       return -1;
     }
 
-  // Create buffers
-  GLuint vertexbuffer, elementbuffer;
-
-  glGenBuffers (1, &vertexbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
-  
-  glGenBuffers (1, &elementbuffer);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
-
   // Create shaders
   GLuint programID = shader 
 (
@@ -205,8 +226,18 @@ void main()
   glm::mat4 MVP = Projection * View * Model; 
 
 
+{
+  // Create buffers
+
+  opengl_buffer_ptr vertexbuffer, elementbuffer;
+
+  vertexbuffer = new_opengl_buffer_ptr (3 * np * sizeof (float), xyz);
+  elementbuffer = new_opengl_buffer_ptr (3 * nt * sizeof (unsigned int), ind);
+
+  // Init windows
   for (int i = 0; i < nwin; i++)
     window[i]->init (programID, nt, vertexbuffer, elementbuffer); 
+}
 
   while (1) 
     {   
@@ -228,6 +259,8 @@ void main()
       cont:
       continue;
     }   
+
+  std::cout << "---- END ----" << std::endl;
 
   glfwTerminate ();
 
