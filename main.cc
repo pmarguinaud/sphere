@@ -25,6 +25,26 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
 }
 
 
+class mywindow
+{
+public:
+  mywindow (int, int, class mywindow *);
+  GLFWwindow * window = NULL;
+  ~mywindow ();
+};
+
+mywindow::mywindow (int width, int height, class mywindow * ctx)
+{
+  window = glfwCreateWindow (width, height, "", NULL, ctx ? ctx->window : NULL);
+}
+
+mywindow::~mywindow ()
+{
+  if (window)
+    glfwDestroyWindow (window);
+  window = NULL;
+}
+
 int main (int argc, char * argv[])
 {
   int Nj = atoi (argv[1]);
@@ -45,7 +65,7 @@ int main (int argc, char * argv[])
     }   
 
   const int nwin = 3;
-  GLFWwindow * window[nwin] = {NULL, NULL, NULL};
+  mywindow * window[nwin] = {NULL, NULL, NULL};
   
   glfwWindowHint (GLFW_SAMPLES, 4);
   glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -56,7 +76,7 @@ int main (int argc, char * argv[])
   // Create windows
   for (int i = 0; i < nwin; i++)
     {
-      window[i] = glfwCreateWindow (width, height, "", NULL, window[0]);
+      window[i] = new mywindow (width, height, window[0]);
       if (window[i] == NULL)
         { 
           fprintf (stderr, "Failed to open GLFW window\n");
@@ -65,7 +85,7 @@ int main (int argc, char * argv[])
         }
     }
   
-  glfwMakeContextCurrent (window[0]);
+  glfwMakeContextCurrent (window[1]->window);
   
   glewExperimental = true; 
   if (glewInit () != GLEW_OK)
@@ -138,7 +158,7 @@ void main()
 
   for (int i = 0; i < nwin; i++)
     {
-      glfwMakeContextCurrent (window[i]);
+      glfwMakeContextCurrent (window[i]->window);
       glGenVertexArrays (1, &VertexArrayID[i]);
       glBindVertexArray (VertexArrayID[i]);
 
@@ -156,7 +176,7 @@ void main()
       for (int i = 0; i < nwin; i++)
         if (window[i])
           {
-            glfwMakeContextCurrent (window[i]);
+            glfwMakeContextCurrent (window[i]->window);
             glUseProgram (programID);
             glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
             float COL[3] = {0., 0., 0.};
@@ -169,13 +189,13 @@ void main()
             glBindVertexArray (VertexArrayID[i]);
             glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
 
-            glfwSwapBuffers (window[i]);
+            glfwSwapBuffers (window[i]->window);
             glfwPollEvents (); 
   
-            if ((glfwGetKey (window[i], GLFW_KEY_ESCAPE) == GLFW_PRESS) 
-             || (glfwWindowShouldClose (window[i]) != 0))
+            if ((glfwGetKey (window[i]->window, GLFW_KEY_ESCAPE) == GLFW_PRESS) 
+             || (glfwWindowShouldClose (window[i]->window) != 0))
               {
-                glfwDestroyWindow (window[i]);
+                delete window[i];
                 window[i] = NULL;
               }
            }
