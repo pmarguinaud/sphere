@@ -28,22 +28,75 @@ void calc_md5 (const char * buf, int len, unsigned char out[])
 class mywindow
 {
 public:
-  mywindow (int, int, class mywindow *);
+  mywindow (int, int, int, class mywindow *);
+  void init (GLuint, int, GLuint, GLuint);
+  void run (const glm::mat4 &);
   GLFWwindow * window = NULL;
   ~mywindow ();
+  GLuint VertexArrayID;
+  bool close = false;
+  GLuint programID;
+  int width, height;
+  int rank;
+  int nt;
 };
 
-mywindow::mywindow (int width, int height, class mywindow * ctx)
+mywindow::mywindow (int w, int h, int r, class mywindow * ctx)
 {
+  width = w;
+  height = h;
+  rank = r;
   window = glfwCreateWindow (width, height, "", NULL, ctx ? ctx->window : NULL);
 }
 
 mywindow::~mywindow ()
 {
+  glDeleteVertexArrays (1, &VertexArrayID);
   if (window)
     glfwDestroyWindow (window);
   window = NULL;
 }
+
+void mywindow::run (const glm::mat4 & MVP)
+{
+  glfwMakeContextCurrent (window);
+  glUseProgram (programID);
+  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+  float COL[3] = {0., 0., 0.};
+  COL[rank%3] = 1.;
+  glUniform3fv (glGetUniformLocation (programID, "COL"), 1, COL);
+
+  glViewport (0, 0, width, height);
+  glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  glBindVertexArray (VertexArrayID);
+  glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+
+  glfwSwapBuffers (window);
+  glfwPollEvents (); 
+  
+  if ((glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS) 
+   || (glfwWindowShouldClose (window) != 0))
+    close = true;
+}
+
+void mywindow::init (GLuint program, int nt_, GLuint vertexbuffer, GLuint elementbuffer)
+{
+  nt = nt_;
+  programID = program;
+  // Create VAOs
+
+  glfwMakeContextCurrent (window);
+  glGenVertexArrays (1, &VertexArrayID);
+  glBindVertexArray (VertexArrayID);
+
+  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
+  glEnableVertexAttribArray (0); 
+  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+  
+  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+}
+
 
 int main (int argc, char * argv[])
 {
@@ -76,7 +129,7 @@ int main (int argc, char * argv[])
   // Create windows
   for (int i = 0; i < nwin; i++)
     {
-      window[i] = new mywindow (width, height, window[0]);
+      window[i] = new mywindow (width, height, i, window[0]);
       if (window[i] == NULL)
         { 
           fprintf (stderr, "Failed to open GLFW window\n");
@@ -152,23 +205,8 @@ void main()
   glm::mat4 MVP = Projection * View * Model; 
 
 
-
-  // Create VAOs
-  GLuint VertexArrayID[nwin];
-
   for (int i = 0; i < nwin; i++)
-    {
-      glfwMakeContextCurrent (window[i]->window);
-      glGenVertexArrays (1, &VertexArrayID[i]);
-      glBindVertexArray (VertexArrayID[i]);
-
-      glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-      glEnableVertexAttribArray (0); 
-      glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-      
-      glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-    }
-
+    window[i]->init (programID, nt, vertexbuffer, elementbuffer); 
 
   while (1) 
     {   
@@ -176,24 +214,8 @@ void main()
       for (int i = 0; i < nwin; i++)
         if (window[i])
           {
-            glfwMakeContextCurrent (window[i]->window);
-            glUseProgram (programID);
-            glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-            float COL[3] = {0., 0., 0.};
-            COL[i%3] = 1.;
-            glUniform3fv (glGetUniformLocation (programID, "COL"), 1, COL);
-
-            glViewport (0, 0, width, height);
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            glBindVertexArray (VertexArrayID[i]);
-            glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
-
-            glfwSwapBuffers (window[i]->window);
-            glfwPollEvents (); 
-  
-            if ((glfwGetKey (window[i]->window, GLFW_KEY_ESCAPE) == GLFW_PRESS) 
-             || (glfwWindowShouldClose (window[i]->window) != 0))
+            window[i]->run (MVP);
+            if (window[i]->close)
               {
                 delete window[i];
                 window[i] = NULL;
