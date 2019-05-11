@@ -37,25 +37,9 @@ int main (int argc, char * argv[])
   unsigned char * rgb = NULL;
   unsigned char md5[MD5_DIGEST_LENGTH];
 
-//bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
-//bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
-#ifdef UNDEF
-  gensphere (Nj, &np, &xyz, &nt, &ind);
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
-
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
-#ifdef UNDEF
-  calc_md5 ((const char *)ind, sizeof (unsigned int) * nt, md5);
-  for (int i=0; i < MD5_DIGEST_LENGTH; i++)
-     printf ("%02x", md5[i]);
-  printf ("\n");
-#endif
 
   if (! glfwInit ()) 
     {   
@@ -151,6 +135,8 @@ out vec3 fragmentPos;
 
 uniform mat4 MVP;
 
+const float pi = 3.1415926;
+
 void main()
 {
   vec3 normedPos;
@@ -163,7 +149,15 @@ void main()
   normedPos.y = y * r;
   normedPos.z = z * r;
 
-  gl_Position =  MVP * vec4 (vertexPos, 1);
+  if(true)
+  {
+  float lon = (atan (normedPos.y, normedPos.x) / pi + 1.0) * 0.5;
+  float lat = asin (normedPos.z) / pi + 0.5;
+  vec3 pos = vec3 (0., 2 * (lon - 0.5), lat - 0.5);
+  gl_Position =  MVP * vec4 (pos, 1);
+  }else{
+  gl_Position =  MVP * vec4 (normedPos, 1);
+  }
 
   fragmentPos = normedPos;
 
@@ -174,8 +168,10 @@ void main()
 
   glUseProgram (programID);
 
-  glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-  glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+//glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+  glm::mat4 Projection = glm::ortho(-1.0f, +1.0f, -1.0f, +1.0f, 0.1f, 100.0f);
+//glm::mat4 View       = glm::lookAt (glm::vec3 (-6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+  glm::mat4 View       = glm::lookAt (glm::vec3 (+6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
 //glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
 //glm::mat4 View       = glm::lookAt (glm::vec3 (3.0f,0.0f,5.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
   glm::mat4 Model      = glm::mat4 (1.0f);
