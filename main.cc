@@ -178,16 +178,30 @@ int main (int argc, char * argv[])
   glDepthFunc (GL_LESS); 
 
 
+  float * jlatv = (float *)malloc (sizeof (float) * np);
+  for (int jlat = 0, jglo = 0; jlat < Nj; jlat++)
+    for (int jlon = 0; jlon < pl[jlat]; jlon++, jglo++)
+      jlatv[jglo] = jlat;
 
   GLuint VertexArrayID;
-  GLuint elementbuffer;
+  GLuint elementbuffer, jlatbuffer;
+
 
   glGenVertexArrays (1, &VertexArrayID);
   glBindVertexArray (VertexArrayID);
 
+  glGenBuffers (1, &jlatbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, jlatbuffer);
+  glBufferData (GL_ARRAY_BUFFER, np * sizeof (float), jlatv, GL_STATIC_DRAW);
+  glEnableVertexAttribArray (0); 
+  glVertexAttribPointer (0, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+
+
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
+
+  glBindVertexArray (0);
 
   GLuint programID = shader 
 (
@@ -215,6 +229,8 @@ void main()
 R"CODE(
 #version 330 core
 
+layout (location = 0) in float zlat;
+
 
 out vec3 fragmentPos;
 
@@ -241,31 +257,8 @@ void main ()
   const float pi = 3.1415926;
   int jglo = gl_VertexID;
 
-  int jlat, jlon;
-
-  // Lookup latitude & longitude indices
-  if ((jglooff[0] <= jglo) && (jglo <= jglooff[Nj]))
-    {
-      int jlat1 = 0, jlat2 = Nj;
-  
-      while (jlat1 < jlat2-1)
-        {
-          int jlatm = (jlat1 + jlat2) / 2;
-          if ((jglooff[jlat1] <= jglo) && (jglo <= jglooff[jlatm]))
-            jlat2 = jlatm;
-          else
-            jlat1 = jlatm;
-        }
-  
-      jlat = jlat1;
-
-      jlon = jglo - jglooff[jlat];
-
-    }
-  else
-    {
-      // Should not happen !!
-    }
+  int jlat = int (zlat);
+  int jlon = jglo - jglooff[jlat];
 
   float lon, lat;
 
@@ -374,7 +367,7 @@ void main ()
         break;
       if (glfwWindowShouldClose (window) != 0)  
         break;
-      count++;
+//    count++;
       if (count == 200)
         break;
     }   
