@@ -14,6 +14,8 @@
 
 #include <openssl/md5.h>
 #include <unistd.h>
+#include <sys/time.h>
+
 
 
 void calc_md5 (const char * buf, int len, unsigned char out[])
@@ -192,6 +194,12 @@ void main()
 
   glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
+  struct timeval tv1, tv2;
+  struct timezone tz;
+
+  gettimeofday (&tv1, &tz);
+  int count = 0;
+
   while (1) 
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -206,7 +214,17 @@ void main()
         break;
       if (glfwWindowShouldClose (window) != 0)  
         break;
+      count++;
+      if (count == 200)
+        break;
+
     }   
+
+  gettimeofday (&tv2, &tz);
+
+  printf ("%lf\n", tv2.tv_sec + (double)tv2.tv_usec / 1000000. - tv1.tv_sec - (double)tv1.tv_usec / 1000000.);
+
+
 
 
   glfwTerminate ();
