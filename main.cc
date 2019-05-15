@@ -178,7 +178,7 @@ int main (int argc, char * argv[])
   glDepthFunc (GL_LESS); 
 
 
-  float * jlatv = (float *)malloc (sizeof (float) * np);
+  int * jlatv = (int *)malloc (sizeof (int) * np);
   for (int jlat = 0, jglo = 0; jlat < Nj; jlat++)
     for (int jlon = 0; jlon < pl[jlat]; jlon++, jglo++)
       jlatv[jglo] = jlat;
@@ -192,8 +192,9 @@ int main (int argc, char * argv[])
 
   glGenBuffers (1, &jlatbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, jlatbuffer);
-  glBufferData (GL_ARRAY_BUFFER, np * sizeof (float), jlatv, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, np * sizeof (int), jlatv, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
+//glVertexAttribPointer (0, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
   glVertexAttribPointer (0, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
 
 
@@ -229,7 +230,7 @@ void main()
 R"CODE(
 #version 330 core
 
-layout (location = 0) in float zlat;
+layout (location = 0) in int zlat;
 
 
 out vec3 fragmentPos;
@@ -257,7 +258,7 @@ void main ()
   const float pi = 3.1415926;
   int jglo = gl_VertexID;
 
-  int jlat = int (zlat);
+  int jlat = zlat;
   int jlon = jglo - jglooff[jlat];
 
   float lon, lat;
