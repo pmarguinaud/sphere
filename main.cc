@@ -158,9 +158,15 @@ void main()
   vec3 pos;
 
   if (gl_VertexID == 0)
-    pos = vec3 (0., 0., 0.);
+    pos = vec3 (+0.0, +0.0, +0.0);
   else if (gl_VertexID == 1)
-    pos = vec3 (1., 0., 0.);
+    pos = vec3 (+1.0, +0.0, +0.0);
+  else if (gl_VertexID == 2)
+    pos = vec3 (+0.9, +0.1, +0.0);
+  else if (gl_VertexID == 3)
+    pos = vec3 (+0.9, -0.1, +0.0);
+  else if (gl_VertexID == 4)
+    pos = vec3 (+1.0, +0.0, +0.0);
 
   float X = uv.x / 255.;
   float Y = uv.x / 255.;
@@ -197,7 +203,7 @@ void main()
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray (VertexArrayID);
-      glDrawArraysInstanced (GL_LINES, 0, 2, np); 
+      glDrawArraysInstanced (GL_LINE_STRIP, 0, 5, np); 
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
