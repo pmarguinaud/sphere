@@ -30,7 +30,7 @@ int main (int argc, char * argv[])
   int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
-  float * uv;
+  unsigned char * uv;
   unsigned int nt;
   unsigned int * ind;
   const int width = 1024, height = 1024;
@@ -49,12 +49,12 @@ int main (int argc, char * argv[])
     }   
 
 
-  uv = (float *)malloc (sizeof (float) * 2 * np);
+  uv = (unsigned char *)malloc (sizeof (unsigned char) * 2 * np);
 
   for (int i = 0; i < np; i++)
     {
-      uv[2*i+0] = 0.10;
-      uv[2*i+1] = 0.10;
+      uv[2*i+0] = 25;
+      uv[2*i+1] = 25;
     }
 
 
@@ -112,9 +112,9 @@ int main (int argc, char * argv[])
   
   glGenBuffers (1, &uvbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, uvbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (float), uv, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (unsigned char), uv, GL_STATIC_DRAW);
   glEnableVertexAttribArray (1); 
-  glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribPointer (1, 2, GL_UNSIGNED_BYTE, GL_FALSE, 0, NULL); 
   glVertexAttribDivisor (1, 1);  
   
   //
@@ -162,7 +162,10 @@ void main()
   else if (gl_VertexID == 1)
     pos = vec3 (1., 0., 0.);
 
-  pos = vertexPos + (pos.x * uv.x - pos.y * uv.y) * u + (pos.x * uv.y + pos.y * uv.x) * v;
+  float X = uv.x / 255.;
+  float Y = uv.x / 255.;
+
+  pos = vertexPos + (pos.x * X - pos.y * Y) * u + (pos.x * Y + pos.y * X) * v;
 
   gl_Position =  MVP * vec4 (pos, 1);
 
