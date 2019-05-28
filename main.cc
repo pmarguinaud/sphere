@@ -152,8 +152,8 @@ vec3 vprod (vec3 u, vec3 v)
 
 void main()
 {
-  vec3 u = normalize (vprod (vec3 (0., 0., 1.), vertexPos));
-  vec3 v = normalize (vprod (vertexPos, u));
+  vec3 u = normalize (vec3 (-vertexPos.y, +vertexPos.x, 0.));
+  vec3 v = vprod (vertexPos, u);
 
   vec3 pos;
 
