@@ -124,15 +124,13 @@ int main (int argc, char * argv[])
 R"CODE(
 #version 330 core
 
-in vec3 col;
-
 out vec4 color;
 
 void main ()
 {
-  color.r = col.r;
-  color.g = col.g;
-  color.b = col.b;
+  color.r = 1.;
+  color.g = 1.;
+  color.b = 1.;
   color.a = 1.;
 }
 )CODE",
@@ -142,8 +140,6 @@ R"CODE(
 
 layout (location = 0) in vec3 vertexPos;
 layout (location = 1) in vec2 uv;
-
-out vec3 col;
 
 uniform mat4 MVP;
 
@@ -161,17 +157,6 @@ void main()
 
   vec3 pos;
 
-
-
-  if (false){
-  if (gl_VertexID == 0)
-    pos = vec3 (0., 0., 0.);
-  else if (gl_VertexID == 1)
-    pos = vertexPos;
-  gl_Position =  MVP * vec4 (pos, 1);
-  col = abs (u);
-  }else{
-
   if (gl_VertexID == 0)
     pos = vec3 (0., 0., 0.);
   else if (gl_VertexID == 1)
@@ -180,8 +165,6 @@ void main()
   pos = vertexPos + (pos.x * uv.x - pos.y * uv.y) * u + (pos.x * uv.y + pos.y * uv.x) * v;
 
   gl_Position =  MVP * vec4 (pos, 1);
-  col = (vertexPos + 1) / 2.;
-  }
 
 }
 
