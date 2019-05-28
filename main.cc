@@ -54,7 +54,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < np; i++)
     {
       uv[2*i+0] = 0.10;
-      uv[2*i+1] = 0.00;
+      uv[2*i+1] = 0.10;
     }
 
 
@@ -177,7 +177,7 @@ void main()
   else if (gl_VertexID == 1)
     pos = vec3 (1., 0., 0.);
 
-  pos = vertexPos + pos.x * 0.1 * u + pos.y * 0.1 * v;
+  pos = vertexPos + (pos.x * uv.x - pos.y * uv.y) * u + (pos.x * uv.y + pos.y * uv.x) * v;
 
   gl_Position =  MVP * vec4 (pos, 1);
   col = (vertexPos + 1) / 2.;
