@@ -153,6 +153,7 @@ void main()
   {
   float lon = (atan (normedPos.y, normedPos.x) / pi + 1.0) * 0.5;
   float lat = asin (normedPos.z) / pi + 0.5;
+  lon = mod (lon + 0.5, 1);
   vec3 pos = vec3 (0., 2 * (lon - 0.5), lat - 0.5);
   gl_Position =  MVP * vec4 (pos, 1);
   }else{
