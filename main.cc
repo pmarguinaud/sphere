@@ -30,6 +30,7 @@ int main (int argc, char * argv[])
   int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
+  float * uv;
   unsigned int nt;
   unsigned int * ind;
   const int width = 1024, height = 1024;
@@ -46,6 +47,16 @@ int main (int argc, char * argv[])
       fprintf (stderr, "Failed to initialize GLFW\n");
       return -1;
     }   
+
+
+  uv = (float *)malloc (sizeof (float) * 2 * np);
+
+  for (int i = 0; i < np; i++)
+    {
+      uv[2*i+0] = 0.10;
+      uv[2*i+1] = 0.00;
+    }
+
 
   GLFWwindow * window;
   
@@ -87,7 +98,7 @@ int main (int argc, char * argv[])
 
 
   GLuint VertexArrayID;
-  GLuint vertexbuffer, colorbuffer, elementbuffer;
+  GLuint vertexbuffer, uvbuffer;
 
   glGenVertexArrays (1, &VertexArrayID);
   glBindVertexArray (VertexArrayID);
@@ -97,28 +108,28 @@ int main (int argc, char * argv[])
   glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribDivisor (0, 1);  
   
-  glGenBuffers (1, &elementbuffer);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
+  glGenBuffers (1, &uvbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, uvbuffer);
+  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (float), uv, GL_STATIC_DRAW);
+  glEnableVertexAttribArray (1); 
+  glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribDivisor (1, 1);  
+  
+  //
 
   GLuint programID = shader 
 (
 R"CODE(
 #version 330 core
 
-in vec3 fragmentPos;
-out vec4 color;
+in vec3 col;
 
-uniform sampler2D texture;
+out vec4 color;
 
 void main ()
 {
-  float lon = (atan (fragmentPos.y, fragmentPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (fragmentPos.z) / 3.1415926 + 0.5;
-
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-
   color.r = col.r;
   color.g = col.g;
   color.b = col.b;
@@ -130,37 +141,47 @@ R"CODE(
 #version 330 core
 
 layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in vec2 uv;
 
-out vec3 fragmentPos;
+out vec3 col;
 
 uniform mat4 MVP;
 
-const float pi = 3.1415926;
+vec3 vprod (vec3 u, vec3 v)
+{
+  return vec3 (u.y * v.z - u.z * v.y, 
+               u.z * v.x - u.x * v.z, 
+               u.x * v.y - u.y * v.x);
+}
 
 void main()
 {
-  vec3 normedPos;
+  vec3 u = normalize (vprod (vec3 (0., 0., 1.), vertexPos));
+  vec3 v = normalize (vprod (vertexPos, u));
 
-  float x = vertexPos.x;
-  float y = vertexPos.y;
-  float z = vertexPos.z;
-  float r = 1. / sqrt (x * x + y * y + z * z); 
-  normedPos.x = x * r;
-  normedPos.y = y * r;
-  normedPos.z = z * r;
+  vec3 pos;
 
-  if(true)
-  {
-  float lon = (atan (normedPos.y, normedPos.x) / pi + 1.0) * 0.5;
-  float lat = asin (normedPos.z) / pi + 0.5;
-  lon = mod (lon + 0.5, 1);
-  vec3 pos = vec3 (0., 2 * (lon - 0.5), lat - 0.5);
+
+
+  if (false){
+  if (gl_VertexID == 0)
+    pos = vec3 (0., 0., 0.);
+  else if (gl_VertexID == 1)
+    pos = vertexPos;
   gl_Position =  MVP * vec4 (pos, 1);
+  col = abs (u);
   }else{
-  gl_Position =  MVP * vec4 (normedPos, 1);
-  }
 
-  fragmentPos = normedPos;
+  if (gl_VertexID == 0)
+    pos = vec3 (0., 0., 0.);
+  else if (gl_VertexID == 1)
+    pos = vec3 (1., 0., 0.);
+
+  pos = vertexPos + pos.x * 0.1 * u + pos.y * 0.1 * v;
+
+  gl_Position =  MVP * vec4 (pos, 1);
+  col = (vertexPos + 1) / 2.;
+  }
 
 }
 
@@ -169,42 +190,48 @@ void main()
 
   glUseProgram (programID);
 
-//glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-  glm::mat4 Projection = glm::ortho(-1.0f, +1.0f, -1.0f, +1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (-6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 View       = glm::lookAt (glm::vec3 (+6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-//glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (3.0f,0.0f,5.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 Model      = glm::mat4 (1.0f);
 
-  glm::mat4 MVP = Projection * View * Model; 
+  float lon = 0., lat = 0.;
 
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
-
-  unsigned int texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
-
-  glUniform1i (glGetUniformLocation (programID, "texture"), 0);
+  bool ortho = true;
 
   while (1) 
     {   
+      float coslon = cos (glm::radians (lon)), sinlon = sin (glm::radians (lon));
+      float coslat = cos (glm::radians (lat)), sinlat = sin (glm::radians (lat));
+      float x = 6.0 * coslon * coslat, y = 6.0 * sinlon * coslat, z = 6.0 * sinlat;
+
+      glm::mat4 Projection = ortho ? glm::ortho(-1.0f, +1.0f, -1.0f, +1.0f, 0.1f, 100.0f)
+                                   : glm::perspective (glm::radians (20.0f), (float)width/(float)height, 0.1f, 100.0f);
+      glm::mat4 View       = glm::lookAt (glm::vec3 (x, y, z), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+      glm::mat4 Model      = glm::mat4 (1.0f);
+      glm::mat4 MVP = Projection * View * Model; 
+      glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glBindVertexArray (VertexArrayID);
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      glDrawArraysInstanced (GL_LINES, 0, 2, np); 
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
   
+      if (glfwGetKey (window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+          lat = 0.; lon = 0.;
+        }
+      if (glfwGetKey (window, GLFW_KEY_UP) == GLFW_PRESS)
+        lat += 1;
+      if (glfwGetKey (window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        lat -= 1;
+      if (glfwGetKey (window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        lon += 1;
+      if (glfwGetKey (window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        lon -= 1;
       if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         break;
+      if (glfwGetKey (window, GLFW_KEY_O) == GLFW_PRESS)
+        ortho = ! ortho;
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
