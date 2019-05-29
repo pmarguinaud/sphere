@@ -52,9 +52,15 @@ int main (int argc, char * argv[])
   uv = (unsigned char *)malloc (sizeof (unsigned char) * 2 * np);
 
   for (int i = 0; i < np; i++)
+  if (i % 3 == 0)
     {
       uv[2*i+0] = 25;
       uv[2*i+1] = 25;
+    }
+  else
+    {
+      uv[2*i+0] = 0;
+      uv[2*i+1] = 0;
     }
 
 
@@ -157,7 +163,9 @@ void main()
 
   vec3 pos;
 
-  if (gl_VertexID == 0)
+  if (uv.x == 0 && uv.y == 0)
+    pos = vec3 (+0.0, +0.0, +0.0);
+  else if (gl_VertexID == 0)
     pos = vec3 (+0.0, +0.0, +0.0);
   else if (gl_VertexID == 1)
     pos = vec3 (+1.0, +0.0, +0.0);
