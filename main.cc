@@ -40,6 +40,7 @@ void walk (int jlon, int jlat, unsigned char * r,
 
   for (jlonlat_t::pos_t pos1 = pos; ; )
     {
+
       if (jlonlat[pos1].ok ())
         {
           jlonlat_t::pos_t pos2 = jlonlat_t::next (pos1);
@@ -70,14 +71,50 @@ void walk (int jlon, int jlat, unsigned char * r,
           }
       
       
-          if (((r[jglo0] > 127) && (r[jglo1] <= 127)) 
-           || ((r[jglo1] > 127) && (r[jglo0] <= 127)))
+          bool b0 = r[jglo0] > 127;
+          bool b1 = r[jglo1] > 127;
+          bool b2 = r[jglo2] > 127;
+
+
+               if (( b0)&&( b1)&&( b2))
+            {
+              continue;
+            }
+          else if (( b0)&&( b1)&&(!b2))
             {
               ind1->push_back (jglo0);
               ind1->push_back (jglo1);
             }
+          else if (( b0)&&(!b1)&&( b2))
+            {
+              ind1->push_back (jglo0);
+              ind1->push_back (jglo2);
+            }
+          else if (( b0)&&(!b1)&&(!b2))
+            {
+              ind1->push_back (jglo1);
+              ind1->push_back (jglo2);
+            }
+          else if ((!b0)&&( b1)&&( b2))
+            {
+              ind1->push_back (jglo1);
+              ind1->push_back (jglo2);
+            }
+          else if ((!b0)&&( b1)&&(!b2))
+            {
+              ind1->push_back (jglo0);
+              ind1->push_back (jglo2);
+            }
+          else if ((!b0)&&(!b1)&&( b2))
+            {
+              ind1->push_back (jglo0);
+              ind1->push_back (jglo1);
+            }
+          else if ((!b0)&&(!b1)&&(!b2))
+            {
+              continue;
+            }
 
-           
         }
 next:
       pos1 = jlonlat_t::next (pos1);
