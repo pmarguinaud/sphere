@@ -8,7 +8,6 @@
 
 #include "gensphere.h"
 
-
 #define MODULO(x, y) ((x)%(y))
 #define JDLON(JLON1, JLON2) (MODULO ((JLON1) - 1, (iloen1)) * (iloen2) - MODULO ((JLON2) - 1, (iloen2)) * (iloen1))
 #define JNEXT(JLON, ILOEN) (1 + MODULO ((JLON), (ILOEN)))
@@ -231,20 +230,9 @@ void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9
   
   if (jlat == 1) 
     {
-      iloen = pl[jlat-1];
-      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
-      if (ir == 0) 
-        {
-          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+1, iloen), jlat);
-          jlonlat[jlonlat_t::IN_] = jlonlat_t (INORM (iq+0, iloen), jlat);
-          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq-1, iloen), jlat);
-        }
-      else
-        {
-          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+1, iloen), jlat);
-          jlonlat[jlonlat_t::IN_] = jlonlat_t (                  0,    0);
-          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+0, iloen), jlat);
-        }
+      jlonlat[jlonlat_t::INW] = jlonlat_t (0, 0);
+      jlonlat[jlonlat_t::IN_] = jlonlat_t (0, 0);
+      jlonlat[jlonlat_t::INE] = jlonlat_t (0, 0);
     }
   else
     {
@@ -269,20 +257,9 @@ void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9
   
   if (jlat == Nj) 
     {
-      iloen = pl[jlat-1];
-      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
-      if (ir == 0) 
-        {
-          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+1, iloen), jlat);
-          jlonlat[jlonlat_t::IS_] = jlonlat_t (INORM (iq+0, iloen), jlat);
-          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq-1, iloen), jlat);
-        }
-      else
-        {
-          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+1, iloen), jlat);
-          jlonlat[jlonlat_t::IS_] = jlonlat_t (                  0,    0);
-          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+0, iloen), jlat);
-        }
+      jlonlat[jlonlat_t::ISW] = jlonlat_t (0, 0);
+      jlonlat[jlonlat_t::IS_] = jlonlat_t (0, 0);
+      jlonlat[jlonlat_t::ISE] = jlonlat_t (0, 0);
     }
   else
     {

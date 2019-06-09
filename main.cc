@@ -17,33 +17,73 @@
 #include <sys/time.h>
 #include "load.h"
 
-void walk (int jlon, int jlat, unsigned char * r, bool * seen, 
-           int Nj, int * pl, int * jglooff, 
-           std::vector<unsigned int> * ind1)
+
+class geom_t
 {
+public:
+  int Nj = 0;
+  int * pl = NULL;
+  int * jglooff = NULL;
+};
+
+void walk (int jlon, int jlat, unsigned char * r, 
+           bool * seen, geom_t * geom,
+           std::vector<unsigned int> * ind1, jlonlat_t::pos_t pos)
+{
+
   jlonlat_t jlonlat[9];
-  find_neighbours1 (jlat, jlon, pl, Nj, jlonlat);
-  int jglo = jlonlat_t::jglo (jlon, jlat, jglooff);
+
+  find_neighbours1 (jlat, jlon, geom->pl, geom->Nj, jlonlat);
   
-  if (seen[jglo])
-    return;
+  int jglo0 = jlonlat[0].jglo (geom->jglooff);
   
-  seen[jglo] = true;
-  
-  for (int i = 1; i < 9; i++)
-    if (jlonlat[i].ok ())
-      {
-        int jglo1 = jlonlat[i].jglo (jglooff);
-        if (seen[jglo1])
-          continue;
-  
-        if (((r[jglo] > 127) && (r[jglo1] <= 127)) 
-         || ((r[jglo1] > 127) && (r[jglo] <= 127)))
+
+  for (jlonlat_t::pos_t pos1 = pos; ; )
+    {
+      if (jlonlat[pos1].ok ())
+        {
+          jlonlat_t::pos_t pos2 = jlonlat_t::next (pos1);
+          while (! jlonlat[pos2].ok ()) pos2 = jlonlat_t::next (pos2);
+      
+          int jglo1 = jlonlat[pos1].jglo (geom->jglooff);
+          int jglo2 = jlonlat[pos2].jglo (geom->jglooff);
+      
+          jlonlat_t::pos_t op0 = pos1;
+          jlonlat_t::pos_t op1 = jlonlat_t::opposite (pos1);
+          jlonlat_t::pos_t op2 = jlonlat_t::opposite (pos2);
+      
+          if (seen[9*jglo0+op0])
+            goto next;
+          seen[9*jglo0+op0] = true;
+          if (seen[9*jglo2+op2])
+            goto next;
+          seen[9*jglo2+op2] = true;
           {
-            ind1->push_back (jglo);
-            ind1->push_back (jglo1);
+            jlonlat_t jlonlat1[9];
+            find_neighbours1 (jlonlat[pos1].jlat, jlonlat[pos1].jlon, 
+                              geom->pl, geom->Nj, jlonlat1);
+            op1 = jlonlat_t::prev (op1);
+            while (! jlonlat1[op1].ok ()) op1 = jlonlat_t::prev (op1);
+            if (seen[9*jglo1+op1])
+              goto next;
+                seen[9*jglo1+op1] = true;
           }
-      }
+      
+      
+          if (((r[jglo0] > 127) && (r[jglo1] <= 127)) 
+           || ((r[jglo1] > 127) && (r[jglo0] <= 127)))
+            {
+              ind1->push_back (jglo0);
+              ind1->push_back (jglo1);
+            }
+
+           
+        }
+next:
+      pos1 = jlonlat_t::next (pos1);
+      if (pos1 == pos)
+        break;
+    }
 
 }
 
@@ -54,8 +94,8 @@ int main (int argc, char * argv[])
   int np; 
   unsigned int nt;
   unsigned int * ind;
-  int * pl = NULL;
-  int * jglooff = NULL;
+
+  geom_t geom;
 
   float * xyz_l;
   int np_l;
@@ -64,21 +104,20 @@ int main (int argc, char * argv[])
   const int width = 1024, height = 1024;
   int w, h;
   unsigned char * r = NULL;
-  int Nj = atoi (argv[1]);
+  geom.Nj = atoi (argv[1]);
 
-  gensphere1 (Nj, &np, &xyz, &nt, &ind, &r, &pl, &jglooff);
+  gensphere1 (geom.Nj, &np, &xyz, &nt, &ind, &r, &geom.pl, &geom.jglooff);
 
 
   std::vector<unsigned int> ind1;
 
-  bool * seen = (bool *)malloc (sizeof (bool) * np);
+  bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
   for (int i = 0; i < np; i++)
     seen[i] = false;
 
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
-      if (! seen[jlonlat_t::jglo (jlon, jlat, jglooff)])
-        walk (jlon, jlat, r, seen, Nj, pl, jglooff, &ind1);
+  for (int jlat = 2; jlat <= geom.Nj-1; jlat++)
+    for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+      walk (jlon, jlat, r, seen, &geom, &ind1, jlonlat_t::I_E);
 
   // Line
 
