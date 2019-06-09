@@ -133,113 +133,10 @@ void glgauss (const int Nj, const int pl[], unsigned int * ind, const int nstrip
     }
 
 }
-
-static 
-void glgauss_n (const int Nj, const int pl[], unsigned int * ind)
-{
-  int iglooff[Nj];
-  
-  iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj-1; jlat++)
-    iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
-
-  for (int jlat = 1; jlat <= Nj-1; jlat++)
-    {
-      int iloen1 = pl[jlat - 1];
-      int iloen2 = pl[jlat + 0];
-      int jglooff1 = iglooff[jlat-1] + 0;
-      int jglooff2 = iglooff[jlat-1] + iloen1;
-  
-  
-      if (iloen1 == iloen2) 
-        {
-          for (int jlon1 = 1; jlon1 <= iloen1; jlon1++)
-            {
-              int jlon2 = jlon1;
-              int ica = jglooff1 + jlon1;
-              int icb = jglooff2 + jlon2;
-              int icc = jglooff2 + JNEXT (jlon2, iloen2);
-              int icd = jglooff1 + JNEXT (jlon1, iloen1);
-//            PRINT (ica, icb, icc);
-//            PRINT (icc, icd, ica);
-            }
-        }
-      else 
-        {
-          int jlon1 = 1;
-          int jlon2 = 1;
-          for (;;)
-            {
-              int ica = 0, icb = 0, icc = 0;
-  
-  
-              int idlonc = JDLON (jlon1, jlon2);
-              int jlon1n = JNEXT (jlon1, iloen1);
-              int jlon2n = JNEXT (jlon2, iloen2);
-              int idlonn = JDLON (jlon1n, jlon2n);
-
-#define AV1 \
-  do {                                                                        \
-    ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;  \
-    jlon1 = jlon1n;                                                           \
-  } while (0)
-
-#define AV2 \
-  do {                                                                        \
-    ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;  \
-    jlon2 = jlon2n;                                                           \
-  } while (0)
-
-              if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
-                {
-                  if (jlon2n != 1)
-                    AV2;
-                  else
-                    AV1;
-                }
-              else if (idlonc < 0 || ((idlonc == 0) && (idlonn < 0))) 
-                {
-                  if (jlon1n != 1)
-                    AV1;
-                  else
-                    AV2;
-                }
-              else
-                {
-                  abort ();
-                }
-              
-//            PRINT (ica, icb, icc);
-              
-              if ((jlon1 == 1) && (jlon2 == iloen2)) 
-                {
-                  ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;
-//                PRINT (ica, icb, icc);
-                }
-              else if ((jlon1 == iloen1) && (jlon2 == 1)) 
-                {
-                  ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;
-//                PRINT (ica, icb, icc);
-                }
-              else
-                {
-                  continue;
-                }
-              break;
-           }
-        }
-
-    }
-}
-
-
-
-
-
-
+#undef MODULO
 
 void gensphere1 (const int Nj, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind, unsigned char ** rgb)
+                 unsigned int * nt, unsigned int ** ind, unsigned char ** rgb, int ** ppl, int ** jglooff)
 {
   int * pl = NULL;
   const int nstripe = 8;
@@ -277,7 +174,7 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   for (int jlat = 1; jlat <= Nj; jlat++)
     v_len += pl[jlat-1];
   
-  int iglooff[Nj];
+  int * iglooff = (int *)malloc (Nj * sizeof (int));
   iglooff[0] = 0;
   for (int jlat = 2; jlat <= Nj; jlat++)
      iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
@@ -305,12 +202,109 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
           (*xyz)[3*jglo+1] = Y;
           (*xyz)[3*jglo+2] = Z;
 
-          (*rgb)[jglo] = (1 + X) * 255 / 2;
+          (*rgb)[jglo] = 255 * (1 + coslon) * coslat / 2.0;
 
         }
     }
   
-  free (pl);
-
+  *ppl = pl;
+  *jglooff = iglooff;
   
 }
+
+
+
+
+
+void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9])
+{
+  int ir, iq, iloen, iloen1, iloen2;
+  int inum, iden;
+  int jlat1, jlon1, jlat2, jlon2;
+  
+#define MODULO(A, B) (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)))
+#define INORM(KLO, KLOEN) (1 + MODULO (KLO-1, KLOEN))
+  
+  jlonlat[jlonlat_t::I__] = {INORM (jlon+0, pl[jlat-1]), jlat};
+  jlonlat[jlonlat_t::I_W] = {INORM (jlon-1, pl[jlat-1]), jlat};
+  jlonlat[jlonlat_t::I_E] = {INORM (jlon+1, pl[jlat-1]), jlat};
+  
+  if (jlat == 1) 
+    {
+      iloen = pl[jlat-1];
+      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+      if (ir == 0) 
+        {
+          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+1, iloen), jlat);
+          jlonlat[jlonlat_t::IN_] = jlonlat_t (INORM (iq+0, iloen), jlat);
+          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq-1, iloen), jlat);
+        }
+      else
+        {
+          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+1, iloen), jlat);
+          jlonlat[jlonlat_t::IN_] = jlonlat_t (                  0,    0);
+          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+0, iloen), jlat);
+        }
+    }
+  else
+    {
+      jlon1 = jlon;
+      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+      jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+      inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+      iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+      if (ir == 0) 
+        {
+          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq-1, iloen2), jlat2);
+          jlonlat[jlonlat_t::IN_] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
+          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+        }
+      else
+        {
+          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
+          jlonlat[jlonlat_t::IN_] = jlonlat_t (                   0,     0);
+          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+        }
+    }
+  
+  if (jlat == Nj) 
+    {
+      iloen = pl[jlat-1];
+      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+      if (ir == 0) 
+        {
+          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+1, iloen), jlat);
+          jlonlat[jlonlat_t::IS_] = jlonlat_t (INORM (iq+0, iloen), jlat);
+          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq-1, iloen), jlat);
+        }
+      else
+        {
+          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+1, iloen), jlat);
+          jlonlat[jlonlat_t::IS_] = jlonlat_t (                  0,    0);
+          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+0, iloen), jlat);
+        }
+    }
+  else
+    {
+      jlon1 = jlon;
+      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+      inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+      iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+      if (ir == 0) 
+        {
+          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq-1, iloen2), jlat2);
+          jlonlat[jlonlat_t::IS_] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
+          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+        }
+      else
+        {
+          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
+          jlonlat[jlonlat_t::IS_] = jlonlat_t (                   0,     0);
+          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+        }
+    }
+  
+}
+ 
+
