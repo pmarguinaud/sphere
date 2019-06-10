@@ -28,7 +28,8 @@ public:
 
 void walk (int jlon, int jlat, unsigned char * r, 
            bool * seen, geom_t * geom,
-           std::vector<unsigned int> * ind1, jlonlat_t::pos_t pos)
+           std::vector<unsigned int> * ind1, 
+           jlonlat_t::pos_t pos)
 {
 
   jlonlat_t jlonlat[9];
