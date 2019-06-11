@@ -215,8 +215,10 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
 
 
 
-void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9])
+void find_neighbours1 (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh)
 {
+  int jlon = jlonlat.jlon;
+  int jlat = jlonlat.jlat;
   int ir, iq, iloen, iloen1, iloen2;
   int inum, iden;
   int jlat1, jlon1, jlat2, jlon2;
@@ -224,17 +226,10 @@ void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9
 #define MODULO(A, B) (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)))
 #define INORM(KLO, KLOEN) (1 + MODULO (KLO-1, KLOEN))
   
-  jlonlat[jlonlat_t::I__] = {INORM (jlon+0, pl[jlat-1]), jlat};
-  jlonlat[jlonlat_t::I_W] = {INORM (jlon-1, pl[jlat-1]), jlat};
-  jlonlat[jlonlat_t::I_E] = {INORM (jlon+1, pl[jlat-1]), jlat};
+
+  neigh->add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
   
-  if (jlat == 1) 
-    {
-      jlonlat[jlonlat_t::INW] = jlonlat_t (0, 0);
-      jlonlat[jlonlat_t::IN_] = jlonlat_t (0, 0);
-      jlonlat[jlonlat_t::INE] = jlonlat_t (0, 0);
-    }
-  else
+  if (jlat != 1) 
     {
       jlon1 = jlon;
       jlat1 = jlat     ; iloen1 = pl[jlat1-1];
@@ -243,25 +238,21 @@ void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9
       iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
       if (ir == 0) 
         {
-          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq-1, iloen2), jlat2);
-          jlonlat[jlonlat_t::IN_] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
-          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::IN_, INORM (iq+0, iloen2), jlat2);
+          neigh->add (neigh_t::INW, INORM (iq-1, iloen2), jlat2);
         }
       else
         {
-          jlonlat[jlonlat_t::INW] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
-          jlonlat[jlonlat_t::IN_] = jlonlat_t (                   0,     0);
-          jlonlat[jlonlat_t::INE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::IN_,                    0,     0);
+          neigh->add (neigh_t::INW, INORM (iq+0, iloen2), jlat2);
         }
     }
+
+  neigh->add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
   
-  if (jlat == Nj) 
-    {
-      jlonlat[jlonlat_t::ISW] = jlonlat_t (0, 0);
-      jlonlat[jlonlat_t::IS_] = jlonlat_t (0, 0);
-      jlonlat[jlonlat_t::ISE] = jlonlat_t (0, 0);
-    }
-  else
+  if (jlat != Nj) 
     {
       jlon1 = jlon;
       jlat1 = jlat     ; iloen1 = pl[jlat1-1];
@@ -270,18 +261,49 @@ void find_neighbours1 (int jlat, int jlon, int * pl, int Nj, jlonlat_t jlonlat[9
       iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
       if (ir == 0) 
         {
-          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq-1, iloen2), jlat2);
-          jlonlat[jlonlat_t::IS_] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
-          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::ISW, INORM (iq-1, iloen2), jlat2);
+          neigh->add (neigh_t::IS_, INORM (iq+0, iloen2), jlat2);
+          neigh->add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
         }
       else
         {
-          jlonlat[jlonlat_t::ISW] = jlonlat_t (INORM (iq+0, iloen2), jlat2);
-          jlonlat[jlonlat_t::IS_] = jlonlat_t (                   0,     0);
-          jlonlat[jlonlat_t::ISE] = jlonlat_t (INORM (iq+1, iloen2), jlat2);
+          neigh->add (neigh_t::ISW, INORM (iq+0, iloen2), jlat2);
+          neigh->add (neigh_t::IS_,                    0,     0);
+          neigh->add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
         }
     }
   
+if(0)
+{
+int jglooff[Nj];
+
+jglooff[0] = 0;
+for (int i = 1; i < Nj; i++)
+  jglooff[i] = jglooff[i-1] + pl[i-1];
+
+printf ("\n\n");
+
+printf (" %4d %4d %4d\n", 
+		neigh->jlonlat[neigh_t::INW].jglo (jglooff),
+		neigh->jlonlat[neigh_t::IN_].jglo (jglooff),
+		neigh->jlonlat[neigh_t::INE].jglo (jglooff));
+
+printf (" %4d %4d %4d\n", 
+		neigh->jlonlat[neigh_t::I_W].jglo (jglooff),
+		jlonlat_t::jglo (jlon, jlat, jglooff),
+		neigh->jlonlat[neigh_t::I_E].jglo (jglooff));
+
+printf (" %4d %4d %4d\n", 
+		neigh->jlonlat[neigh_t::ISW].jglo (jglooff),
+		neigh->jlonlat[neigh_t::IS_].jglo (jglooff),
+		neigh->jlonlat[neigh_t::ISE].jglo (jglooff));
+
+printf ("\n\n");
+
+
+}
+  
+
 }
  
 

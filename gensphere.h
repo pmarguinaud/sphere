@@ -9,25 +9,70 @@ class jlonlat_t
 {
 public:
 
+  
+  jlonlat_t () : jlon (0), jlat (0) {}
+  jlonlat_t (int _jlon, int _jlat) : jlon (_jlon), jlat (_jlat) {}
+  bool ok () { return (jlon > 0) && (jlat > 0); }
+  static int jglo (int jlon, int jlat, int * jglooff) { return jglooff[jlat-1] + (jlon-1); }
+  int jglo (int * jglooff) { return ok () ? jglooff[jlat-1] + (jlon-1) : - 1; }
+  int jlon = 0;
+  int jlat = 0;
+};
+
+
+
+class neigh_t
+{
+public:
+
+  jlonlat_t jlonlat[8];
+
   typedef enum
   {
-    I__=0,
-    I_E=1,
-    INE=2,
-    IN_=3,
-    INW=4,
-    I_W=5,
-    ISW=6,
-    IS_=7,
-    ISE=8 
+    P=+1,
+    N=-1
+  } rot_t;
+
+  static rot_t inv (rot_t rot)
+  {
+    switch (rot)
+      { 
+        case P: return N;
+	case N: return P;
+      }
+  }
+
+  typedef enum
+  {
+    I_E=0,
+    INE=1,
+    IN_=2,
+    INW=3,
+    I_W=4,
+    ISW=5,
+    IS_=6,
+    ISE=7 
   } pos_t;
 
+  void add (pos_t _pos, int _jlon, int _jlat)
+  {
+    jlonlat[_pos].jlon = _jlon;
+    jlonlat[_pos].jlat = _jlat;
+  }
+
+  static std::string strrot (rot_t rot)
+  {
+    switch (rot)
+      {
+        case P: return "P";
+        case N: return "N";
+      }
+  }
 
   static std::string strpos (pos_t pos)
   {
     switch (pos)
       {
-        case I__: return "I__";
         case I_E: return "I_E";
         case INE: return "INE";
         case IN_: return "IN_";
@@ -39,40 +84,48 @@ public:
       }
   }
 
-  static pos_t pos (int i)
+  pos_t next (pos_t pos, rot_t rot = P)
   {
-    return (pos_t)i;
+    if (rot == N)
+      return prev (pos);
+
+    while (1)
+      {
+        switch (pos)
+          {
+            case I_E: pos = INE; break; 
+            case INE: pos = IN_; break; 
+            case IN_: pos = INW; break;
+            case INW: pos = I_W; break; 
+            case I_W: pos = ISW; break;
+            case ISW: pos = IS_; break; 
+            case IS_: pos = ISE; break; 
+            case ISE: pos = I_E; break;
+          }
+       if (jlonlat[pos].ok ())
+         return pos;
+     }
   }
 
-  static pos_t next (pos_t pos)
+  pos_t prev (pos_t pos, rot_t rot = P)
   {
-    switch (pos)
+    if (rot == N)
+      return next (pos);
+    while (1)
       {
-        case I__: return I__; 
-        case I_E: return INE; 
-        case INE: return IN_; 
-        case IN_: return INW;
-        case INW: return I_W; 
-        case I_W: return ISW;
-        case ISW: return IS_; 
-        case IS_: return ISE; 
-        case ISE: return I_E;
-      }
-  }
-
-  static pos_t prev (pos_t pos)
-  {
-    switch (pos)
-      {
-        case I__: return I__; 
-        case INE: return I_E; 
-        case IN_: return INE; 
-        case INW: return IN_;
-        case I_W: return INW; 
-        case ISW: return I_W;
-        case IS_: return ISW; 
-        case ISE: return IS_; 
-        case I_E: return ISE;
+        switch (pos)
+          {
+            case INE: pos = I_E; break; 
+            case IN_: pos = INE; break; 
+            case INW: pos = IN_; break;
+            case I_W: pos = INW; break; 
+            case ISW: pos = I_W; break;
+            case IS_: pos = ISW; break; 
+            case ISE: pos = IS_; break; 
+            case I_E: pos = ISE; break;
+          }
+        if (jlonlat[pos].ok ())
+          return pos;
       }
   }
 
@@ -80,7 +133,6 @@ public:
   {
     switch (pos)
       {
-        case I__: return I__; 
         case INE: return ISW; 
         case IN_: return IS_; 
         case INW: return ISE;
@@ -92,16 +144,23 @@ public:
       }
   }
 
-  
-  jlonlat_t () : jlon (0), jlat (0) {}
-  jlonlat_t (int _jlon, int _jlat) : jlon (_jlon), jlat (_jlat) {}
-  bool ok () { return (jlon > 0) && (jlat > 0); }
-  static int jglo (int jlon, int jlat, int * jglooff) { return jglooff[jlat-1] + (jlon-1); }
-  int jglo (int * jglooff) { return jglooff[jlat-1] + (jlon-1); }
-  int jlon = 0;
-  int jlat = 0;
+  bool done (bool * seen)
+  {
+     if ((jlonlat[0].ok ()) && ! seen[0]) return false;
+     if ((jlonlat[1].ok ()) && ! seen[1]) return false;
+     if ((jlonlat[2].ok ()) && ! seen[2]) return false;
+     if ((jlonlat[3].ok ()) && ! seen[3]) return false;
+     if ((jlonlat[4].ok ()) && ! seen[4]) return false;
+     if ((jlonlat[5].ok ()) && ! seen[5]) return false;
+     if ((jlonlat[6].ok ()) && ! seen[6]) return false;
+     if ((jlonlat[7].ok ()) && ! seen[7]) return false;
+     return true;
+  }
+
 };
 
-void find_neighbours1 (int, int, int *, int, jlonlat_t [9]);
+
+
+void find_neighbours1 (const jlonlat_t &, int *, int, neigh_t *);
 
 #endif

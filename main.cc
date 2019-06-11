@@ -26,102 +26,123 @@ public:
   int * jglooff = NULL;
 };
 
-void walk (int jlon, int jlat, unsigned char * r, 
-           bool * seen, geom_t * geom,
-           std::vector<unsigned int> * ind1, 
-           jlonlat_t::pos_t pos)
+void process (jlonlat_t jlonlat0, unsigned char * r, 
+              bool * seen, geom_t * geom,
+	      float * xyz, std::vector<float> * xyz1)
 {
 
-  jlonlat_t jlonlat[9];
+  if (xyz1->size () > 0)
+    return;
 
-  find_neighbours1 (jlat, jlon, geom->pl, geom->Nj, jlonlat);
-  
-  int jglo0 = jlonlat[0].jglo (geom->jglooff);
-  
+  neigh_t neigh;
+  neigh_t::pos_t pos1 = neigh_t::I_E;
+  neigh_t::rot_t rot1 = neigh_t::P;
 
-  for (jlonlat_t::pos_t pos1 = pos; ; )
+  jlonlat_t jlonlat = jlonlat0;
+
+  find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
+
+  int count = 0;
+  while (1)
     {
+      int jglo0 = jlonlat.jglo (geom->jglooff);
 
-      if (jlonlat[pos1].ok ())
-        {
-          jlonlat_t::pos_t pos2 = jlonlat_t::next (pos1);
-          while (! jlonlat[pos2].ok ()) pos2 = jlonlat_t::next (pos2);
-      
-          int jglo1 = jlonlat[pos1].jglo (geom->jglooff);
-          int jglo2 = jlonlat[pos2].jglo (geom->jglooff);
-      
-          jlonlat_t::pos_t op0 = pos1;
-          jlonlat_t::pos_t op1 = jlonlat_t::opposite (pos1);
-          jlonlat_t::pos_t op2 = jlonlat_t::opposite (pos2);
-      
-          if (seen[9*jglo0+op0])
-            goto next;
-          seen[9*jglo0+op0] = true;
-          if (seen[9*jglo2+op2])
-            goto next;
-          seen[9*jglo2+op2] = true;
-          {
-            jlonlat_t jlonlat1[9];
-            find_neighbours1 (jlonlat[pos1].jlat, jlonlat[pos1].jlon, 
-                              geom->pl, geom->Nj, jlonlat1);
-            op1 = jlonlat_t::prev (op1);
-            while (! jlonlat1[op1].ok ()) op1 = jlonlat_t::prev (op1);
-            if (seen[9*jglo1+op1])
-              goto next;
-                seen[9*jglo1+op1] = true;
-          }
-      
-      
-          bool b0 = r[jglo0] > 127;
-          bool b1 = r[jglo1] > 127;
-          bool b2 = r[jglo2] > 127;
-
-
-               if (( b0)&&( b1)&&( b2))
-            {
-              continue;
-            }
-          else if (( b0)&&( b1)&&(!b2))
-            {
-              ind1->push_back (jglo0);
-              ind1->push_back (jglo1);
-            }
-          else if (( b0)&&(!b1)&&( b2))
-            {
-              ind1->push_back (jglo0);
-              ind1->push_back (jglo2);
-            }
-          else if (( b0)&&(!b1)&&(!b2))
-            {
-              ind1->push_back (jglo1);
-              ind1->push_back (jglo2);
-            }
-          else if ((!b0)&&( b1)&&( b2))
-            {
-              ind1->push_back (jglo1);
-              ind1->push_back (jglo2);
-            }
-          else if ((!b0)&&( b1)&&(!b2))
-            {
-              ind1->push_back (jglo0);
-              ind1->push_back (jglo2);
-            }
-          else if ((!b0)&&(!b1)&&( b2))
-            {
-              ind1->push_back (jglo0);
-              ind1->push_back (jglo1);
-            }
-          else if ((!b0)&&(!b1)&&(!b2))
-            {
-              continue;
-            }
-
-        }
-next:
-      pos1 = jlonlat_t::next (pos1);
-      if (pos1 == pos)
+      if (neigh.done (&seen[8*jglo0]))
         break;
+
+      neigh_t::pos_t pos2 = neigh.next (pos1, rot1);
+
+      if (seen[8*jglo0+pos1])
+        goto next;
+
+
+      {
+        
+        int jglo1 = neigh.jlonlat[pos1].jglo (geom->jglooff);
+        int jglo2 = neigh.jlonlat[pos2].jglo (geom->jglooff);
+        bool b0 = r[jglo0] > 127;
+        bool b1 = r[jglo1] > 127;
+        bool b2 = r[jglo2] > 127;
+        
+	neigh_t::pos_t pos0 = neigh_t::opposite (pos1);
+        seen[8*jglo0+pos1] = true;
+        seen[8*jglo1+pos0] = true;
+
+        auto push = [=]() 
+	{ 
+          float X = (xyz[3*jglo0+0]+xyz[3*jglo1+0])/2.0;
+          float Y = (xyz[3*jglo0+1]+xyz[3*jglo1+1])/2.0;
+          float Z = (xyz[3*jglo0+2]+xyz[3*jglo1+2])/2.0;
+	  float R = sqrt (X * X + Y * Y + Z * Z);
+	  X /= R; Y /= R; Z /= R;
+          xyz1->push_back (X);
+          xyz1->push_back (Y);
+          xyz1->push_back (Z);
+	  if(0){
+          int size = xyz1->size () / 3;
+	  printf (" %4d %7.3f %7.3f %7.3f %4d %4d %s %s %4d %4d\n", size, X, Y, Z, 
+                  jglo0, jglo1, neigh_t::strpos (pos1).c_str (), neigh_t::strrot (rot1).c_str (), 
+		  r[jglo0], r[jglo1]);
+	  }
+	};
+
+             if (( b0)&&( b1)&& ( b2))
+          {
+            goto next;
+          }
+        else if (( b0)&&( b1)&& (!b2))
+          {
+            goto next;
+          }
+        else if (( b0)&&(!b1)&& ( b2)) // A
+          {
+            push (); 
+	    jlonlat = neigh.jlonlat[pos2];                             pos1 = neigh_t::opposite (pos2);
+            find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
+	    count = 0;
+	    continue;
+          }
+        else if (( b0)&&(!b1)&& (!b2)) // B
+          {
+            push (); count++;
+	    pos1 = pos2;
+	    continue;
+          }
+        else if ((!b0)&&( b1)&& ( b2)) // C
+          {
+            push (); 
+	    jlonlat = neigh.jlonlat[pos2]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos2);
+            find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
+	    count = 0;
+	    continue;
+          }
+        else if ((!b0)&&( b1)&& (!b2)) // D
+          {
+            push (); count++;
+	    jlonlat = neigh.jlonlat[pos1]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos1);
+            find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
+	    count = 0;
+	    continue;
+          }
+        else if ((!b0)&&(!b1)&& ( b2))
+          {
+            goto next;
+          }
+        else if ((!b0)&&(!b1)&& (!b2))
+        {
+          goto next;
+	}
+
+      }
+
+next:
+
+      if (count > 0)
+        break;
+
+      pos1 = pos2;
     }
+
 
 }
 
@@ -146,16 +167,32 @@ int main (int argc, char * argv[])
 
   gensphere1 (geom.Nj, &np, &xyz, &nt, &ind, &r, &geom.pl, &geom.jglooff);
 
+  {
+  int count = 0;
+  for (int i = 0; i < geom.Nj; i++)
+    {
+      printf ("%d\n", geom.pl[i]);
+      count += geom.pl[i];
+    }
+    printf (" %d\n", count);
+  }
 
   std::vector<unsigned int> ind1;
+  std::vector<float> xyz1;
 
   bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
-  for (int i = 0; i < np; i++)
+  for (int i = 0; i < 9 * np; i++)
     seen[i] = false;
 
   for (int jlat = 2; jlat <= geom.Nj-1; jlat++)
     for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      walk (jlon, jlat, r, seen, &geom, &ind1, jlonlat_t::I_E);
+      process (jlonlat_t (jlon, jlat), r, seen, &geom, xyz, &xyz1);
+
+  for (int i = 1; i < xyz1.size () / 3; i++)
+    {
+      ind1.push_back (i-1);
+      ind1.push_back (i+0);
+    }
 
   // Line
 
@@ -268,7 +305,7 @@ int main (int argc, char * argv[])
 
   glGenBuffers (1, &vertexbuffer_1);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer_1);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, xyz1.size () * sizeof (float), xyz1.data (), GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
 
@@ -305,7 +342,10 @@ uniform mat4 MVP;
 
 void main()
 {
-  gl_Position =  MVP * vec4 (vertexPos, 1);
+  gl_Position = MVP * vec4 (vertexPos, 1);
+  gl_Position.x = 0.7 * gl_Position.x;
+  gl_Position.y = 0.7 * gl_Position.y;
+  gl_Position.z = 0.7 * gl_Position.z;
 
   fragmentColor.r = vertexCol.r;
   fragmentColor.g = vertexCol.g;
@@ -321,6 +361,7 @@ R"CODE(
 #version 330 core
 
 out vec4 color;
+in float rank;
 
 void main()
 {
@@ -335,11 +376,14 @@ R"CODE(
 
 layout(location = 0) in vec3 vertexPos;
 
+out float rank;
+
 uniform mat4 MVP;
 
 void main()
 {
   gl_Position =  MVP * vec4 (vertexPos, 1);
+  rank = gl_VertexID;
 }
 )CODE");
 
@@ -359,25 +403,29 @@ void main()
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+      if(1){
       // Sphere
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      }
 
+      if(0){
       // Line
       glUseProgram (programID_l);
       glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID_l);
       glDrawElements (GL_LINES, 2 * np_l, GL_UNSIGNED_INT, NULL);
       glBindVertexArray (0);
-
+      }
 
       // Line 1
       glUseProgram (programID_l);
       glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID_1);
       glDrawElements (GL_LINES, ind1.size (), GL_UNSIGNED_INT, NULL);
+//    glDrawElements (GL_LINES, 36, GL_UNSIGNED_INT, NULL);
       glBindVertexArray (0);
 
 
