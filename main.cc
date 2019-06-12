@@ -28,11 +28,13 @@ public:
 
 void process (jlonlat_t jlonlat0, unsigned char * r, 
               bool * seen, geom_t * geom,
-	      float * xyz, std::vector<float> * xyz1)
+	      float * xyz, std::vector<float> * xyz1, std::vector<unsigned int> * ind1)
 {
 
   if (xyz1->size () > 0)
     return;
+
+  int ind1_start = xyz1->size ();
 
   neigh_t neigh;
   neigh_t::pos_t pos1 = neigh_t::I_E;
@@ -43,12 +45,20 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
   find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
 
   int count = 0;
+  int tries = 0;
   while (1)
     {
       int jglo0 = jlonlat.jglo (geom->jglooff);
 
       if (neigh.done (&seen[8*jglo0]))
-        break;
+        {
+          if ((jlonlat == jlonlat0) && (count > 0))
+            {
+              ind1->push_back (ind1->back ());
+              ind1->push_back (ind1_start);
+            }
+          break;
+        }
 
       neigh_t::pos_t pos2 = neigh.next (pos1, rot1);
 
@@ -68,7 +78,7 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
         seen[8*jglo0+pos1] = true;
         seen[8*jglo1+pos0] = true;
 
-        auto push = [=]() 
+        auto push = [=, &count]() 
 	{ 
           float X = (xyz[3*jglo0+0]+xyz[3*jglo1+0])/2.0;
           float Y = (xyz[3*jglo0+1]+xyz[3*jglo1+1])/2.0;
@@ -78,6 +88,15 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
           xyz1->push_back (X);
           xyz1->push_back (Y);
           xyz1->push_back (Z);
+          
+          if (count > 0)
+            {
+              ind1->push_back (ind1_start + count - 1);
+              ind1->push_back (ind1_start + count + 0);
+            }
+
+          count++;
+
 	  if(0){
           int size = xyz1->size () / 3;
 	  printf (" %4d %7.3f %7.3f %7.3f %4d %4d %s %s %4d %4d\n", size, X, Y, Z, 
@@ -99,12 +118,12 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
             push (); 
 	    jlonlat = neigh.jlonlat[pos2];                             pos1 = neigh_t::opposite (pos2);
             find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
-	    count = 0;
+	    tries = 0;
 	    continue;
           }
         else if (( b0)&&(!b1)&& (!b2)) // B
           {
-            push (); count++;
+            push (); tries++;
 	    pos1 = pos2;
 	    continue;
           }
@@ -113,15 +132,15 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
             push (); 
 	    jlonlat = neigh.jlonlat[pos2]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos2);
             find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
-	    count = 0;
+	    tries = 0;
 	    continue;
           }
         else if ((!b0)&&( b1)&& (!b2)) // D
           {
-            push (); count++;
+            push (); tries++;
 	    jlonlat = neigh.jlonlat[pos1]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos1);
             find_neighbours1 (jlonlat, geom->pl, geom->Nj, &neigh);
-	    count = 0;
+	    tries = 0;
 	    continue;
           }
         else if ((!b0)&&(!b1)&& ( b2))
@@ -137,11 +156,16 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
 
 next:
 
-      if (count > 0)
+      if (tries > 0)
         break;
 
       pos1 = pos2;
     }
+
+if (count == 1)
+  {
+    xyz1->pop_back ();
+  }
 
 
 }
@@ -186,13 +210,7 @@ int main (int argc, char * argv[])
 
   for (int jlat = 2; jlat <= geom.Nj-1; jlat++)
     for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      process (jlonlat_t (jlon, jlat), r, seen, &geom, xyz, &xyz1);
-
-  for (int i = 1; i < xyz1.size () / 3; i++)
-    {
-      ind1.push_back (i-1);
-      ind1.push_back (i+0);
-    }
+      process (jlonlat_t (jlon, jlat), r, seen, &geom, xyz, &xyz1, &ind1);
 
   // Line
 

@@ -9,6 +9,10 @@ class jlonlat_t
 {
 public:
 
+  bool operator== (const jlonlat_t & other) const
+  {
+    return (jlon == other.jlon) && (jlat == other.jlat);
+  }
   
   jlonlat_t () : jlon (0), jlat (0) {}
   jlonlat_t (int _jlon, int _jlat) : jlon (_jlon), jlat (_jlat) {}

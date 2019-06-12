@@ -6,7 +6,7 @@ CXXFLAGS += -I$(HOME)/install/eccodes--2.13.0_FIXOMMCODES/include -L$(HOME)/inst
 
 
 main.x: main.cc gensphere.cc shader.cc bmp.cc load.cc gensphere.h
-	g++ $(CXXFLAGS) -o main.x main.cc gensphere.cc shader.cc bmp.cc load.cc 
+	g++ $(CXXFLAGS) -o main.x main.cc gensphere.cc shader.cc bmp.cc load.cc $(CXXFLAGS)
 
 clean:
 	\rm -f *.o *.x
