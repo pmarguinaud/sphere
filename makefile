@@ -14,3 +14,6 @@ main.x: main.o gensphere.o shader.o bmp.o load.o gensphere.h
 
 clean:
 	\rm -f *.o *.x
+
+test_saddle0: ./main.x
+	./main.x 30 saddle0
