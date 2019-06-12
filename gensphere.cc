@@ -134,65 +134,65 @@ void glgauss (const int Nj, const int pl[], unsigned int * ind, const int nstrip
 }
 #undef MODULO
 
-void gensphere1 (const int Nj, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind, unsigned char ** rgb, int ** ppl, int ** jglooff)
+void gensphere1 (geom_t * geom, int * np, float ** xyz, 
+                 unsigned int * nt, unsigned int ** ind, 
+		 float ** F, const std::string & type)
 {
-  int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  pl = (int *)malloc (sizeof (int) * Nj);
+  geom->pl = (int *)malloc (sizeof (int) * geom->Nj);
 
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
       float coslat = cos (lat);
-      pl[jlat-1] = (2. * Nj * coslat);
+      geom->pl[jlat-1] = (2. * geom->Nj * coslat);
     }
 
   *nt = 0;
-  for (int jlat = 1; jlat < Nj; jlat++)
-    *nt += pl[jlat-1] + pl[jlat];
+  for (int jlat = 1; jlat < geom->Nj; jlat++)
+    *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
-      int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
-      int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
+      int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
+      int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
       indoff[istripe] = 0;
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        indoff[istripe] += pl[jlat-1] + pl[jlat];
+        indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
     }
   
   *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (Nj, pl, *ind, nstripe, indoff);
+  glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
 
 
   int v_len = 0;
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    v_len += pl[jlat-1];
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+    v_len += geom->pl[jlat-1];
   
-  int * iglooff = (int *)malloc (Nj * sizeof (int));
-  iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj; jlat++)
-     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
+  geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+  geom->jglooff[0] = 0;
+  for (int jlat = 2; jlat <= geom->Nj; jlat++)
+     geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
-  *rgb = (unsigned char *)malloc (3 * sizeof (unsigned char) * v_len);
+  *F = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
 //#pragma omp parallel for
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
       float coslat = cos (lat); float sinlat = sin (lat);
-      for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      for (int jlon = 1; jlon <= geom->pl[jlat-1]; jlon++)
         {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
           float coslon = cos (lon); float sinlon = sin (lon);
           float radius = 1.0;
-          int jglo = iglooff[jlat-1] + jlon - 1;
+          int jglo = geom->jglooff[jlat-1] + jlon - 1;
           float X = coslon * coslat * radius;
           float Y = sinlon * coslat * radius;
           float Z =          sinlat * radius;
@@ -201,13 +201,29 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
           (*xyz)[3*jglo+1] = Y;
           (*xyz)[3*jglo+2] = Z;
 
-          (*rgb)[jglo] = 255 * (1 + coslon) * coslat / 2.0;
+          (*F)[jglo] = 0;
+	  if (type == "gradx")
+            (*F)[jglo] = (1 + coslon) * coslat / 2.0;
+	  else if (type == "lon")
+            (*F)[jglo] = lon / (2 * M_PI);
+	  else if (type == "lat")
+            (*F)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
+	  else if (type == "coslatxcos2lon")
+            (*F)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
+	  else if (type == "coslatxcos3lon")
+            (*F)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
+	  else if (type == "lat2xcos2lon")
+            (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
+	  else if (type == "XxYxZ")
+            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
+	  else if (type == "saddle0")
+            {
+              float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
+              (*F)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
+	    }
 
         }
     }
-  
-  *ppl = pl;
-  *jglooff = iglooff;
   
 }
 
@@ -229,7 +245,13 @@ void find_neighbours1 (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * ne
 
   neigh->add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
   
-  if (jlat != 1) 
+  if (jlat == 1) 
+    {
+      neigh->add (neigh_t::INE, 0, 0);
+      neigh->add (neigh_t::IN_, 0, 0);
+      neigh->add (neigh_t::INW, 0, 0);
+    }
+  else
     {
       jlon1 = jlon;
       jlat1 = jlat     ; iloen1 = pl[jlat1-1];
@@ -252,7 +274,13 @@ void find_neighbours1 (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * ne
 
   neigh->add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
   
-  if (jlat != Nj) 
+  if (jlat == Nj) 
+    {
+      neigh->add (neigh_t::ISW, 0, 0);
+      neigh->add (neigh_t::IS_, 0, 0);
+      neigh->add (neigh_t::ISE, 0, 0);
+    }
+  else
     {
       jlon1 = jlon;
       jlat1 = jlat     ; iloen1 = pl[jlat1-1];

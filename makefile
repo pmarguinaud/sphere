@@ -5,8 +5,12 @@ CXXFLAGS=-fopenmp -std=c++11 -g -I$(HOME)/3d/usr/include -L$(HOME)/3d/usr/lib64 
 CXXFLAGS += -I$(HOME)/install/eccodes--2.13.0_FIXOMMCODES/include -L$(HOME)/install/eccodes--2.13.0_FIXOMMCODES/lib -Wl,-rpath,$(HOME)/install/eccodes--2.13.0_FIXOMMCODES/lib
 
 
-main.x: main.cc gensphere.cc shader.cc bmp.cc load.cc gensphere.h
-	g++ $(CXXFLAGS) -o main.x main.cc gensphere.cc shader.cc bmp.cc load.cc $(CXXFLAGS)
+main.x: main.o gensphere.o shader.o bmp.o load.o gensphere.h
+	g++ $(CXXFLAGS) -o main.x main.o gensphere.o shader.o bmp.o load.o $(CXXFLAGS)
+
+%.o: %.cc gensphere.h
+	g++ $(CXXFLAGS) -o $@ -c $<
+
 
 clean:
 	\rm -f *.o *.x

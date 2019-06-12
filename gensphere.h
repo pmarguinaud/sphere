@@ -3,7 +3,17 @@
 
 #include <string>
 
-void gensphere1 (const int, int *, float **, unsigned int *, unsigned int **, unsigned char **, int **, int **);
+class geom_t
+{
+public:
+  int Nj = 0;
+  int * pl = NULL;
+  int * jglooff = NULL;
+};
+
+void gensphere1 (geom_t *, int *, float **, 
+                 unsigned int *, unsigned int **, 
+		 float **, const std::string &);
 
 class jlonlat_t
 {

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -18,23 +19,14 @@
 #include "load.h"
 
 
-class geom_t
-{
-public:
-  int Nj = 0;
-  int * pl = NULL;
-  int * jglooff = NULL;
-};
-
 void process (jlonlat_t jlonlat0, unsigned char * r, 
+              unsigned char r0,
               bool * seen, geom_t * geom,
-	      float * xyz, std::vector<float> * xyz1, std::vector<unsigned int> * ind1)
+	      float * xyz, std::vector<float> * xyz1, 
+	      std::vector<unsigned int> * ind1)
 {
 
-  if (xyz1->size () > 0)
-    return;
-
-  int ind1_start = xyz1->size ();
+  int ind1_start = xyz1->size () / 3;
 
   neigh_t neigh0;
   neigh_t neigh;
@@ -54,7 +46,7 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
       if (neigh.done (&seen[8*jglo0]))
         {
 
-          if (count > 0)
+          if (count > 1)
             {
               int jglo0 = jlonlat0.jglo (geom->jglooff);
               bool close = false;
@@ -86,9 +78,9 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
         
         int jglo1 = neigh.jlonlat[pos1].jglo (geom->jglooff);
         int jglo2 = neigh.jlonlat[pos2].jglo (geom->jglooff);
-        bool b0 = r[jglo0] > 127;
-        bool b1 = r[jglo1] > 127;
-        bool b2 = r[jglo2] > 127;
+        bool b0 = r[jglo0] > r0;
+        bool b1 = r[jglo1] > r0;
+        bool b2 = r[jglo2] > r0;
         
 	neigh_t::pos_t pos0 = neigh_t::opposite (pos1);
         seen[8*jglo0+pos1] = true;
@@ -111,7 +103,11 @@ void process (jlonlat_t jlonlat0, unsigned char * r,
               ind1->push_back (ind1_start + count + 0);
             }
 
+if(0)
+if (count > 0)
+printf (" %8d %7.2f %7.2f %7.2f\n", ind1_start + count, X, Y, Z);
           count++;
+
 
 	};
 
@@ -169,6 +165,8 @@ next:
 if (count == 1)
   {
     xyz1->pop_back ();
+    xyz1->pop_back ();
+    xyz1->pop_back ();
   }
 
 if(0)
@@ -211,6 +209,44 @@ if (count > 0)
 }
 
 
+static float lonc = 0.0f;
+static float latc = 0.0f;
+static float R = 6.0f;
+static float fov = 20.0f;
+
+static 
+void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
+{
+  if (action == GLFW_PRESS || action == GLFW_REPEAT)
+    {
+      switch (key)
+        {
+          case GLFW_KEY_UP:
+            latc += 5;
+	    break;
+          case GLFW_KEY_DOWN:
+            latc -= 5;
+	    break;
+          case GLFW_KEY_LEFT:
+            lonc += 5;
+	    break;
+          case GLFW_KEY_RIGHT:
+            lonc -= 5;
+	    break;
+	  case GLFW_KEY_SPACE:
+            lonc  = 0; latc = 0;
+	    break;
+	  case GLFW_KEY_F1:
+            fov += 1;
+	    break;
+	  case GLFW_KEY_F2:
+            fov -= 1;
+	    break;
+	}
+    }
+}
+
+
 int main (int argc, char * argv[])
 {
   float * xyz;
@@ -220,17 +256,49 @@ int main (int argc, char * argv[])
 
   geom_t geom;
 
-  float * xyz_l;
-  int np_l;
-  unsigned int * ind_l;
-
   const int width = 1024, height = 1024;
   int w, h;
   unsigned char * r = NULL;
+  float * F = NULL;
   geom.Nj = atoi (argv[1]);
 
-  gensphere1 (geom.Nj, &np, &xyz, &nt, &ind, &r, &geom.pl, &geom.jglooff);
 
+  std::string type = "gradx";
+ 
+  if (argc > 2)
+    type = argv[2];
+
+  gensphere1 (&geom, &np, &xyz, &nt, &ind, &F, type);
+
+  int size = 0;
+  for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
+    size += geom.pl[jlat-1];
+
+  float maxval = *std::max_element (F, F + size);
+  float minval = *std::min_element (F, F + size);
+
+  std::cout << minval << " " << maxval << std::endl;
+
+  r = (unsigned char *)malloc (sizeof (unsigned char) * size);
+  for (int i = 0; i < size; i++)
+    r[i] = 255 * (F[i] - minval) / (maxval - minval);
+
+  float F0 = (maxval + minval) / 2.0;
+
+  if (argc > 3)
+    F0 = atof (argv[3]);
+  if ((F0 < minval) || (maxval < F0))
+    {
+      std::cout << "Wrong F0 " << F0 << " minval = " << minval << " maxval = " << maxval << std::endl;
+      F0 = (maxval + minval) / 2.0;
+    }
+
+
+  unsigned char r0 = 255 * (F0 - minval) / (maxval - minval);
+
+
+  for (int i = 0; i < geom.pl[0]; i++)
+    printf ("%4d %7.2f\n", i, F[i]);
   if (0)
   {
   int count = 0;
@@ -249,24 +317,17 @@ int main (int argc, char * argv[])
   for (int i = 0; i < 9 * np; i++)
     seen[i] = false;
 
+
   for (int jlat = 2; jlat <= geom.Nj-1; jlat++)
     for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      process (jlonlat_t (jlon, jlat), r, seen, &geom, xyz, &xyz1, &ind1);
+      process (jlonlat_t (jlon, jlat), r, r0, seen, &geom, xyz, &xyz1, &ind1);
 
-  // Line
-
-  np_l = 360;
-  xyz_l = (float *)malloc (np_l * 3 * sizeof (float));
-  ind_l = (unsigned int *)malloc (np_l * 2 * sizeof (unsigned int));
-  for (int i = 0; i < np_l; i++)
-    {
-      xyz_l[3*i+0] = cos (2.0f * M_PI * i / 360.0f);
-      xyz_l[3*i+1] = sin (2.0f * M_PI * i / 360.0f);
-      xyz_l[3*i+2] = 0.0f; 
-      ind_l[2*i+0] = i;
-      ind_l[2*i+1] = (i + 1) % np_l;
-    }
-
+if(0){
+  for (int i = 0; i < xyz1.size () / 3; i++)
+    std::cout << i << " " << xyz1[3*i+0] << " " << xyz1[3*i+1] << " " << xyz1[3*i+2] << " " << std::endl;
+  for (int i = 0; i < ind1.size () / 2; i++)
+    std::cout << i << " " << ind1[2*i+0] << " " << ind1[2*i+1] << std::endl;
+}
 
   if (! glfwInit ()) 
     {   
@@ -291,6 +352,8 @@ int main (int argc, char * argv[])
       return -1;
     }
   
+  glfwSetKeyCallback (window, key_callback);
+
   glfwMakeContextCurrent (window);
   
   glewExperimental = true; 
@@ -338,24 +401,7 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
 
-  // Line
-  GLuint VertexArrayID_l;
-  GLuint vertexbuffer_l, elementbuffer_l;
-
-  glGenVertexArrays (1, &VertexArrayID_l);
-  glBindVertexArray (VertexArrayID_l);
-
-  glGenBuffers (1, &vertexbuffer_l);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer_l);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np_l * sizeof (float), xyz_l, GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-
-  glGenBuffers (1, &elementbuffer_l);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer_l);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 2 * np_l * sizeof (unsigned int), ind_l, GL_STATIC_DRAW);
-
-  // Line 1
+  // Line 
   GLuint VertexArrayID_1;
   GLuint vertexbuffer_1, elementbuffer_1;
 
@@ -407,8 +453,8 @@ void main()
   gl_Position.z = 0.7 * gl_Position.z;
 
   fragmentColor.r = vertexCol.r;
-  fragmentColor.g = vertexCol.g;
-  fragmentColor.b = vertexCol.b;
+  fragmentColor.g = 0.;
+  fragmentColor.b = 1. - vertexCol.r;
   fragmentColor.a = 1.;
 
 }
@@ -447,15 +493,16 @@ void main()
 )CODE");
 
 
+//GLfloat lineWidthRange[2] = {0.0f, 0.0f};
+//glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
+//std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
 
-  int count = 0;
-  bool rotate = false;
   while (1) 
     {   
-      glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f, 0.1f, 100.0f);
-      glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f * cos (count * M_PI / 180.0f), 
-                                                     6.0f * sin (count * M_PI / 180.0f),
-                                                     0.0f), 
+      glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
+      glm::mat4 View       = glm::lookAt (glm::vec3 (R * cos (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f), 
+                                                     R * sin (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f),
+                                                     R * sin (latc * M_PI / 180.0f)), 
                                           glm::vec3 (0,0,0), glm::vec3 (0,0,1));
       glm::mat4 Model      = glm::mat4 (1.0f);
       glm::mat4 MVP = Projection * View * Model; 
@@ -467,42 +514,26 @@ void main()
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID);
+      glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
       }
 
-      if(0){
-      // Line
-      glUseProgram (programID_l);
-      glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-      glBindVertexArray (VertexArrayID_l);
-      glDrawElements (GL_LINES, 2 * np_l, GL_UNSIGNED_INT, NULL);
-      glBindVertexArray (0);
-      }
-
-      // Line 1
+      // Line 
       glUseProgram (programID_l);
       glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID_1);
       glDrawElements (GL_LINES, ind1.size (), GL_UNSIGNED_INT, NULL);
-//    glDrawElements (GL_LINES, 36, GL_UNSIGNED_INT, NULL);
       glBindVertexArray (0);
 
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
   
-      if (glfwGetKey (window, GLFW_KEY_TAB) == GLFW_PRESS)
-        rotate = ! rotate;
       if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         break;
       if (glfwWindowShouldClose (window) != 0)  
         break;
 
-      if (rotate)
-        {
-          count++;
-          count %= 360;
-        }
     }   
 
 
