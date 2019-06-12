@@ -285,6 +285,8 @@ int main (int argc, char * argv[])
   float maxval = *std::max_element (F, F + size);
   float minval = *std::min_element (F, F + size);
 
+  std::cout << minval << " " << maxval << std::endl;
+
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
     r[i] = 255 * (F[i] - minval) / (maxval - minval);
@@ -494,7 +496,7 @@ void main()
 )CODE");
 
 
-  if(1){
+  if(0){
   GLfloat lineWidthRange[2] = {0.0f, 0.0f};
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
