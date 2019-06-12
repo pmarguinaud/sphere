@@ -213,6 +213,8 @@ static float lonc = 0.0f;
 static float latc = 0.0f;
 static float R = 6.0f;
 static float fov = 20.0f;
+static bool wireframe = false;
+static bool rotate = false;
 
 static 
 void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
@@ -241,6 +243,12 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
 	    break;
 	  case GLFW_KEY_F2:
             fov -= 1;
+	    break;
+	  case GLFW_KEY_F3:
+            wireframe = ! wireframe;
+	    break;
+	  case GLFW_KEY_TAB:
+            rotate = ! rotate;
 	    break;
 	}
     }
@@ -277,8 +285,6 @@ int main (int argc, char * argv[])
   float maxval = *std::max_element (F, F + size);
   float minval = *std::min_element (F, F + size);
 
-  std::cout << minval << " " << maxval << std::endl;
-
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
     r[i] = 255 * (F[i] - minval) / (maxval - minval);
@@ -297,10 +303,10 @@ int main (int argc, char * argv[])
   unsigned char r0 = 255 * (F0 - minval) / (maxval - minval);
 
 
-  for (int i = 0; i < geom.pl[0]; i++)
-    printf ("%4d %7.2f\n", i, F[i]);
   if (0)
   {
+  for (int i = 0; i < geom.pl[0]; i++)
+    printf ("%4d %7.2f\n", i, F[i]);
   int count = 0;
   for (int i = 0; i < geom.Nj; i++)
     {
@@ -447,10 +453,8 @@ uniform mat4 MVP;
 
 void main()
 {
-  gl_Position = MVP * vec4 (vertexPos, 1);
-  gl_Position.x = 0.7 * gl_Position.x;
-  gl_Position.y = 0.7 * gl_Position.y;
-  gl_Position.z = 0.7 * gl_Position.z;
+  vec3 pos = 0.95 * vertexPos;
+  gl_Position = MVP * vec4 (pos, 1);
 
   fragmentColor.r = vertexCol.r;
   fragmentColor.g = 0.;
@@ -466,7 +470,6 @@ R"CODE(
 #version 330 core
 
 out vec4 color;
-in float rank;
 
 void main()
 {
@@ -481,21 +484,21 @@ R"CODE(
 
 layout(location = 0) in vec3 vertexPos;
 
-out float rank;
 
 uniform mat4 MVP;
 
 void main()
 {
   gl_Position =  MVP * vec4 (vertexPos, 1);
-  rank = gl_VertexID;
 }
 )CODE");
 
 
-//GLfloat lineWidthRange[2] = {0.0f, 0.0f};
-//glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
-//std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
+  if(1){
+  GLfloat lineWidthRange[2] = {0.0f, 0.0f};
+  glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
+  std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
+  }
 
   while (1) 
     {   
@@ -514,7 +517,10 @@ void main()
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID);
-      glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+      if (wireframe)
+        glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+      else
+        glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
       }
 
@@ -522,6 +528,7 @@ void main()
       glUseProgram (programID_l);
       glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID_1);
+      glLineWidth (7.0f);
       glDrawElements (GL_LINES, ind1.size (), GL_UNSIGNED_INT, NULL);
       glBindVertexArray (0);
 
@@ -534,6 +541,8 @@ void main()
       if (glfwWindowShouldClose (window) != 0)  
         break;
 
+      if (rotate)
+        lonc += 1;
     }   
 
 
