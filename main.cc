@@ -23,7 +23,7 @@ static bool uselist = true;
 typedef struct
 {
   std::vector<unsigned int> ind;
-  std::vector<float> xyz1;
+  std::vector<float> xyz;
 } isoline_data_t;
 
 typedef struct
@@ -39,7 +39,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 {
   bool dbg = false;
 
-  int ind_start = iso->xyz1.size () / 3;   // Number of points so far
+  int ind_start = iso->xyz.size () / 3;   // Number of points so far
 
   neigh_t neigh0 = uselist ?  neighlist[geom.jglo (jlonlat0)] : geom.getNeighbours (jlonlat0);
 
@@ -117,9 +117,9 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 	  float R = sqrt (X * X + Y * Y + Z * Z);
 	  X /= R; Y /= R; Z /= R;
 
-          iso->xyz1.push_back (X);
-          iso->xyz1.push_back (Y);
-          iso->xyz1.push_back (Z);
+          iso->xyz.push_back (X);
+          iso->xyz.push_back (Y);
+          iso->xyz.push_back (Z);
           
 	  // We need at least two points in order to start drawing lines
           if (count > 0)
@@ -193,9 +193,9 @@ next:
 // A single point was added; not enough to make a line
 if (count == 1)
   {
-    iso->xyz1.pop_back ();
-    iso->xyz1.pop_back ();
-    iso->xyz1.pop_back ();
+    iso->xyz.pop_back ();
+    iso->xyz.pop_back ();
+    iso->xyz.pop_back ();
   }
 
 if (dbg)
@@ -460,8 +460,8 @@ int main (int argc, char * argv[])
      
       glGenBuffers (1, &iso[i].vertexbuffer);
       glBindBuffer (GL_ARRAY_BUFFER, iso[i].vertexbuffer);
-      glBufferData (GL_ARRAY_BUFFER, iso_data[i].xyz1.size () * sizeof (float), 
-                    iso_data[i].xyz1.data (), GL_STATIC_DRAW);
+      glBufferData (GL_ARRAY_BUFFER, iso_data[i].xyz.size () * sizeof (float), 
+                    iso_data[i].xyz.data (), GL_STATIC_DRAW);
       glEnableVertexAttribArray (0); 
       glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
       glGenBuffers (1, &iso[i].elementbuffer);
@@ -469,6 +469,10 @@ int main (int argc, char * argv[])
       glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
 		    iso_data[i].ind.data (), GL_STATIC_DRAW);
       iso[i].size = iso_data[i].ind.size ();
+
+      iso_data[i].xyz.clear ();
+      iso_data[i].ind.clear ();
+      
     }
 
   GLuint programID = shader 
@@ -500,7 +504,7 @@ uniform mat4 MVP;
 
 void main()
 {
-  vec3 pos = 1.00 * vertexPos;
+  vec3 pos = 0.99 * vertexPos;
   gl_Position = MVP * vec4 (pos, 1);
 
   fragmentColor.r = vertexCol.r;
