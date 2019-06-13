@@ -173,27 +173,20 @@ public:
 
   void prn (const int * jglooff, const jlonlat_t & _jlonlat) const
   {
-  
-  printf ("\n\n");
-  
-  printf (" %4d %4d %4d\n", 
-  		jlonlat[neigh_t::INW].jglo (jglooff),
-  		jlonlat[neigh_t::IN_].jglo (jglooff),
-  		jlonlat[neigh_t::INE].jglo (jglooff));
-  
-  printf (" %4d %4d %4d\n", 
-  		jlonlat[neigh_t::I_W].jglo (jglooff),
-  		_jlonlat.jglo (jglooff),
-  		jlonlat[neigh_t::I_E].jglo (jglooff));
-  
-  printf (" %4d %4d %4d\n", 
-  		jlonlat[neigh_t::ISW].jglo (jglooff),
-  		jlonlat[neigh_t::IS_].jglo (jglooff),
-  		jlonlat[neigh_t::ISE].jglo (jglooff));
-  
-  printf ("\n\n");
-  
-  
+    printf ("\n\n");
+    printf (" %4d %4d %4d\n", 
+    		jlonlat[neigh_t::INW].jglo (jglooff),
+    		jlonlat[neigh_t::IN_].jglo (jglooff),
+    		jlonlat[neigh_t::INE].jglo (jglooff));
+    printf (" %4d %4d %4d\n", 
+    		jlonlat[neigh_t::I_W].jglo (jglooff),
+    		_jlonlat.jglo (jglooff),
+    		jlonlat[neigh_t::I_E].jglo (jglooff));
+    printf (" %4d %4d %4d\n", 
+    		jlonlat[neigh_t::ISW].jglo (jglooff),
+    		jlonlat[neigh_t::IS_].jglo (jglooff),
+    		jlonlat[neigh_t::ISE].jglo (jglooff));
+    printf ("\n\n");
   }
   
 };

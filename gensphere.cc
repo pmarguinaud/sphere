@@ -301,37 +301,6 @@ void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh
         }
     }
   
-if(0)
-{
-int jglooff[Nj];
-
-jglooff[0] = 0;
-for (int i = 1; i < Nj; i++)
-  jglooff[i] = jglooff[i-1] + pl[i-1];
-
-printf ("\n\n");
-
-printf (" %4d %4d %4d\n", 
-		neigh->jlonlat[neigh_t::INW].jglo (jglooff),
-		neigh->jlonlat[neigh_t::IN_].jglo (jglooff),
-		neigh->jlonlat[neigh_t::INE].jglo (jglooff));
-
-printf (" %4d %4d %4d\n", 
-		neigh->jlonlat[neigh_t::I_W].jglo (jglooff),
-		jlonlat_t::jglo (jlon, jlat, jglooff),
-		neigh->jlonlat[neigh_t::I_E].jglo (jglooff));
-
-printf (" %4d %4d %4d\n", 
-		neigh->jlonlat[neigh_t::ISW].jglo (jglooff),
-		neigh->jlonlat[neigh_t::IS_].jglo (jglooff),
-		neigh->jlonlat[neigh_t::ISE].jglo (jglooff));
-
-printf ("\n\n");
-
-
-}
-  
-
 }
  
 
