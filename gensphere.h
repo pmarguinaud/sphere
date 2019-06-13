@@ -193,6 +193,6 @@ public:
 
 
 
-void getNeighbours (const jlonlat_t &, const geom_t & geom, neigh_t *);
+neigh_t getNeighbours (const jlonlat_t &, const geom_t & geom);
 
 #endif
