@@ -3,20 +3,6 @@
 
 #include <string>
 
-class geom_t
-{
-public:
-  int Nj = 0;
-  int * pl = NULL;
-  int * jglooff = NULL;
-  class neigh_t getNeighbours (const class jlonlat_t &) const;
-
-};
-
-void gensphere1 (geom_t *, int *, float **, 
-                 unsigned int *, unsigned int **, 
-		 float **, const std::string &);
-
 class jlonlat_t
 {
 public:
@@ -29,8 +15,6 @@ public:
   jlonlat_t () : jlon (0), jlat (0) {}
   jlonlat_t (int _jlon, int _jlat) : jlon (_jlon), jlat (_jlat) {}
   bool ok () const { return (jlon > 0) && (jlat > 0); }
-  static int jglo (int jlon, int jlat, const int * jglooff) { return jglooff[jlat-1] + (jlon-1); }
-  int jglo (const int * jglooff) const { return ok () ? jglooff[jlat-1] + (jlon-1) : - 1; }
   int jlon = 0;
   int jlat = 0;
 
@@ -175,26 +159,27 @@ public:
      return true;
   }
 
-  void prn (const int * jglooff, const jlonlat_t & _jlonlat) const
-  {
-    printf ("\n\n");
-    printf (" %4d %4d %4d\n", 
-    		jlonlat[neigh_t::INW].jglo (jglooff),
-    		jlonlat[neigh_t::IN_].jglo (jglooff),
-    		jlonlat[neigh_t::INE].jglo (jglooff));
-    printf (" %4d %4d %4d\n", 
-    		jlonlat[neigh_t::I_W].jglo (jglooff),
-    		_jlonlat.jglo (jglooff),
-    		jlonlat[neigh_t::I_E].jglo (jglooff));
-    printf (" %4d %4d %4d\n", 
-    		jlonlat[neigh_t::ISW].jglo (jglooff),
-    		jlonlat[neigh_t::IS_].jglo (jglooff),
-    		jlonlat[neigh_t::ISE].jglo (jglooff));
-    printf ("\n\n");
-  }
+  void prn (const class geom_t &, const jlonlat_t &) const;
   
 };
 
+
+class geom_t
+{
+public:
+  int Nj = 0;
+  int * pl = NULL;
+  int * jglooff = NULL;
+  class neigh_t getNeighbours (const class jlonlat_t &) const;
+  int jglo (const class jlonlat_t & jlonlat) const 
+  { 
+    return jlonlat.ok () ? jglooff[jlonlat.jlat-1] + (jlonlat.jlon-1) : - 1; 
+  }
+};
+
+void gensphere (geom_t *, int *, float **, 
+                unsigned int *, unsigned int **, 
+	        float **, const std::string &);
 
 
 

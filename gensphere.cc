@@ -134,9 +134,9 @@ void glgauss (const int Nj, const int pl[], unsigned int * ind, const int nstrip
 }
 #undef MODULO
 
-void gensphere1 (geom_t * geom, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind, 
-		 float ** F, const std::string & type)
+void gensphere (geom_t * geom, int * np, float ** xyz, 
+                unsigned int * nt, unsigned int ** ind, 
+	        float ** F, const std::string & type)
 {
   const int nstripe = 8;
   int indoff[nstripe];
@@ -221,6 +221,8 @@ void gensphere1 (geom_t * geom, int * np, float ** xyz,
               float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
               (*F)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
 	    }
+	  else
+            abort ();
 
         }
     }
@@ -305,4 +307,22 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
   return neigh;
 }
  
+void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
+{
+  printf ("\n\n");
+  printf (" %4d %4d %4d\n", 
+  	  geom.jglo (jlonlat[neigh_t::INW]),
+  	  geom.jglo (jlonlat[neigh_t::IN_]),
+  	  geom.jglo (jlonlat[neigh_t::INE]));
+  printf (" %4d %4d %4d\n", 
+          geom.jglo (jlonlat[neigh_t::I_W]),
+          geom.jglo (_jlonlat),
+          geom.jglo (jlonlat[neigh_t::I_E]));
+  printf (" %4d %4d %4d\n", 
+          geom.jglo (jlonlat[neigh_t::ISW]),
+          geom.jglo (jlonlat[neigh_t::IS_]),
+          geom.jglo (jlonlat[neigh_t::ISE]));
+  printf ("\n\n");
+}
+  
 
