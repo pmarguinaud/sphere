@@ -2,7 +2,6 @@
 #include <GLFW/glfw3.h>
 
 
-#include "bmp.h"
 #include "gensphere.h"
 #include "shader.h"
 #include <stdio.h>
@@ -19,7 +18,7 @@
 #include "load.h"
 
 
-static bool uselist = false;
+static bool uselist = true;
 
 typedef struct
 {
@@ -377,6 +376,7 @@ int main (int argc, char * argv[])
 
       free (seen);
     }
+
 
   if (! glfwInit ()) 
     {   
