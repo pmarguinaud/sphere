@@ -343,14 +343,14 @@ int main (int argc, char * argv[])
   if (uselist)
   neighlist = geom.getNeighbours ();
 
-  const int N = 5;
+  const int N = 8;
   isoline_data_t iso_data[N];
 
+#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
-      std::cout << F0 << std::endl;
 
       for (int i = 0; i < 9 * np; i++)
         seen[i] = false;
@@ -377,7 +377,6 @@ int main (int argc, char * argv[])
 
       free (seen);
     }
-
 
   if (! glfwInit ()) 
     {   
