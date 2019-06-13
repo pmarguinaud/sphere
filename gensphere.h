@@ -2,6 +2,7 @@
 #define _GENSPHERE_H
 
 #include <string>
+#include <vector>
 
 class jlonlat_t
 {
@@ -86,11 +87,11 @@ public:
       }
   }
 
+
   pos_t next (pos_t pos, rot_t rot = P)
   {
     if (rot == N)
       return prev (pos);
-
     while (1)
       {
         switch (pos)
@@ -170,7 +171,8 @@ public:
   int Nj = 0;
   int * pl = NULL;
   int * jglooff = NULL;
-  class neigh_t getNeighbours (const class jlonlat_t &) const;
+  neigh_t getNeighbours (const class jlonlat_t &) const;
+  std::vector<neigh_t> getNeighbours () const;
   int jglo (const class jlonlat_t & jlonlat) const 
   { 
     return jlonlat.ok () ? jglooff[jlonlat.jlat-1] + (jlonlat.jlon-1) : - 1; 

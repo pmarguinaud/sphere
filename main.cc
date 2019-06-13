@@ -19,15 +19,30 @@
 #include "load.h"
 
 
+static bool uselist = false;
+
+typedef struct
+{
+  std::vector<unsigned int> ind;
+  std::vector<float> xyz1;
+} isoline_data_t;
+
+typedef struct
+{
+  GLuint VertexArrayID;
+  GLuint vertexbuffer, elementbuffer;
+  GLuint size;
+} isoline_t;
+
 void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               bool * seen, const geom_t & geom, const float * xyz, 
-	      std::vector<float> * xyz1, std::vector<unsigned int> * ind1)
+              isoline_data_t * iso, const std::vector<neigh_t> & neighlist)
 {
   bool dbg = false;
 
-  int ind1_start = xyz1->size () / 3;   // Number of points so far
+  int ind_start = iso->xyz1.size () / 3;   // Number of points so far
 
-  neigh_t neigh0 = geom.getNeighbours (jlonlat0);
+  neigh_t neigh0 = uselist ?  neighlist[geom.jglo (jlonlat0)] : geom.getNeighbours (jlonlat0);
 
   jlonlat_t jlonlat = jlonlat0;         // Current position
   neigh_t neigh = neigh0;               // Current neighbours
@@ -56,8 +71,8 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 		    }
 	      if (close)               // Close the current line
                 {
-                  ind1->push_back (ind1->back ());
-                  ind1->push_back (ind1_start);
+                  iso->ind.push_back (iso->ind.back ());
+                  iso->ind.push_back (ind_start);
 	        }
 	    }
           break;                       // Exit main loop; this is the only place where it is possible to exit
@@ -103,20 +118,20 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 	  float R = sqrt (X * X + Y * Y + Z * Z);
 	  X /= R; Y /= R; Z /= R;
 
-          xyz1->push_back (X);
-          xyz1->push_back (Y);
-          xyz1->push_back (Z);
+          iso->xyz1.push_back (X);
+          iso->xyz1.push_back (Y);
+          iso->xyz1.push_back (Z);
           
 	  // We need at least two points in order to start drawing lines
           if (count > 0)
             {
-              ind1->push_back (ind1_start + count - 1);
-              ind1->push_back (ind1_start + count + 0);
+              iso->ind.push_back (ind_start + count - 1);
+              iso->ind.push_back (ind_start + count + 0);
             }
 
           if(dbg)
             if (count > 0)
-              printf (" %8d %7.2f %7.2f %7.2f\n", ind1_start + count, X, Y, Z);
+              printf (" %8d %7.2f %7.2f %7.2f\n", ind_start + count, X, Y, Z);
 
           count++;
 
@@ -137,7 +152,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos2];                             pos1 = neigh_t::opposite (pos2);
-            neigh = geom.getNeighbours (jlonlat);
+            neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
 	    continue;
           }
         else if (b0 && w1 && w2) // B
@@ -150,14 +165,14 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos2]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos2);
-            neigh = geom.getNeighbours (jlonlat);
+            neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
 	    continue;
           }
         else if (w0 && b1 && w2) // D
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos1]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos1);
-            neigh = geom.getNeighbours (jlonlat);
+            neigh = uselist ? neighlist[jglo1] : geom.getNeighbours (jlonlat);
 	    continue;
           }
         else if (w0 && w1 && w2)
@@ -179,9 +194,9 @@ next:
 // A single point was added; not enough to make a line
 if (count == 1)
   {
-    xyz1->pop_back ();
-    xyz1->pop_back ();
-    xyz1->pop_back ();
+    iso->xyz1.pop_back ();
+    iso->xyz1.pop_back ();
+    iso->xyz1.pop_back ();
   }
 
 if (dbg)
@@ -223,8 +238,8 @@ if (count > 1)
 }
 
   int jglo0 = geom.jglo (jlonlat0);
-  if (! neigh.done (&seen[8*jglo0]))  // All edges of current point have been explored
-    process (jlonlat0, r, r0, seen, geom, xyz, xyz1, ind1);
+  if (! neigh.done (&seen[8*jglo0]))  // All edges of current point have not been explored
+    process (jlonlat0, r, r0, seen, geom, xyz, iso, neighlist);
 
 }
 
@@ -311,20 +326,6 @@ int main (int argc, char * argv[])
   for (int i = 0; i < size; i++)
     r[i] = 255 * (F[i] - minval) / (maxval - minval);
 
-  float F0 = (maxval + minval) / 2.0;
-
-  if (argc > 3)
-    F0 = atof (argv[3]);
-  if ((F0 < minval) || (maxval < F0))
-    {
-      std::cout << "Wrong F0 " << F0 << " minval = " << minval << " maxval = " << maxval << std::endl;
-      F0 = (maxval + minval) / 2.0;
-    }
-
-
-  unsigned char r0 = 255 * (F0 - minval) / (maxval - minval);
-
-
   if (0)
   {
   for (int i = 0; i < geom.pl[0]; i++)
@@ -338,37 +339,45 @@ int main (int argc, char * argv[])
     printf (" %d\n", count);
   }
 
-  std::vector<unsigned int> ind1;
-  std::vector<float> xyz1;
+  std::vector<neigh_t> neighlist;
+  if (uselist)
+  neighlist = geom.getNeighbours ();
 
-  bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
-  for (int i = 0; i < 9 * np; i++)
-    seen[i] = false;
+  const int N = 5;
+  isoline_data_t iso_data[N];
 
+  for (int i = 0; i < N; i++)
+    {
+      bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
+      float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
+      std::cout << F0 << std::endl;
 
-  // Process edges of the domain first
+      for (int i = 0; i < 9 * np; i++)
+        seen[i] = false;
+     
+      // Process edges of the domain first
+     
+      // Top
+      for (int jlat = 1; jlat <= 1; jlat++)
+        for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+          process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
+                   &iso_data[i], neighlist);
+     
+      // Bottom
+      for (int jlat = geom.Nj; jlat <= geom.Nj; jlat++)
+        for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+          process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
+                   &iso_data[i], neighlist);
+     
+      // Process center of the domain
+      for (int jlat = 2; jlat < geom.Nj; jlat++)
+        for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+          process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
+                   &iso_data[i], neighlist);
 
-  // Top
-  for (int jlat = 1; jlat <= 1; jlat++)
-    for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, &xyz1, &ind1);
+      free (seen);
+    }
 
-  // Bottom
-  for (int jlat = geom.Nj; jlat <= geom.Nj; jlat++)
-    for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, &xyz1, &ind1);
-
-  // Process center of the domain
-  for (int jlat = 2; jlat < geom.Nj; jlat++)
-    for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-      process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, &xyz1, &ind1);
-
-if(0){
-  for (int i = 0; i < xyz1.size () / 3; i++)
-    std::cout << i << " " << xyz1[3*i+0] << " " << xyz1[3*i+1] << " " << xyz1[3*i+2] << " " << std::endl;
-  for (int i = 0; i < ind1.size () / 2; i++)
-    std::cout << i << " " << ind1[2*i+0] << " " << ind1[2*i+1] << std::endl;
-}
 
   if (! glfwInit ()) 
     {   
@@ -443,21 +452,25 @@ if(0){
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
 
   // Line 
-  GLuint VertexArrayID_1;
-  GLuint vertexbuffer_1, elementbuffer_1;
 
-  glGenVertexArrays (1, &VertexArrayID_1);
-  glBindVertexArray (VertexArrayID_1);
-
-  glGenBuffers (1, &vertexbuffer_1);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer_1);
-  glBufferData (GL_ARRAY_BUFFER, xyz1.size () * sizeof (float), xyz1.data (), GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-
-  glGenBuffers (1, &elementbuffer_1);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer_1);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, ind1.size () * sizeof (unsigned int), ind1.data (), GL_STATIC_DRAW);
+  isoline_t iso[N];
+  for (int i = 0; i < N; i++)
+    {
+      glGenVertexArrays (1, &iso[i].VertexArrayID);
+      glBindVertexArray (iso[i].VertexArrayID);
+     
+      glGenBuffers (1, &iso[i].vertexbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iso[i].vertexbuffer);
+      glBufferData (GL_ARRAY_BUFFER, iso_data[i].xyz1.size () * sizeof (float), 
+                    iso_data[i].xyz1.data (), GL_STATIC_DRAW);
+      glEnableVertexAttribArray (0); 
+      glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+      glGenBuffers (1, &iso[i].elementbuffer);
+      glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer);
+      glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
+		    iso_data[i].ind.data (), GL_STATIC_DRAW);
+      iso[i].size = iso_data[i].ind.size ();
+    }
 
   GLuint programID = shader 
 (
@@ -488,7 +501,7 @@ uniform mat4 MVP;
 
 void main()
 {
-  vec3 pos = 0.99 * vertexPos;
+  vec3 pos = 1.00 * vertexPos;
   gl_Position = MVP * vec4 (pos, 1);
 
   fragmentColor.r = vertexCol.r;
@@ -572,12 +585,16 @@ void main()
       }
 
       // Line 
+      //
       glUseProgram (programID_l);
       glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-      glBindVertexArray (VertexArrayID_1);
-      glLineWidth (7.0f);
-      glDrawElements (GL_LINES, ind1.size (), GL_UNSIGNED_INT, NULL);
-      glBindVertexArray (0);
+      for (int i = 0; i < N; i++)
+        {
+          glBindVertexArray (iso[i].VertexArrayID);
+          glLineWidth (7.0f);
+          glDrawElements (GL_LINES, iso[i].size, GL_UNSIGNED_INT, NULL);
+          glBindVertexArray (0);
+        }
 
 
       glfwSwapBuffers (window);

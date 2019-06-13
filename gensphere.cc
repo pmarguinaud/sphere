@@ -229,10 +229,16 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
   
 }
 
+static inline int MODULO (int A, int B) 
+{
+  return (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)));
+}
 
-
-
-
+static inline int INORM (int KLO, int KLOEN) 
+{
+  return (1 + MODULO (KLO-1, KLOEN));
+}
+  
 neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
 {
   neigh_t neigh;
@@ -241,9 +247,6 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
   int ir, iq, iloen, iloen1, iloen2;
   int inum, iden;
   int jlat1, jlon1, jlat2, jlon2;
-  
-#define MODULO(A, B) (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)))
-#define INORM(KLO, KLOEN) (1 + MODULO (KLO-1, KLOEN))
   
 
   neigh.add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
@@ -305,6 +308,89 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
     }
   
   return neigh;
+}
+
+std::vector<neigh_t> geom_t::getNeighbours () const 
+{
+  std::vector<neigh_t> list;
+
+  int size = 0;
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    size += pl[jlat-1]; 
+  
+  list.resize (size);
+
+#pragma omp parallel for
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      {
+        int ir, iq, iloen, iloen1, iloen2;
+        int inum, iden;
+        int jlat1, jlon1, jlat2, jlon2;
+  
+        int jglo = jglooff[jlat-1] + (jlon-1);
+        neigh_t & neigh = list[jglo];
+
+        neigh.add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
+        
+        if (jlat == 1) 
+          {
+            neigh.add (neigh_t::INE, 0, 0);
+            neigh.add (neigh_t::IN_, 0, 0);
+            neigh.add (neigh_t::INW, 0, 0);
+          }
+        else
+          {
+            jlon1 = jlon;
+            jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+            jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+            inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+            iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+                neigh.add (neigh_t::IN_, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::INW, INORM (iq-1, iloen2), jlat2);
+              }
+            else
+              {
+                neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+                neigh.add (neigh_t::IN_,                    0,     0);
+                neigh.add (neigh_t::INW, INORM (iq+0, iloen2), jlat2);
+              }
+          }
+
+        neigh.add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
+        
+        if (jlat == Nj) 
+          {
+            neigh.add (neigh_t::ISW, 0, 0);
+            neigh.add (neigh_t::IS_, 0, 0);
+            neigh.add (neigh_t::ISE, 0, 0);
+          }
+        else
+          {
+            jlon1 = jlon;
+            jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+            jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+            inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+            iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::ISW, INORM (iq-1, iloen2), jlat2);
+                neigh.add (neigh_t::IS_, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+              }
+            else
+              {
+                neigh.add (neigh_t::ISW, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::IS_,                    0,     0);
+                neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+              }
+          }
+    }
+  
+  return list;
 }
  
 void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
