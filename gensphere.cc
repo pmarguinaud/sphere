@@ -231,7 +231,7 @@ void gensphere1 (geom_t * geom, int * np, float ** xyz,
 
 
 
-void find_neighbours1 (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh)
+void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh)
 {
   int jlon = jlonlat.jlon;
   int jlat = jlonlat.jlat;

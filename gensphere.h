@@ -200,6 +200,6 @@ public:
 
 
 
-void find_neighbours1 (const jlonlat_t &, int *, int, neigh_t *);
+void getNeighbours (const jlonlat_t &, int *, int, neigh_t *);
 
 #endif
