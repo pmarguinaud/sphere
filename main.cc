@@ -28,7 +28,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
   int ind1_start = xyz1->size () / 3;   // Number of points so far
 
   neigh_t neigh0;
-  getNeighbours (jlonlat0, geom.pl, geom.Nj, &neigh0);
+  getNeighbours (jlonlat0, geom, &neigh0);
 
   jlonlat_t jlonlat = jlonlat0;         // Current position
   neigh_t neigh = neigh0;               // Current neighbours
@@ -138,7 +138,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos2];                             pos1 = neigh_t::opposite (pos2);
-            getNeighbours (jlonlat, geom.pl, geom.Nj, &neigh);
+            getNeighbours (jlonlat, geom, &neigh);
 	    continue;
           }
         else if (b0 && w1 && w2) // B
@@ -151,14 +151,14 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos2]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos2);
-            getNeighbours (jlonlat, geom.pl, geom.Nj, &neigh);
+            getNeighbours (jlonlat, geom, &neigh);
 	    continue;
           }
         else if (w0 && b1 && w2) // D
           {
             push (); 
 	    jlonlat = neigh.jlonlat[pos1]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos1);
-            getNeighbours (jlonlat, geom.pl, geom.Nj, &neigh);
+            getNeighbours (jlonlat, geom, &neigh);
 	    continue;
           }
         else if (w0 && w1 && w2)

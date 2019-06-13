@@ -231,7 +231,7 @@ void gensphere1 (geom_t * geom, int * np, float ** xyz,
 
 
 
-void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh)
+void getNeighbours (const jlonlat_t & jlonlat, const geom_t & geom, neigh_t * neigh)
 {
   int jlon = jlonlat.jlon;
   int jlat = jlonlat.jlat;
@@ -243,7 +243,7 @@ void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh
 #define INORM(KLO, KLOEN) (1 + MODULO (KLO-1, KLOEN))
   
 
-  neigh->add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
+  neigh->add (neigh_t::I_E, INORM (jlon+1, geom.pl[jlat-1]), jlat);
   
   if (jlat == 1) 
     {
@@ -254,8 +254,8 @@ void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh
   else
     {
       jlon1 = jlon;
-      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-      jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+      jlat1 = jlat     ; iloen1 = geom.pl[jlat1-1];
+      jlat2 = jlat - 1 ; iloen2 = geom.pl[jlat2-1];
       inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
       iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
       if (ir == 0) 
@@ -272,9 +272,9 @@ void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh
         }
     }
 
-  neigh->add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
+  neigh->add (neigh_t::I_W, INORM (jlon-1, geom.pl[jlat-1]), jlat);
   
-  if (jlat == Nj) 
+  if (jlat == geom.Nj) 
     {
       neigh->add (neigh_t::ISW, 0, 0);
       neigh->add (neigh_t::IS_, 0, 0);
@@ -283,8 +283,8 @@ void getNeighbours (const jlonlat_t & jlonlat, int * pl, int Nj, neigh_t * neigh
   else
     {
       jlon1 = jlon;
-      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+      jlat1 = jlat     ; iloen1 = geom.pl[jlat1-1];
+      jlat2 = jlat + 1 ; iloen2 = geom.pl[jlat2-1];
       inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
       iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
       if (ir == 0) 
