@@ -9,6 +9,8 @@ public:
   int Nj = 0;
   int * pl = NULL;
   int * jglooff = NULL;
+  class neigh_t getNeighbours (const class jlonlat_t &) const;
+
 };
 
 void gensphere1 (geom_t *, int *, float **, 
@@ -31,6 +33,8 @@ public:
   int jglo (const int * jglooff) const { return ok () ? jglooff[jlat-1] + (jlon-1) : - 1; }
   int jlon = 0;
   int jlat = 0;
+
+
 };
 
 
@@ -193,6 +197,5 @@ public:
 
 
 
-neigh_t getNeighbours (const jlonlat_t &, const geom_t & geom);
 
 #endif
