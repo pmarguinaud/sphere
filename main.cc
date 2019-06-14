@@ -77,10 +77,11 @@ int main (int argc, char * argv[])
   {
     int w = 0, h = 0;
     unsigned char * rgb = NULL;
+    unsigned int texture;
   } contour_t;
 
-  const int N = 2;
-  contour_t cont;
+  const int N = 4;
+  contour_t cont[N];
 
   std::string type = "XxYxZ";
 
@@ -88,13 +89,18 @@ int main (int argc, char * argv[])
     type = argv[2];
 
 
-  for (int i = 0; i < N; i++)
+  for (int k = 0; k < N; k++)
     {
 
-      cont.w = 100;
-      cont.h = 500;
+      cont[k].w = 100;
+      cont[k].h = 100;
+
+      for (int l = N; l > k; l--)
+        cont[k].h *= 2;
+
+      std::cout << cont[k].h << std::endl;
      
-      cont.rgb = (unsigned char *)malloc (sizeof (unsigned char) * cont.w * cont.h * 3);
+      cont[k].rgb = (unsigned char *)malloc (sizeof (unsigned char) * cont[k].w * cont[k].h * 3);
      
       if(0){
       const int col[10][3] = {
@@ -106,23 +112,23 @@ int main (int argc, char * argv[])
                              };
      
      
-      const int s = cont.h / 10;
-      for (int i = 0; i < cont.w; i++)
-        for (int j = 0; j < cont.h; j++)
+      const int s = cont[k].h / 10;
+      for (int i = 0; i < cont[k].w; i++)
+        for (int j = 0; j < cont[k].h; j++)
           {
-            cont.rgb[3*(cont.w*j+i)+0] = col[(j/s)%10][0];
-            cont.rgb[3*(cont.w*j+i)+1] = col[(j/s)%10][1];
-            cont.rgb[3*(cont.w*j+i)+2] = col[(j/s)%10][2];
+            cont[k].rgb[3*(cont[k].w*j+i)+0] = col[(j/s)%10][0];
+            cont[k].rgb[3*(cont[k].w*j+i)+1] = col[(j/s)%10][1];
+            cont[k].rgb[3*(cont[k].w*j+i)+2] = col[(j/s)%10][2];
           }
       }else{
      
-      const int s = cont.h / 10;
-      for (int i = 0; i < cont.w; i++)
-        for (int j = 0; j < cont.h; j++)
+      const int s = cont[k].h / 10;
+      for (int i = 0; i < cont[k].w; i++)
+        for (int j = 0; j < cont[k].h; j++)
           {
-            cont.rgb[3*(cont.w*j+i)+0] = (j % s == 0) ? 0 : 255;
-            cont.rgb[3*(cont.w*j+i)+1] = (j % s == 0) ? 0 : 255;
-            cont.rgb[3*(cont.w*j+i)+2] = (j % s == 0) ? 0 : 255;
+            cont[k].rgb[3*(cont[k].w*j+i)+0] = (j % s == 0) ? 0 : 255;
+            cont[k].rgb[3*(cont[k].w*j+i)+1] = (j % s == 0) ? 0 : 255;
+            cont[k].rgb[3*(cont[k].w*j+i)+2] = (j % s == 0) ? 0 : 255;
           }
      
       }
@@ -281,16 +287,18 @@ void main()
 
 
 
-  unsigned int texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, cont.w, cont.h, 0, GL_RGB, GL_UNSIGNED_BYTE, cont.rgb);
+  for (int i = 0; i < N; i++)
+    {
+      glGenTextures (1, &cont[i].texture);
+      glBindTexture (GL_TEXTURE_2D, cont[i].texture); 
+      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, cont[i].w, cont[i].h, 0, GL_RGB, GL_UNSIGNED_BYTE, cont[i].rgb);
+    }
 
-  glUniform1i (glGetUniformLocation (programID, "texture"), 0);
+
 
   while (1) 
     {   
@@ -308,6 +316,17 @@ void main()
         glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
       else
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
+
+      glActiveTexture (GL_TEXTURE0);
+      if (fov < 8)
+        glBindTexture (GL_TEXTURE_2D, cont[0].texture);
+      else if (fov < 15)
+        glBindTexture (GL_TEXTURE_2D, cont[1].texture);
+      else if (fov < 25)
+        glBindTexture (GL_TEXTURE_2D, cont[2].texture);
+      else 
+        glBindTexture (GL_TEXTURE_2D, cont[3].texture);
+      glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
       glBindVertexArray (VertexArrayID);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
