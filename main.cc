@@ -2,7 +2,6 @@
 #include <GLFW/glfw3.h>
 
 
-#include "bmp.h"
 #include "gensphere.h"
 #include "shader.h"
 #include <stdio.h>
