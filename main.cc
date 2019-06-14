@@ -91,14 +91,12 @@ int main (int argc, char * argv[])
   for (int k = 0; k < N; k++)
     {
 
-      cont[k].w = 100;
+      cont[k].w =  50;
       cont[k].h = 100;
 
       for (int l = N; l > k; l--)
         cont[k].h *= 2;
 
-      std::cout << cont[k].h << std::endl;
-     
       cont[k].rgb = (unsigned char *)malloc (sizeof (unsigned char) * cont[k].w * cont[k].h * 3);
      
       if(0){
@@ -233,7 +231,7 @@ uniform sampler2D texture;
 void main ()
 {
   vec4 col = texture2D (texture, 0.90 * vec2 (0.5, fragmentVal) + 0.05);
-  if(true){
+  if(false){
   color.r = col.r;
   color.g = col.g;
   color.b = col.b;
@@ -282,8 +280,46 @@ void main()
 
 )CODE");
 
-  glUseProgram (programID);
+  GLuint programID1 = shader
+(
+R"CODE(
+#version 330 core
 
+in vec3 fragmentPos;
+out vec4 color;
+
+void main ()
+{
+  color.r = 1.;
+  color.g = 0.;
+  color.b = 0.;
+  color.a = 1.;
+}
+)CODE",
+R"CODE(
+
+#version 330 core
+
+layout (location = 0) in vec3 vertexPos;
+
+uniform mat4 MVP;
+
+void main()
+{
+  vec3 normedPos;
+
+  float x = vertexPos.x;
+  float y = vertexPos.y;
+  float z = vertexPos.z;
+  float r = 0.99 / sqrt (x * x + y * y + z * z); 
+  normedPos.x = x * r;
+  normedPos.y = y * r;
+  normedPos.z = z * r;
+  gl_Position =  MVP * vec4 (normedPos, 1);
+}
+
+
+)CODE");
 
 
   for (int i = 0; i < N; i++)
@@ -301,15 +337,24 @@ void main()
 
   while (1) 
     {   
+      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
       glm::mat4 View       = glm::lookAt (glm::vec3 (R * cos (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f), 
                                                      R * sin (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f),
                                                      R * sin (latc * M_PI / 180.0f)), 
                                           glm::vec3 (0,0,0), glm::vec3 (0,0,1));
       glm::mat4 Model      = glm::mat4 (1.0f);
+      
       glm::mat4 MVP = Projection * View * Model; 
+
+      glUseProgram (programID1);
+      glUniformMatrix4fv (glGetUniformLocation (programID1, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+      glBindVertexArray (VertexArrayID);
+      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+
+      glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       if (wireframe)
         glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
@@ -329,6 +374,7 @@ void main()
 
       glBindVertexArray (VertexArrayID);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
