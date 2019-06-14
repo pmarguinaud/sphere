@@ -155,7 +155,8 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 
 
 void gensphere1 (const int Nj, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind)
+                 unsigned int * nt, unsigned int ** ind,
+		 float ** F, const std::string & type)
 {
   int * pl = NULL;
   const int nstripe = 8;
@@ -198,6 +199,7 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
   for (int jlat = 2; jlat <= Nj; jlat++)
      iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
+  *F = (float *)malloc (sizeof (float) * v_len);
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
@@ -219,6 +221,30 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
           (*xyz)[3*jglo+0] = X;
           (*xyz)[3*jglo+1] = Y;
           (*xyz)[3*jglo+2] = Z;
+
+          (*F)[jglo] = 0;
+	  if (type == "gradx")
+            (*F)[jglo] = (1 + coslon) * coslat / 2.0;
+	  else if (type == "lon")
+            (*F)[jglo] = lon / (2 * M_PI);
+	  else if (type == "lat")
+            (*F)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
+	  else if (type == "coslatxcos2lon")
+            (*F)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
+	  else if (type == "coslatxcos3lon")
+            (*F)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
+	  else if (type == "lat2xcos2lon")
+            (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
+	  else if (type == "XxYxZ")
+            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
+	  else if (type == "saddle0")
+            {
+              float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
+              (*F)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
+	    }
+	  else
+            abort ();
+
         }
     }
   

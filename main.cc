@@ -8,22 +8,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <algorithm>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <openssl/md5.h>
 #include <unistd.h>
 #include <sys/time.h>
 
 
+static float lonc = 0.0f;
+static float latc = 0.0f;
+static float R = 6.0f;
+static float fov = 20.0f;
+static bool wireframe = false;
+static bool rotate = false;
 
-void calc_md5 (const char * buf, int len, unsigned char out[])
+static 
+void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
 {
-  MD5_CTX c;
-  MD5_Init (&c);
-  MD5_Update (&c, buf, len);
-  MD5_Final (out, &c);
+  if (action == GLFW_PRESS || action == GLFW_REPEAT)
+    {
+      switch (key)
+        {
+          case GLFW_KEY_UP:
+            latc += 5;
+	    break;
+          case GLFW_KEY_DOWN:
+            latc -= 5;
+	    break;
+          case GLFW_KEY_LEFT:
+            lonc += 5;
+	    break;
+          case GLFW_KEY_RIGHT:
+            lonc -= 5;
+	    break;
+	  case GLFW_KEY_SPACE:
+            lonc  = 0; latc = 0;
+	    break;
+	  case GLFW_KEY_F1:
+            fov += 1;
+	    break;
+	  case GLFW_KEY_F2:
+            fov -= 1;
+	    break;
+	  case GLFW_KEY_F3:
+            wireframe = ! wireframe;
+	    break;
+	  case GLFW_KEY_TAB:
+            rotate = ! rotate;
+	    break;
+	}
+    }
 }
 
 
@@ -36,12 +72,75 @@ int main (int argc, char * argv[])
   unsigned int * ind;
   const int width = 1024, height = 1024;
   int w, h;
-  unsigned char * rgb = NULL;
-  unsigned char md5[MD5_DIGEST_LENGTH];
 
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
+  typedef struct
+  {
+    int w = 0, h = 0;
+    unsigned char * rgb = NULL;
+  } contour_t;
 
-  gensphere1 (Nj, &np, &xyz, &nt, &ind);
+  const int N = 2;
+  contour_t cont;
+
+  std::string type = "XxYxZ";
+
+  if (argc > 2)
+    type = argv[2];
+
+
+  for (int i = 0; i < N; i++)
+    {
+
+      cont.w = 100;
+      cont.h = 500;
+     
+      cont.rgb = (unsigned char *)malloc (sizeof (unsigned char) * cont.w * cont.h * 3);
+     
+      if(0){
+      const int col[10][3] = {
+                               {255,   0,   0}, {  0, 255,   0},
+                               {  0,   0, 255}, {  0,   0,   0},
+                               {255, 255, 255}, {  0,   0,   0},
+                               {255, 255,   0}, {255,   0, 255},
+                               {  0, 255, 255}, {255, 127, 127} 
+                             };
+     
+     
+      const int s = cont.h / 10;
+      for (int i = 0; i < cont.w; i++)
+        for (int j = 0; j < cont.h; j++)
+          {
+            cont.rgb[3*(cont.w*j+i)+0] = col[(j/s)%10][0];
+            cont.rgb[3*(cont.w*j+i)+1] = col[(j/s)%10][1];
+            cont.rgb[3*(cont.w*j+i)+2] = col[(j/s)%10][2];
+          }
+      }else{
+     
+      const int s = cont.h / 10;
+      for (int i = 0; i < cont.w; i++)
+        for (int j = 0; j < cont.h; j++)
+          {
+            cont.rgb[3*(cont.w*j+i)+0] = (j % s == 0) ? 0 : 255;
+            cont.rgb[3*(cont.w*j+i)+1] = (j % s == 0) ? 0 : 255;
+            cont.rgb[3*(cont.w*j+i)+2] = (j % s == 0) ? 0 : 255;
+          }
+     
+      }
+    }
+
+
+  float * F;
+
+  gensphere1 (Nj, &np, &xyz, &nt, &ind, &F, type);
+
+  float maxval = *std::max_element (F, F + np);
+  float minval = *std::min_element (F, F + np);
+
+  std::cout << " minval = " << minval << std::endl;
+  std::cout << " maxval = " << maxval << std::endl;
+
+  for (int i = 0; i < np; i++)
+    F[i] = (F[i] - minval) / (maxval - minval);
 
   if (! glfwInit ()) 
     {   
@@ -67,6 +166,8 @@ int main (int argc, char * argv[])
     }
   
   glfwMakeContextCurrent (window);
+
+  glfwSetKeyCallback (window, key_callback);
   
   glewExperimental = true; 
   if (glewInit () != GLEW_OK)
@@ -99,6 +200,15 @@ int main (int argc, char * argv[])
   glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+
+
+  glGenBuffers (1, &colorbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, colorbuffer);
+  glBufferData (GL_ARRAY_BUFFER, np * sizeof (float), F, GL_STATIC_DRAW);
+  glEnableVertexAttribArray (1); 
+  glVertexAttribPointer (1, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+
+
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
@@ -110,21 +220,25 @@ R"CODE(
 #version 330 core
 
 in vec3 fragmentPos;
+in float fragmentVal;
 out vec4 color;
 
 uniform sampler2D texture;
 
 void main ()
 {
-  float lon = (atan (fragmentPos.y, fragmentPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (fragmentPos.z) / 3.1415926 + 0.5;
-
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-
+  vec4 col = texture2D (texture, 0.90 * vec2 (0.5, fragmentVal) + 0.05);
+  if(true){
   color.r = col.r;
   color.g = col.g;
   color.b = col.b;
   color.a = 1.;
+  }else{
+  color.r = col.r;
+  color.g = col.r;
+  color.b = col.r;
+  color.a = 1. - col.r;
+  }
 }
 )CODE",
 R"CODE(
@@ -132,8 +246,10 @@ R"CODE(
 #version 330 core
 
 layout (location = 0) in vec3 vertexPos;
+layout (location = 1) in float vertexVal;
 
 out vec3 fragmentPos;
+out float fragmentVal;
 
 uniform mat4 MVP;
 
@@ -151,17 +267,10 @@ void main()
   normedPos.y = y * r;
   normedPos.z = z * r;
 
-  if(true)
-  {
-  float lon = (atan (normedPos.y, normedPos.x) / pi + 1.0) * 0.5;
-  float lat = asin (normedPos.z) / pi + 0.5;
-  vec3 pos = vec3 (0., 2 * (lon - 0.5), lat - 0.5);
-  gl_Position =  MVP * vec4 (pos, 1);
-  }else{
   gl_Position =  MVP * vec4 (normedPos, 1);
-  }
 
   fragmentPos = normedPos;
+  fragmentVal = vertexVal;
 
 }
 
@@ -170,17 +279,6 @@ void main()
 
   glUseProgram (programID);
 
-//glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-  glm::mat4 Projection = glm::ortho(-1.0f, +1.0f, -1.0f, +1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (-6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 View       = glm::lookAt (glm::vec3 (+6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-//glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (3.0f,0.0f,5.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 Model      = glm::mat4 (1.0f);
-
-  glm::mat4 MVP = Projection * View * Model; 
-
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
 
 
   unsigned int texture;
@@ -190,19 +288,26 @@ void main()
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
+  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, cont.w, cont.h, 0, GL_RGB, GL_UNSIGNED_BYTE, cont.rgb);
 
   glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
-  struct timeval tv1, tv2;
-  struct timezone tz;
-
-  gettimeofday (&tv1, &tz);
-  int count = 0;
-
   while (1) 
     {   
+      glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
+      glm::mat4 View       = glm::lookAt (glm::vec3 (R * cos (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f), 
+                                                     R * sin (lonc * M_PI / 180.0f) * cos (latc * M_PI / 180.0f),
+                                                     R * sin (latc * M_PI / 180.0f)), 
+                                          glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+      glm::mat4 Model      = glm::mat4 (1.0f);
+      glm::mat4 MVP = Projection * View * Model; 
+      glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      if (wireframe)
+        glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+      else
+        glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
       glBindVertexArray (VertexArrayID);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
@@ -214,15 +319,12 @@ void main()
         break;
       if (glfwWindowShouldClose (window) != 0)  
         break;
-      count++;
-      if (count == 200)
-        break;
 
+
+      if (rotate)
+        lonc += 1;
     }   
 
-  gettimeofday (&tv2, &tz);
-
-  printf ("%lf\n", tv2.tv_sec + (double)tv2.tv_usec / 1000000. - tv1.tv_sec - (double)tv1.tv_usec / 1000000.);
 
 
 
