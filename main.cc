@@ -237,9 +237,9 @@ void main ()
   color.b = col.b;
   color.a = 1.;
   }else{
-  color.r = col.r;
-  color.g = col.r;
-  color.b = col.r;
+  color.r = 0.;
+  color.g = 0.;
+  color.b = 1.;
   color.a = 1. - col.r;
   }
 }
