@@ -168,8 +168,8 @@ public:
 class geom_t
 {
 public:
-  int Nj = 0;
-  int * pl = NULL;
+  long int Nj = 0;
+  long int * pl = NULL;
   int * jglooff = NULL;
   neigh_t getNeighbours (const class jlonlat_t &) const;
   std::vector<neigh_t> getNeighbours () const;
@@ -183,6 +183,10 @@ void gensphere (geom_t *, int *, float **,
                 unsigned int *, unsigned int **, 
 	        float **, const std::string &);
 
+void gensphere_grib 
+               (geom_t *, int *, float **, 
+                unsigned int *, unsigned int **, 
+                float **, const std::string &);
 
 
 #endif

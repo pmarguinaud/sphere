@@ -2,7 +2,6 @@
 #include <GLFW/glfw3.h>
 
 
-#include "gensphere.h"
 #include "shader.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +15,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include "load.h"
+#include "gensphere.h"
 
 
 static bool uselist = true;
@@ -37,7 +37,17 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               bool * seen, const geom_t & geom, const float * xyz, 
               isoline_data_t * iso, const std::vector<neigh_t> & neighlist)
 {
-  bool dbg = false;
+  static int II = 0;
+  II++;
+  bool dbg = ((II == 2069) || (II == 2271));
+  dbg = false;
+
+  if(0)
+  if (dbg)
+  if (iso->xyz.size () > 0)
+    {
+      return;
+    }
 
   int ind_start = iso->xyz.size () / 3;   // Number of points so far
 
@@ -49,6 +59,19 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
   neigh_t::rot_t rot1 = neigh_t::P;     // Current direction of rotation 
 
   int count = 0;                        // Number of points we added for the current line
+
+  struct 
+  {
+    neigh_t::pos_t pos0;                
+    neigh_t::pos_t pos1;                // Last edge where we got a match
+    neigh_t::rot_t rot1;                
+    jlonlat_t jlonlat;
+    neigh_t neigh;
+    bool valid = false;
+  } ok;
+    
+again:
+
   while (1)
     {
       int jglo0 = geom.jglo (jlonlat);
@@ -73,6 +96,16 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
                   iso->ind.push_back (iso->ind.back ());
                   iso->ind.push_back (ind_start);
 	        }
+              else if (ok.valid)
+                {
+                  pos1     = ok.pos0;
+                  rot1     = neigh_t::inv (ok.rot1);
+                  jlonlat  = ok.neigh.jlonlat[ok.pos1];
+                  jglo0    = geom.jglo (jlonlat);
+                  neigh    = uselist ? neighlist[jglo0] : geom.getNeighbours (jlonlat);
+                  ok.valid = false;
+                  goto again;
+                }
 	    }
           break;                       // Exit main loop; this is the only place where it is possible to exit
         }
@@ -103,7 +136,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
         seen[8*jglo0+pos1] = true;                       // Mark these edges as visited
         seen[8*jglo1+pos0] = true;
 
-        auto push = [=, &count]()                        
+        auto push = [=, &count, &ok]()                        
 	{ 
           float a = (r0 - r[jglo0]) / (r[jglo1] - r[jglo0]);        // Weight
 
@@ -130,10 +163,22 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 
           if(dbg)
             if (count > 0)
-              printf (" %8d %7.2f %7.2f %7.2f\n", ind_start + count, X, Y, Z);
+              {
+                float lat = asin (Z);
+                float lon = atan2 (Y, X);
+                printf (" %8d %7.2f %7.2f %7.2f %7.2f %7.2f\n", 
+                        ind_start + count, X, Y, Z, 180. * lon / M_PI, 
+                        180. * lat / M_PI);
+              }
 
           count++;
 
+          ok.pos0    = pos0;
+          ok.pos1    = pos1;
+          ok.rot1    = rot1;
+          ok.jlonlat = jlonlat;
+          ok.neigh   = neigh;
+          ok.valid   = true;
 
 	};
 
@@ -191,18 +236,37 @@ next:
     }
 
 // A single point was added; not enough to make a line
-if (count == 1)
+// A two point segments is not considered useful
+// -> Remove
+if (count <= 2)
   {
-    iso->xyz.pop_back ();
-    iso->xyz.pop_back ();
-    iso->xyz.pop_back ();
+    for (int i = 0; i < 3 * count; i++)
+      iso->xyz.pop_back ();
+    for (int i = 0; i < 2*(count-1); i++)
+      iso->ind.pop_back ();
   }
+
 
 if (dbg)
 if (count > 1)
 {
 
-  printf ("> %d\n", count );
+  printf ("> count = %d, II = %d\n", count, II);
+
+  if(0)
+  if ((II == 2069) || (II == 2271))
+    {
+printf (" II = %d\n", II);
+    for (int i = ind_start; i < ind_start+count; i++)
+       {
+         iso->xyz[3*i+0] = 1.2 * iso->xyz[3*i+0];
+         iso->xyz[3*i+1] = 1.2 * iso->xyz[3*i+1];
+         iso->xyz[3*i+2] = 1.2 * iso->xyz[3*i+2];
+       }
+
+    }
+
+  if(1){
 
   std::cout << " r0 = " << r0 << std::endl;
 
@@ -210,6 +274,7 @@ if (count > 1)
 
   int jglo0 = geom.jglo (jlonlat0);
   std::cout << " done = " << neigh0.done (&seen[8*jglo0]) << std::endl;
+  printf ("%30.20f\n", r[jglo0]);
   std::cout << "I_E " << neigh0.jlonlat[neigh_t::I_E].ok () << " " << seen[8*jglo0+0]; if (neigh0.jlonlat[neigh_t::I_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I_E])]); printf ("\n"); 
   std::cout << "INE " << neigh0.jlonlat[neigh_t::INE].ok () << " " << seen[8*jglo0+1]; if (neigh0.jlonlat[neigh_t::INE].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::INE])]); printf ("\n"); 
   std::cout << "IN_ " << neigh0.jlonlat[neigh_t::IN_].ok () << " " << seen[8*jglo0+2]; if (neigh0.jlonlat[neigh_t::IN_].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_])]); printf ("\n"); 
@@ -223,7 +288,8 @@ if (count > 1)
   neigh.prn (geom, jlonlat);
 
   int jglo = geom.jglo (jlonlat);
-  std::cout << " done = " << neigh0.done (&seen[8*jglo]) << std::endl;
+  std::cout << " done = " << neigh.done (&seen[8*jglo]) << std::endl;
+  printf ("%30.20f\n", r[jglo]);
   std::cout << "I_E " << neigh.jlonlat[neigh_t::I_E].ok () << " " << seen[8*jglo+0]; if (neigh.jlonlat[neigh_t::I_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I_E])]); printf ("\n"); 
   std::cout << "INE " << neigh.jlonlat[neigh_t::INE].ok () << " " << seen[8*jglo+1]; if (neigh.jlonlat[neigh_t::INE].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::INE])]); printf ("\n"); 
   std::cout << "IN_ " << neigh.jlonlat[neigh_t::IN_].ok () << " " << seen[8*jglo+2]; if (neigh.jlonlat[neigh_t::IN_].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_])]); printf ("\n"); 
@@ -234,6 +300,7 @@ if (count > 1)
   std::cout << "ISE " << neigh.jlonlat[neigh_t::ISE].ok () << " " << seen[8*jglo+7]; if (neigh.jlonlat[neigh_t::ISE].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::ISE])]); printf ("\n"); 
 
 
+  }
 }
 
   int jglo0 = geom.jglo (jlonlat0);
@@ -243,6 +310,7 @@ if (count > 1)
 }
 
 
+static bool verbose = false;
 static float lonc = 0.0f;
 static float latc = 0.0f;
 static float R = 6.0f;
@@ -259,24 +327,36 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
         {
           case GLFW_KEY_UP:
             latc += 5;
+if (verbose)
+std::cout << lonc << " " << latc << std::endl;
 	    break;
           case GLFW_KEY_DOWN:
             latc -= 5;
+if (verbose)
+std::cout << lonc << " " << latc << std::endl;
 	    break;
           case GLFW_KEY_LEFT:
             lonc += 5;
+if (verbose)
+std::cout << lonc << " " << latc << std::endl;
 	    break;
           case GLFW_KEY_RIGHT:
             lonc -= 5;
+if (verbose)
+std::cout << lonc << " " << latc << std::endl;
 	    break;
 	  case GLFW_KEY_SPACE:
-            lonc  = 0; latc = 0;
+            lonc  = 0; latc = 0; R = 6.0; fov = 20.0f;
 	    break;
 	  case GLFW_KEY_F1:
             fov += 1;
+if (verbose)
+std::cout << fov << std::endl;
 	    break;
 	  case GLFW_KEY_F2:
             fov -= 1;
+if (verbose)
+std::cout << fov << std::endl;
 	    break;
 	  case GLFW_KEY_F3:
             wireframe = ! wireframe;
@@ -286,6 +366,14 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
 	    break;
 	}
     }
+}
+
+bool endsWith (std::string const & fullString, std::string const & ending) 
+{
+  if (fullString.length () >= ending.length ()) 
+    return (0 == fullString.compare (fullString.length () 
+            - ending.length (), ending.length (), ending));
+  return false;
 }
 
 
@@ -306,11 +394,15 @@ int main (int argc, char * argv[])
 
 
   std::string type = "gradx";
+
  
   if (argc > 2)
     type = argv[2];
 
-  gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
+  if (endsWith (type, std::string (".grb")))
+    gensphere_grib (&geom, &np, &xyz, &nt, &ind, &F, type);
+  else
+    gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -325,18 +417,6 @@ int main (int argc, char * argv[])
   for (int i = 0; i < size; i++)
     r[i] = 255 * (F[i] - minval) / (maxval - minval);
 
-  if (0)
-  {
-  for (int i = 0; i < geom.pl[0]; i++)
-    printf ("%4d %7.2f\n", i, F[i]);
-  int count = 0;
-  for (int i = 0; i < geom.Nj; i++)
-    {
-      printf ("%d\n", geom.pl[i]);
-      count += geom.pl[i];
-    }
-    printf (" %d\n", count);
-  }
 
   std::vector<neigh_t> neighlist;
   if (uselist)
@@ -345,7 +425,7 @@ int main (int argc, char * argv[])
   const int N = 8;
   isoline_data_t iso_data[N];
 
-#pragma omp parallel for
+//#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
