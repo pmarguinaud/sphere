@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <eccodes.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,36 +15,23 @@
 
 
 #define PRINT(a,b,c) \
-  do {                                                                                          \
-    if (pass == 1)                                                                              \
-      {                                                                                         \
-        indcnt[istripe]++;                                                                      \
-      }                                                                                         \
-    else if (pass == 2)                                                                         \
-      {                                                                                         \
-        *(inds++) = (a)-1; *(inds++) = (b)-1; *(inds++) = (c)-1;                                \
-      }                                                                                         \
+  do {                                                            \
+      *(inds++) = (a)-1; *(inds++) = (b)-1; *(inds++) = (c)-1;    \
   } while (0)
 
 static 
-void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int nstripe, int indcnt[])
+void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const int nstripe, int indcnt[])
 {
   int iglooff[Nj];
   int indcntoff[nstripe];
   
   iglooff[0] = 0;
   for (int jlat = 2; jlat <= Nj-1; jlat++)
-     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
+    iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
-  if (pass == 1)
-    *ind = 0;
-
-  if (pass == 2)
-    {
-      indcntoff[0] = 0;
-      for (int istripe = 1; istripe < nstripe; istripe++)
-        indcntoff[istripe] = indcntoff[istripe-1] + indcnt[istripe-1];
-    }
+  indcntoff[0] = 0;
+  for (int istripe = 1; istripe < nstripe; istripe++)
+    indcntoff[istripe] = indcntoff[istripe-1] + indcnt[istripe-1];
 
 #pragma omp parallel for 
   for (int istripe = 0; istripe < nstripe; istripe++)
@@ -51,9 +39,6 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
       int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
       unsigned int * inds = ind + 3 * indcntoff[istripe];
-
-      if (pass == 1)
-        indcnt[istripe] = 0;
 
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
         {
@@ -147,73 +132,68 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 
     }
 
-  if (pass == 1)
-    for (int istripe = 0; istripe < nstripe; istripe++)
-      *ind += indcnt[istripe];
-
 }
+#undef MODULO
 
-
-void gensphere1 (const int Nj, int * np, float ** xyz, 
-                 unsigned int * nt, unsigned int ** ind,
-		 float ** F, const std::string & type)
+void gensphere (geom_t * geom, int * np, float ** xyz, 
+                unsigned int * nt, unsigned int ** ind, 
+	        float ** F, const std::string & type)
 {
-  int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  pl = (int *)malloc (sizeof (int) * Nj);
+  geom->pl = (long int *)malloc (sizeof (long int) * geom->Nj);
 
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
       float coslat = cos (lat);
-      pl[jlat-1] = (2. * Nj * coslat);
+      geom->pl[jlat-1] = (2. * geom->Nj * coslat);
     }
 
   *nt = 0;
-  for (int jlat = 1; jlat < Nj; jlat++)
-    *nt += pl[jlat-1] + pl[jlat];
+  for (int jlat = 1; jlat < geom->Nj; jlat++)
+    *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
-      int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
-      int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
+      int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
+      int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
       indoff[istripe] = 0;
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        indoff[istripe] += pl[jlat-1] + pl[jlat];
+        indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
     }
   
   *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (Nj, pl, 2, *ind, nstripe, indoff);
+  glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
 
 
   int v_len = 0;
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    v_len += pl[jlat-1];
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+    v_len += geom->pl[jlat-1];
   
-  int iglooff[Nj];
-  iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj; jlat++)
-     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
+  geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+  geom->jglooff[0] = 0;
+  for (int jlat = 2; jlat <= geom->Nj; jlat++)
+     geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
-  *F = (float *)malloc (sizeof (float) * v_len);
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+  *F = (float *)malloc (sizeof (float) * v_len);
   *np  = v_len;
 
 //#pragma omp parallel for
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
       float coslat = cos (lat); float sinlat = sin (lat);
-      for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      for (int jlon = 1; jlon <= geom->pl[jlat-1]; jlon++)
         {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
           float coslon = cos (lon); float sinlon = sin (lon);
           float radius = 1.0;
-          int jglo = iglooff[jlat-1] + jlon - 1;
+          int jglo = geom->jglooff[jlat-1] + jlon - 1;
           float X = coslon * coslat * radius;
           float Y = sinlon * coslat * radius;
           float Z =          sinlat * radius;
@@ -248,67 +228,99 @@ void gensphere1 (const int Nj, int * np, float ** xyz,
         }
     }
   
-  free (pl);
-
-  
 }
-void gensphere (const int Nj, int * np, float ** xyz, 
-                unsigned int * nt, unsigned int ** ind)
+
+void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
+                     unsigned int * nt, unsigned int ** ind, float ** F,
+                     const std::string & file)
 {
-  int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  pl = (int *)malloc (sizeof (int) * Nj);
+  FILE * in = fopen (file.c_str (), "r");
 
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  int err = 0;
+  size_t v_len = 0;
+  codes_handle * h = codes_handle_new_from_file (0, in, PRODUCT_GRIB, &err);
+
+  size_t pl_len;
+  codes_get_long (h, "Nj", &geom->Nj);
+  codes_get_size (h, "pl", &pl_len);
+
+  geom->pl = (long int *)malloc (sizeof (long int) * pl_len);
+  codes_get_long_array (h, "pl", geom->pl, &pl_len);
+
+  fclose (in);
+
+
+
+  *nt = 0;
+  for (int jlat = 1; jlat < geom->Nj; jlat++)
+    *nt += geom->pl[jlat-1] + geom->pl[jlat];
+
+  for (int istripe = 0; istripe < nstripe; istripe++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
-      float coslat = cos (lat);
-      pl[jlat-1] = (2. * Nj * coslat);
+      int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
+      int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
+      indoff[istripe] = 0;
+      for (int jlat = jlat1; jlat <= jlat2; jlat++)
+        indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
     }
-
-  glgauss (Nj, pl, 1, nt, nstripe, indoff);
-  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (Nj, pl, 2, *ind, nstripe, indoff);
-
-
-  int v_len = 0;
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    v_len += pl[jlat-1];
   
-  int iglooff[Nj];
-  iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj; jlat++)
-     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
+  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+  glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
+
+
+  v_len = 0;
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+    v_len += geom->pl[jlat-1];
+  
+  geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+  geom->jglooff[0] = 0;
+  for (int jlat = 2; jlat <= geom->Nj; jlat++)
+     geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
   *np  = v_len;
 
+
 //#pragma omp parallel for
-  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
       float coslat = cos (lat); float sinlat = sin (lat);
-      for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      for (int jlon = 1; jlon <= geom->pl[jlat-1]; jlon++)
         {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)pl[jlat-1];
+          float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
           float coslon = cos (lon); float sinlon = sin (lon);
           float radius = 1.0;
-          int jglo = iglooff[jlat-1] + jlon - 1;
+          int jglo = geom->jglooff[jlat-1] + jlon - 1;
           float X = coslon * coslat * radius;
           float Y = sinlon * coslat * radius;
           float Z =          sinlat * radius;
 
-          (*xyz)[3*jglo+0] = X;
-          (*xyz)[3*jglo+1] = Y;
           (*xyz)[3*jglo+2] = Z;
+          (*xyz)[3*jglo+1] = Y;
+          (*xyz)[3*jglo+0] = X;
+
+
         }
     }
   
-  free (pl);
+  *F = (float *)malloc (sizeof (float) * v_len);
+  double * v = (double *)malloc (sizeof (double) * v_len);
+  codes_get_size (h, "values", &v_len);
+  codes_get_double_array (h, "values", v, &v_len);
+  double vmis;
+  codes_get_double (h, "missingValue", &vmis);
 
+  for (int i = 0; i < *np; i++)
+    (*F)[i] = v[i] == vmis ? 0. : v[i];
+
+  codes_handle_delete (h);
   
 }
+
+

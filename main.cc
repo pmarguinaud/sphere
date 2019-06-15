@@ -22,6 +22,7 @@ static float R = 6.0f;
 static float fov = 20.0f;
 static bool wireframe = false;
 static bool rotate = false;
+static bool hide = false;
 
 static 
 void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
@@ -54,6 +55,9 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
 	  case GLFW_KEY_F3:
             wireframe = ! wireframe;
 	    break;
+	  case GLFW_KEY_F4:
+            hide = ! hide;
+	    break;
 	  case GLFW_KEY_TAB:
             rotate = ! rotate;
 	    break;
@@ -61,16 +65,24 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
     }
 }
 
+bool endsWith (std::string const & fullString, std::string const & ending) 
+{
+  if (fullString.length () >= ending.length ()) 
+    return (0 == fullString.compare (fullString.length ()  
+            - ending.length (), ending.length (), ending));
+  return false;
+}
 
 int main (int argc, char * argv[])
 {
-  int Nj = atoi (argv[1]);
   int np; 
   float * xyz;
   unsigned int nt;
   unsigned int * ind;
   const int width = 1024, height = 1024;
   int w, h;
+  geom_t geom;
+  geom.Nj = atoi (argv[1]);
 
   typedef struct
   {
@@ -86,12 +98,13 @@ int main (int argc, char * argv[])
 
   if (argc > 2)
     type = argv[2];
+  bool fill = argc > 3;
 
 
   for (int k = 0; k < N; k++)
     {
 
-      cont[k].w =  50;
+      cont[k].w = 100;
       cont[k].h = 100;
 
       for (int l = N; l > k; l--)
@@ -99,7 +112,7 @@ int main (int argc, char * argv[])
 
       cont[k].rgb = (unsigned char *)malloc (sizeof (unsigned char) * cont[k].w * cont[k].h * 3);
      
-      if(0){
+      if(fill){
       const int col[10][3] = {
                                {255,   0,   0}, {  0, 255,   0},
                                {  0,   0, 255}, {  0,   0,   0},
@@ -134,7 +147,14 @@ int main (int argc, char * argv[])
 
   float * F;
 
-  gensphere1 (Nj, &np, &xyz, &nt, &ind, &F, type);
+  if (argc > 2)
+    type = argv[2];
+
+  if (endsWith (type, std::string (".grb")))
+    gensphere_grib (&geom, &np, &xyz, &nt, &ind, &F, type);
+  else
+    gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
+
 
   float maxval = *std::max_element (F, F + np);
   float minval = *std::min_element (F, F + np);
@@ -227,11 +247,12 @@ in float fragmentVal;
 out vec4 color;
 
 uniform sampler2D texture;
+uniform bool fill = false;
 
 void main ()
 {
   vec4 col = texture2D (texture, 0.90 * vec2 (0.5, fragmentVal) + 0.05);
-  if(false){
+  if(fill){
   color.r = col.r;
   color.g = col.g;
   color.b = col.b;
@@ -348,13 +369,16 @@ void main()
       
       glm::mat4 MVP = Projection * View * Model; 
 
+      if (! hide){
       glUseProgram (programID1);
       glUniformMatrix4fv (glGetUniformLocation (programID1, "MVP"), 1, GL_FALSE, &MVP[0][0]);
       glBindVertexArray (VertexArrayID);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      }
 
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+      glUniform1i (glGetUniformLocation (programID, "fill"), fill);
 
       if (wireframe)
         glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
@@ -362,6 +386,7 @@ void main()
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
       glActiveTexture (GL_TEXTURE0);
+
       if (fov < 8)
         glBindTexture (GL_TEXTURE_2D, cont[0].texture);
       else if (fov < 15)
