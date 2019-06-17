@@ -94,6 +94,8 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
     
 again:
 
+  bool close = false;
+
   while (1)
     {
       int jglo0 = geom.jglo (jlonlat);
@@ -103,7 +105,6 @@ again:
           if (count > 1)                // More than one point have been added; try to close the current line
             {
               int jglo0 = geom.jglo (jlonlat0);
-              bool close = false;
               if (jlonlat == jlonlat0)  // We came back to the first point
                 close = true;
 	      else 
@@ -770,16 +771,30 @@ uniform mat4 MVP;
 void main()
 {
   vec3 vertexPos;
-  if (gl_VertexID == 0)
+  vec3 t = normalize (vertexPos1 - vertexPos0);
+
+  if ((gl_VertexID == 0) || (gl_VertexID == 2))
     vertexPos = vertexPos0;
-  else
+  else if ((gl_VertexID == 1) || (gl_VertexID == 3))
     vertexPos = vertexPos1;
+
+  vec3 p = normalize (vertexPos);
+  vec3 n = cross (t, p);
+
+  if (gl_VertexID == 2)
+    vertexPos = vertexPos + 0.05 * n;
+
+
   gl_Position =  MVP * vec4 (vertexPos, 1);
   col.x = (1 + vertexPos.x) / 2.0;
   col.y = (1 + vertexPos.y) / 2.0;
   col.z = (1 + vertexPos.z) / 2.0;
   instid = mod (gl_InstanceID, 2);
   norm = min (norm0, norm1);
+
+
+
+
 }
 )CODE");
 
@@ -835,7 +850,7 @@ void main()
           glBindVertexArray (iso[i].VertexArrayID);
 	  if (inst)
             {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size);
+              glDrawArraysInstanced (GL_LINE_STRIP, 0, 3, iso[i].size);
 	    }
           else
             {

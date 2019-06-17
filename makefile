@@ -17,3 +17,6 @@ clean:
 
 test_saddle0: ./main.x
 	./main.x 30 saddle0
+
+test_gradx17: ./main.x
+	./main.x 17 gradx
