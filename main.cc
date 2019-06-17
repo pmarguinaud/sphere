@@ -193,9 +193,10 @@ again:
               {
                 float lat = asin (Z);
                 float lon = atan2 (Y, X);
-                printf (" %8d %7.2f %7.2f %7.2f %7.2f %7.2f\n", 
+                printf (" %8d %7.2f %7.2f %7.2f %7.2f %7.2f %s %4d %4d %1d %1d %1d\n", 
                         ind_start + count, X, Y, Z, 180. * lon / M_PI, 
-                        180. * lat / M_PI);
+                        180. * lat / M_PI, neigh_t::strrot (rot1).c_str (),
+			jglo0, jglo1, b0, b1, b2);
               }
 
           count++;
@@ -222,8 +223,23 @@ again:
         else if (b0 && w1 && b2) // A
           {
             push (); 
-	    jlonlat = neigh.jlonlat[pos2];                             pos1 = neigh_t::opposite (pos2);
-            neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
+            neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
+	    for (neigh_t::pos_t pos = neigh_t::I_E; ; )
+              {
+                if (geom.jglo (neigh2.jlonlat[pos]) == jglo1)
+                  {
+                    pos1 = pos;
+                    break;
+		  }
+                pos = neigh2.next (pos, neigh_t::P);  
+		if (pos == neigh_t::I_E)
+		  {
+		    pos1 = neigh_t::opposite (pos2);
+		    break;
+		  }
+	      }
+	    jlonlat = neigh.jlonlat[pos2];
+            neigh = neigh2;
 	    continue;
           }
         else if (b0 && w1 && w2) // B
