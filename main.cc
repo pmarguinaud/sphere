@@ -52,7 +52,7 @@ typedef struct
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer, normalbuffer;
   GLuint size;    // Number of indices
-  GLuint size1;   // Number of lines
+  GLuint size_inst;
 } isoline_t;
 
 void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
@@ -106,14 +106,20 @@ again:
             {
               int jglo0 = geom.jglo (jlonlat0);
               if (jlonlat == jlonlat0)  // We came back to the first point
-                close = true;
+                {
+                  if (inst)
+                    iso->pop ();
+                  close = true;
+                }
 	      else 
-                for (int i = 0; i < 8; i++)
-                  if (geom.jglo (neigh.jlonlat[i]) == jglo0)
-                    {
-                      close = true;    // We came back to a point near to the first point
-                      break;
-		    }
+                {
+                  for (int i = 0; i < 8; i++)
+                    if (geom.jglo (neigh.jlonlat[i]) == jglo0)
+                      {
+                        close = true;    // We came back to a point near to the first point
+                        break;
+		      }
+                }
 	      if (close)               // Close the current line
                 {
                   iso->ind.push_back (iso->ind.back ());
@@ -193,7 +199,13 @@ again:
               {
                 float lat = asin (Z);
                 float lon = atan2 (Y, X);
-                printf (" %8d %7.2f %7.2f %7.2f %7.2f %7.2f %s %4d %4d %1d %1d %1d\n", 
+                if (count == 1)
+                printf (" %8d %9.4f %9.4f %9.4f %9.4f %9.4f\n",
+                        ind_start, iso->xyz[3*ind_start+0], iso->xyz[3*ind_start+1],  iso->xyz[3*ind_start+2], 
+                        180. * atan2 (iso->xyz[3*ind_start+1], iso->xyz[3*ind_start+0]) / M_PI, 
+                        180. * asin (iso->xyz[3*ind_start+2]) / M_PI);
+
+                printf (" %8d %9.4f %9.4f %9.4f %9.4f %9.4f %s %4d %4d %1d %1d %1d\n", 
                         ind_start + count, X, Y, Z, 180. * lon / M_PI, 
                         180. * lat / M_PI, neigh_t::strrot (rot1).c_str (),
 			jglo0, jglo1, b0, b1, b2);
@@ -314,7 +326,7 @@ if (count > 1)
   if ((II == 2069) || (II == 2271))
     {
 printf (" II = %d\n", II);
-    for (int i = ind_start; i < ind_start+count; i++)
+    for (int i = ind_start; i < iso->size (); i++)
        {
          iso->xyz[3*i+0] = 1.2 * iso->xyz[3*i+0];
          iso->xyz[3*i+1] = 1.2 * iso->xyz[3*i+1];
@@ -486,6 +498,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
+//if (i != N-1) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
@@ -599,7 +612,7 @@ int main (int argc, char * argv[])
     {
       iso[i].size = iso_data[i].ind.size ();
 
-      iso[i].size1 = iso_data[i].size () - 1; // Number of lines
+      iso[i].size_inst = iso_data[i].size () - 1;
 
       glGenVertexArrays (1, &iso[i].VertexArrayID);
       glBindVertexArray (iso[i].VertexArrayID);
@@ -619,30 +632,42 @@ int main (int argc, char * argv[])
       if (inst)
         glVertexAttribDivisor (1, 1);
 
+      glEnableVertexAttribArray (2); 
+      glVertexAttribPointer (2, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(6 * sizeof (float))); 
+      if (inst)
+        glVertexAttribDivisor (2, 1);
+
 
       glGenBuffers (1, &iso[i].normalbuffer);
       glBindBuffer (GL_ARRAY_BUFFER, iso[i].normalbuffer);
       glBufferData (GL_ARRAY_BUFFER, iso_data[i].drw.size () * sizeof (float), 
                     iso_data[i].drw.data (), GL_STATIC_DRAW);
 
-      glEnableVertexAttribArray (2); 
-      glVertexAttribPointer (2, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
-      if (inst)
-        glVertexAttribDivisor (2, 1);
-
       glEnableVertexAttribArray (3); 
-      glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+      glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
       if (inst)
         glVertexAttribDivisor (3, 1);
 
+      glEnableVertexAttribArray (4); 
+      glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+      if (inst)
+        glVertexAttribDivisor (4, 1);
 
 
-      glGenBuffers (1, &iso[i].elementbuffer);
-      glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer);
-      glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
-		    iso_data[i].ind.data (), GL_STATIC_DRAW);
 
-      std::cout << i << " np = " << iso_data[i].xyz.size () / 3 << std::endl;
+      if (inst)
+        {
+
+        }
+      else
+        {
+          glGenBuffers (1, &iso[i].elementbuffer);
+          glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer);
+          glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
+		        iso_data[i].ind.data (), GL_STATIC_DRAW);
+        }
+
+      std::cout << i << " np = " << iso_data[i].size () << std::endl;
 
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
@@ -752,9 +777,9 @@ void main()
     }
   else
     {
-      color.r = 1.;
-      color.g = 0.;
-      color.b = 1.;
+      color.r = 0.;
+      color.g = 1.;
+      color.b = 0.;
     }
   if (norm < 1.) 
     {
@@ -777,8 +802,9 @@ R"CODE(
 
 layout(location = 0) in vec3 vertexPos0;
 layout(location = 1) in vec3 vertexPos1;
-layout(location = 2) in float norm0;
-layout(location = 3) in float norm1;
+layout(location = 2) in vec3 vertexPos2;
+layout(location = 3) in float norm0;
+layout(location = 4) in float norm1;
 
 out vec3 col;
 out float instid;
@@ -869,7 +895,7 @@ void main()
           glBindVertexArray (iso[i].VertexArrayID);
 	  if (inst)
             {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size1);
+              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
 	    }
           else
             {
