@@ -183,7 +183,7 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
   *F = (float *)malloc (sizeof (float) * v_len);
   *np  = v_len;
 
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
       float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));

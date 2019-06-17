@@ -126,9 +126,9 @@ again:
         bool b2 = r[jglo2] >= r0;
         
 	// Points are white
-        bool w0 = r[jglo0] <= r0;
-        bool w1 = r[jglo1] <= r0;
-        bool w2 = r[jglo2] <= r0;
+        bool w0 = ! b0; //r[jglo0] <= r0;
+        bool w1 = ! b1; //r[jglo1] <= r0;
+        bool w2 = ! b2; //r[jglo2] <= r0;
         
 	neigh_t::pos_t pos0 = neigh_t::opposite (pos1);  // If current edge points to NE 
 	                                                 // then pointed grid-point points back to SW
@@ -425,7 +425,7 @@ int main (int argc, char * argv[])
   const int N = 8;
   isoline_data_t iso_data[N];
 
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
