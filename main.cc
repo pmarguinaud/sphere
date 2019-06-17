@@ -530,6 +530,8 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
 
+  std::cout << " nt = " << nt << " np = " << np << std::endl;
+
   // Line 
 
   isoline_t iso[N];
@@ -550,9 +552,12 @@ int main (int argc, char * argv[])
 		    iso_data[i].ind.data (), GL_STATIC_DRAW);
       iso[i].size = iso_data[i].ind.size ();
 
+      std::cout << i << " np = " << iso_data[i].xyz.size () / 3 << std::endl;
+
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
       
+
     }
 
   GLuint programID = shader 
@@ -642,6 +647,8 @@ void main()
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
   }
+
+
 
   while (1) 
     {   
