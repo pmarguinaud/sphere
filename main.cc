@@ -224,17 +224,18 @@ again:
           {
             push (); 
             neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
-	    for (neigh_t::pos_t pos = neigh_t::I_E; ; )
+            // Look for position which corresponds to point #1 seen from point #2
+	    for (neigh_t::pos_t pos = neigh_t::I_E; ; ) 
               {
                 if (geom.jglo (neigh2.jlonlat[pos]) == jglo1)
                   {
-                    pos1 = pos;
+                    pos1 = pos;                       // Found
                     break;
 		  }
                 pos = neigh2.next (pos, neigh_t::P);  
 		if (pos == neigh_t::I_E)
 		  {
-		    pos1 = neigh_t::opposite (pos2);
+		    pos1 = neigh_t::opposite (pos2);  // Not found; use this as we are sure this exists
 		    break;
 		  }
 	      }
