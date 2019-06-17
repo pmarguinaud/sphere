@@ -119,7 +119,9 @@ again:
                   iso->ind.push_back (ind_start);
 		  if (inst)
                     {
-                      iso->push (iso->xyz[0], iso->xyz[1], iso->xyz[2]);
+                      iso->push (iso->xyz[3*ind_start+0], 
+                                 iso->xyz[3*ind_start+1], 
+				 iso->xyz[3*ind_start+2]);
 		    }
 	        }
               else if (ok.valid)
@@ -736,7 +738,7 @@ void main()
     }
   if (norm < 1.) 
     {
-      color.a = 1.;
+      color.a = 0.;
     }
   else
     {
