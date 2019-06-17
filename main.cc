@@ -287,9 +287,10 @@ bool keep = count > 2;
 // -> Remove
 if (! keep)
   {
-    for (int i = 0; i < count; i++)
+    int size = iso->size () - ind_start;
+    for (int i = 0; i < size; i++)
       iso->pop ();
-    for (int i = 0; i < 2*(count-1); i++)
+    for (int i = 0; i < 2*(size-1); i++)
       iso->ind.pop_back ();
   }
 
@@ -481,9 +482,10 @@ int main (int argc, char * argv[])
   const int N = 8;
   isoline_data_t iso_data[N];
 
-#pragma omp parallel for
+//#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
+//if (i != 0) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
@@ -742,7 +744,7 @@ in float norm;
 void main()
 {
   if(true){
-  if (instid < 0.5)
+  if (instid < 0.6)
     {
       color.r = 0.;
       color.g = 1.;
@@ -867,7 +869,7 @@ void main()
           glBindVertexArray (iso[i].VertexArrayID);
 	  if (inst)
             {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 3, iso[i].size);
+              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size1);
 	    }
           else
             {
