@@ -18,19 +18,41 @@
 #include "gensphere.h"
 
 
+static bool inst = true;
 static bool uselist = true;
 
-typedef struct
+class isoline_data_t
 {
+public:
   std::vector<unsigned int> ind;
   std::vector<float> xyz;
-} isoline_data_t;
+  std::vector<float> drw;
+  void push (const float & x, const float & y, const float & z, const float d = 1.)
+  {
+    xyz.push_back (x);
+    xyz.push_back (y);
+    xyz.push_back (z);
+    drw.push_back (d);
+  }
+  void pop ()
+  {
+    xyz.pop_back ();
+    xyz.pop_back ();
+    xyz.pop_back ();
+    drw.pop_back ();
+  }
+  int size ()
+  {
+    return xyz.size () / 3;
+  }
+};
 
 typedef struct
 {
   GLuint VertexArrayID;
-  GLuint vertexbuffer, elementbuffer;
-  GLuint size;
+  GLuint vertexbuffer, elementbuffer, normalbuffer;
+  GLuint size;    // Number of indices
+  GLuint size1;   // Number of lines
 } isoline_t;
 
 void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
@@ -49,7 +71,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
       return;
     }
 
-  int ind_start = iso->xyz.size () / 3;   // Number of points so far
+  int ind_start = iso->size ();         // Number of points so far
 
   neigh_t neigh0 = uselist ?  neighlist[geom.jglo (jlonlat0)] : geom.getNeighbours (jlonlat0);
 
@@ -95,6 +117,10 @@ again:
                 {
                   iso->ind.push_back (iso->ind.back ());
                   iso->ind.push_back (ind_start);
+		  if (inst)
+                    {
+                      iso->push (iso->xyz[0], iso->xyz[1], iso->xyz[2]);
+		    }
 	        }
               else if (ok.valid)
                 {
@@ -150,9 +176,7 @@ again:
 	  float R = sqrt (X * X + Y * Y + Z * Z);
 	  X /= R; Y /= R; Z /= R;
 
-          iso->xyz.push_back (X);
-          iso->xyz.push_back (Y);
-          iso->xyz.push_back (Z);
+	  iso->push (X, Y, Z);
           
 	  // We need at least two points in order to start drawing lines
           if (count > 0)
@@ -235,16 +259,28 @@ next:
       pos1 = pos2; // Next edge
     }
 
+
+bool keep = count > 2;
+
 // A single point was added; not enough to make a line
 // A two point segments is not considered useful
 // -> Remove
-if (count <= 2)
+if (! keep)
   {
-    for (int i = 0; i < 3 * count; i++)
-      iso->xyz.pop_back ();
+    for (int i = 0; i < count; i++)
+      iso->pop ();
     for (int i = 0; i < 2*(count-1); i++)
       iso->ind.pop_back ();
   }
+
+if (keep)
+  {
+    if (inst)
+      {
+        iso->push (0, 0, 0, 0);
+      }
+  }
+
 
 
 if (dbg)
@@ -534,9 +570,15 @@ int main (int argc, char * argv[])
 
   // Line 
 
+
+
   isoline_t iso[N];
   for (int i = 0; i < N; i++)
     {
+      iso[i].size = iso_data[i].ind.size ();
+
+      iso[i].size1 = iso_data[i].size () - 1; // Number of lines
+
       glGenVertexArrays (1, &iso[i].VertexArrayID);
       glBindVertexArray (iso[i].VertexArrayID);
      
@@ -544,13 +586,39 @@ int main (int argc, char * argv[])
       glBindBuffer (GL_ARRAY_BUFFER, iso[i].vertexbuffer);
       glBufferData (GL_ARRAY_BUFFER, iso_data[i].xyz.size () * sizeof (float), 
                     iso_data[i].xyz.data (), GL_STATIC_DRAW);
+
       glEnableVertexAttribArray (0); 
       glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+      if (inst)
+        glVertexAttribDivisor (0, 1);
+
+      glEnableVertexAttribArray (1); 
+      glVertexAttribPointer (1, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(3 * sizeof (float))); 
+      if (inst)
+        glVertexAttribDivisor (1, 1);
+
+
+      glGenBuffers (1, &iso[i].normalbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iso[i].normalbuffer);
+      glBufferData (GL_ARRAY_BUFFER, iso_data[i].drw.size () * sizeof (float), 
+                    iso_data[i].drw.data (), GL_STATIC_DRAW);
+
+      glEnableVertexAttribArray (2); 
+      glVertexAttribPointer (2, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+      if (inst)
+        glVertexAttribDivisor (2, 1);
+
+      glEnableVertexAttribArray (3); 
+      glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+      if (inst)
+        glVertexAttribDivisor (3, 1);
+
+
+
       glGenBuffers (1, &iso[i].elementbuffer);
       glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer);
       glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
 		    iso_data[i].ind.data (), GL_STATIC_DRAW);
-      iso[i].size = iso_data[i].ind.size ();
 
       std::cout << i << " np = " << iso_data[i].xyz.size () / 3 << std::endl;
 
@@ -641,6 +709,78 @@ void main()
 }
 )CODE");
 
+  GLuint programID_l_inst = shader 
+(
+R"CODE(
+#version 330 core
+
+out vec4 color;
+in vec3 col;
+in float instid;
+in float norm;
+
+void main()
+{
+  if(true){
+  if (instid < 0.5)
+    {
+      color.r = 0.;
+      color.g = 1.;
+      color.b = 0.;
+    }
+  else
+    {
+      color.r = 1.;
+      color.g = 0.;
+      color.b = 1.;
+    }
+  if (norm < 1.) 
+    {
+      color.a = 1.;
+    }
+  else
+    {
+      color.a = 1.;
+    }
+  }else{
+  color.r = col.r;
+  color.g = col.g;
+  color.b = col.b;
+  color.a = 1.;
+  }
+}
+)CODE",
+R"CODE(
+#version 330 core
+
+layout(location = 0) in vec3 vertexPos0;
+layout(location = 1) in vec3 vertexPos1;
+layout(location = 2) in float norm0;
+layout(location = 3) in float norm1;
+
+out vec3 col;
+out float instid;
+out float norm;
+
+
+uniform mat4 MVP;
+
+void main()
+{
+  vec3 vertexPos;
+  if (gl_VertexID == 0)
+    vertexPos = vertexPos0;
+  else
+    vertexPos = vertexPos1;
+  gl_Position =  MVP * vec4 (vertexPos, 1);
+  col.x = (1 + vertexPos.x) / 2.0;
+  col.y = (1 + vertexPos.y) / 2.0;
+  col.z = (1 + vertexPos.z) / 2.0;
+  instid = mod (gl_InstanceID, 2);
+  norm = min (norm0, norm1);
+}
+)CODE");
+
 
   if(0){
   GLfloat lineWidthRange[2] = {0.0f, 0.0f};
@@ -676,13 +816,29 @@ void main()
 
       // Line 
       //
-      glUseProgram (programID_l);
-      glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+      if (inst)
+        {
+          glUseProgram (programID_l_inst);
+          glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
+			      1, GL_FALSE, &MVP[0][0]);
+	}
+      else
+        {
+          glUseProgram (programID_l);
+          glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 
+			      1, GL_FALSE, &MVP[0][0]);
+	}
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-          glLineWidth (7.0f);
-          glDrawElements (GL_LINES, iso[i].size, GL_UNSIGNED_INT, NULL);
+	  if (inst)
+            {
+              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size);
+	    }
+          else
+            {
+              glDrawElements (GL_LINES, iso[i].size, GL_UNSIGNED_INT, NULL);
+	    }
           glBindVertexArray (0);
         }
 
