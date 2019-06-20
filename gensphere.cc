@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
 
 #include "gensphere.h"
@@ -215,8 +216,12 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
             (*F)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
 	  else if (type == "lat2xcos2lon")
             (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
+	  else if (type == "lat2xcos8lon")
+            (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (8 * lon)) / 2.0;
 	  else if (type == "XxYxZ")
-            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
+            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 
+                        * (1 + Y*Y*Y*Y*Y*Y) / 2.0 
+			* (1 + Z*Z*Z*Z*Z*Z) / 2.0);
 	  else if (type == "saddle0")
             {
               float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
@@ -229,6 +234,241 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
     }
   
 }
+
+static inline float MODULO (float A, float B)
+{
+  float Q = (int)(A / B);
+  float R = A - Q * B;
+  return R < 0 ? R + B : R;
+}
+
+static inline int MODULO (int A, int B) 
+{
+  return (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)));
+}
+
+static inline int INORM (int KLO, int KLOEN) 
+{
+  return (1 + MODULO (KLO-1, KLOEN));
+}
+  
+neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
+{
+  neigh_t neigh;
+  int jlon = jlonlat.jlon;
+  int jlat = jlonlat.jlat;
+  int ir, iq, iloen, iloen1, iloen2;
+  int inum, iden;
+  int jlat1, jlon1, jlat2, jlon2;
+  
+
+  neigh.add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
+  
+  if (jlat == 1) 
+    {
+      iloen = pl[jlat-1];
+      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+      if (ir == 0) 
+        {
+          neigh.add (neigh_t::INW, INORM (iq+1, iloen), jlat);
+          neigh.add (neigh_t::IN_, INORM (iq+0, iloen), jlat);
+          neigh.add (neigh_t::INE, INORM (iq-1, iloen), jlat);
+	}
+      else
+        {
+          neigh.add (neigh_t::INW, INORM (iq+1, iloen), jlat);
+          neigh.add (neigh_t::IN_,                   0,    0);
+          neigh.add (neigh_t::INE, INORM (iq+0, iloen), jlat);
+        }
+    }
+  else
+    {
+      jlon1 = jlon;
+      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+      jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+      inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+      iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+      if (ir == 0) 
+        {
+          neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+          neigh.add (neigh_t::IN_, INORM (iq+0, iloen2), jlat2);
+          neigh.add (neigh_t::INW, INORM (iq-1, iloen2), jlat2);
+        }
+      else
+        {
+          neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+          neigh.add (neigh_t::IN_,                    0,     0);
+          neigh.add (neigh_t::INW, INORM (iq+0, iloen2), jlat2);
+        }
+    }
+
+  neigh.add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
+  
+  if (jlat == Nj) 
+    {
+      iloen = pl[jlat-1];
+      iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+      if (ir == 0) 
+        {
+          neigh.add (neigh_t::ISW, INORM (iq+1, iloen), jlat);
+          neigh.add (neigh_t::IS_, INORM (iq+0, iloen), jlat);
+          neigh.add (neigh_t::ISE, INORM (iq-1, iloen), jlat);
+	}
+      else
+        {
+          neigh.add (neigh_t::ISW, INORM (iq+1, iloen), jlat);
+          neigh.add (neigh_t::IS_,                   0,    0);
+          neigh.add (neigh_t::ISE, INORM (iq+0, iloen), jlat);
+	}
+    }
+  else
+    {
+      jlon1 = jlon;
+      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+      inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+      iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+      if (ir == 0) 
+        {
+          neigh.add (neigh_t::ISW, INORM (iq-1, iloen2), jlat2);
+          neigh.add (neigh_t::IS_, INORM (iq+0, iloen2), jlat2);
+          neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+        }
+      else
+        {
+          neigh.add (neigh_t::ISW, INORM (iq+0, iloen2), jlat2);
+          neigh.add (neigh_t::IS_,                    0,     0);
+          neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+        }
+    }
+  
+  return neigh;
+}
+
+std::vector<neigh_t> geom_t::getNeighbours () const 
+{
+  std::vector<neigh_t> list;
+
+  int size = 0;
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    size += pl[jlat-1]; 
+  
+  list.resize (size);
+
+#pragma omp parallel for
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+      {
+        int ir, iq, iloen, iloen1, iloen2;
+        int inum, iden;
+        int jlat1, jlon1, jlat2, jlon2;
+  
+        int jglo = jglooff[jlat-1] + (jlon-1);
+        neigh_t & neigh = list[jglo];
+
+        neigh.add (neigh_t::I_E, INORM (jlon+1, pl[jlat-1]), jlat);
+        
+        if (jlat == 1) 
+          {
+            iloen = pl[jlat-1];
+            iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::INW, INORM (iq+1, iloen), jlat);
+                neigh.add (neigh_t::IN_, INORM (iq+0, iloen), jlat);
+                neigh.add (neigh_t::INE, INORM (iq-1, iloen), jlat);
+              }
+            else
+              {
+                neigh.add (neigh_t::INW, INORM (iq+1, iloen), jlat);
+                neigh.add (neigh_t::IN_,                   0,    0);
+                neigh.add (neigh_t::INE, INORM (iq+0, iloen), jlat);
+              }
+          }
+        else
+          {
+            jlon1 = jlon;
+            jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+            jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+            inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+            iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+                neigh.add (neigh_t::IN_, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::INW, INORM (iq-1, iloen2), jlat2);
+              }
+            else
+              {
+                neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
+                neigh.add (neigh_t::IN_,                    0,     0);
+                neigh.add (neigh_t::INW, INORM (iq+0, iloen2), jlat2);
+              }
+          }
+
+        neigh.add (neigh_t::I_W, INORM (jlon-1, pl[jlat-1]), jlat);
+        
+        if (jlat == Nj) 
+          {
+            iloen = pl[jlat-1];
+            iq = jlon + iloen / 2; ir = MODULO (iloen, 2);
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::ISW, INORM (iq+1, iloen), jlat);
+                neigh.add (neigh_t::IS_, INORM (iq+0, iloen), jlat);
+                neigh.add (neigh_t::ISE, INORM (iq-1, iloen), jlat);
+              }
+            else
+              {
+                neigh.add (neigh_t::ISW, INORM (iq+1, iloen), jlat);
+                neigh.add (neigh_t::IS_,                   0,    0);
+                neigh.add (neigh_t::ISE, INORM (iq+0, iloen), jlat);
+	      }
+          }
+        else
+          {
+            jlon1 = jlon;
+            jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+            jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+            inum = iloen1 - iloen2 + jlon1 * iloen2; iden = iloen1;
+            iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
+            if (ir == 0) 
+              {
+                neigh.add (neigh_t::ISW, INORM (iq-1, iloen2), jlat2);
+                neigh.add (neigh_t::IS_, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+              }
+            else
+              {
+                neigh.add (neigh_t::ISW, INORM (iq+0, iloen2), jlat2);
+                neigh.add (neigh_t::IS_,                    0,     0);
+                neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+              }
+          }
+    }
+  
+  return list;
+}
+ 
+void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
+{
+  printf ("\n\n");
+  printf (" %4d %4d %4d\n", 
+  	  geom.jglo (jlonlat[neigh_t::INW]),
+  	  geom.jglo (jlonlat[neigh_t::IN_]),
+  	  geom.jglo (jlonlat[neigh_t::INE]));
+  printf (" %4d %4d %4d\n", 
+          geom.jglo (jlonlat[neigh_t::I_W]),
+          geom.jglo (_jlonlat),
+          geom.jglo (jlonlat[neigh_t::I_E]));
+  printf (" %4d %4d %4d\n", 
+          geom.jglo (jlonlat[neigh_t::ISW]),
+          geom.jglo (jlonlat[neigh_t::IS_]),
+          geom.jglo (jlonlat[neigh_t::ISE]));
+  printf ("\n\n");
+}
+  
+
 
 void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
                      unsigned int * nt, unsigned int ** ind, float ** F,
@@ -324,3 +564,114 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
 }
 
 
+
+
+
+void geom_t::gradient (const float * pgp, float * pgradx, float * pgrady) const
+{
+  const float r2pi = 2 * M_PI, rpi = M_PI;
+  float zlat[Nj], zcoslat[Nj];
+  int igptotg = 0;
+
+  for (int jlat = 1; jlat <= Nj; jlat++)
+    {
+      zlat[jlat-1] = M_PI * (0.5 - (float)jlat / (float)(Nj + 1));
+      zcoslat[jlat-1] = cos (zlat[jlat-1]);
+      igptotg += pl[jlat-1];
+    }
+
+  float * zlonall = (float *)malloc (sizeof (float) * igptotg);
+#pragma omp parallel for
+  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+    zlonall[jglo (jlonlat_t (jlon, jlat))] = ((jlon - 1) * M_PI) /pl[jlat-1];
+
+//#pragma omp parallel for
+  for (int jlat = 1; jlat <= Nj; jlat++)
+  for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
+    {
+      float z_w, z_e, zn_, zs_;
+      float zlon_w, zlon_e, zlonnw, zlonne;
+      float zlonsw, zlonse, zlatn_, zlats_;
+      float zlon, ztmp;
+      float znw, zne, zsw, zse;
+      int jgp = jglo (jlonlat_t (jlon, jlat));
+      neigh_t neigh = getNeighbours (jlonlat_t (jlon, jlat));
+      int i_w = jglo (neigh.jlonlat[neigh_t::I_W]);
+      int i_e = jglo (neigh.jlonlat[neigh_t::I_E]);
+      int in_ = jglo (neigh.jlonlat[neigh_t::IN_]);
+      int is_ = jglo (neigh.jlonlat[neigh_t::IS_]);
+      int ine = jglo (neigh.jlonlat[neigh_t::INE]);
+      int ise = jglo (neigh.jlonlat[neigh_t::ISE]);
+      int inw = jglo (neigh.jlonlat[neigh_t::INW]);
+      int isw = jglo (neigh.jlonlat[neigh_t::ISW]);
+  
+      zlon   = zlonall[jgp];
+  
+// X direction
+      z_w    = pgp[i_w];
+      zlon_w = zlonall[i_w];
+  
+      z_e    = pgp[i_e];
+      zlon_e = zlonall[i_e];
+  
+      if (zlon_w != zlon_e) 
+        pgradx[jgp] = (z_e - z_w) / (MODULO (zlon_e - zlon_w, r2pi) * zcoslat[jlat-1]); // This is dx
+      else 
+        pgradx[jgp] = 0.;
+  
+// Y direction
+  
+// Calculate value at the north
+      if (in_ >= 0) 
+        {                 // We have a point at the north
+          zn_ = pgp[in_];
+        } 
+      else 
+        {
+          zlonnw = zlonall[inw];
+          zlonne = zlonall[ine];
+          if (jlat == 1) 
+  	  { // Cross North pole; interpolate at zlon + rpi
+              zlon = zlon + rpi;
+              ztmp = zlonnw; zlonnw = zlonne; zlonne = ztmp;
+            }
+          znw = pgp[inw]; zne = pgp[ine];
+          zn_ = (MODULO (zlonne-zlon, r2pi) * znw + MODULO (zlon-zlonnw, r2pi) * zne) / MODULO (zlonne-zlonnw, r2pi);
+        }
+  
+      if (is_ >= 0) 
+        {                            // We have a point at the south
+          zs_ = pgp[is_];
+        } 
+      else 
+        {
+          zlonsw = zlonall[isw];
+          zlonse = zlonall[ise];
+          if (jlat == Nj) { // Cross South pole
+            zlon = zlon + rpi;
+            ztmp = zlonsw; zlonsw = zlonse; zlonse = ztmp;
+          }
+          zsw = pgp[isw]; zse = pgp[ise];
+          zs_ = (MODULO (zlonse-zlon, r2pi) * zsw + MODULO (zlon-zlonsw, r2pi) * zse) / MODULO (zlonse-zlonsw, r2pi);
+        }
+  
+      if (jlat == 1) // Cross North pole
+        zlatn_ = + rpi - zlat[jlat-1];
+      else 
+        zlatn_ = zlat[jlat-2];
+      
+      if (jlat == Nj) // Cross South pole
+        zlats_ = - rpi - zlat[jlat-1];
+      else 
+        zlats_ = zlat[jlat];
+  
+      if (zlatn_ != zlats_) 
+        pgrady[jgp] = (zn_ - zs_) / (MODULO (zlatn_ - zlats_, r2pi)); // This is dy
+      else 
+        pgrady[jgp] = 0.;
+  
+  
+    }
+  
+}
