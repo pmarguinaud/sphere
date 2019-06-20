@@ -584,7 +584,7 @@ void geom_t::gradient (const float * pgp, float * pgradx, float * pgrady) const
 #pragma omp parallel for
   for (int jlat = 1; jlat <= Nj; jlat++)
   for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
-    zlonall[jglo (jlonlat_t (jlon, jlat))] = ((jlon - 1) * M_PI) /pl[jlat-1];
+    zlonall[jglo (jlonlat_t (jlon, jlat))] = ((jlon - 1) * 2 * M_PI) /pl[jlat-1];
 
 //#pragma omp parallel for
   for (int jlat = 1; jlat <= Nj; jlat++)

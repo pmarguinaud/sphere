@@ -84,6 +84,23 @@ bool endsWith (std::string const & fullString, std::string const & ending)
   return false;
 }
 
+
+void norm (float * F, int np, const char * mess)
+{
+  float maxval = *std::max_element (F, F + np);
+  float minval = *std::min_element (F, F + np);
+
+  std::cout << mess << std::endl;
+  std::cout << " minval = " << minval << std::endl;
+  std::cout << " maxval = " << maxval << std::endl;
+
+
+  for (int i = 0; i < np; i++)
+    F[i] = (F[i] - minval) / (maxval - minval);
+}
+
+
+
 int main (int argc, char * argv[])
 {
   int np; 
@@ -161,34 +178,32 @@ int main (int argc, char * argv[])
 
   geom.gradient (F, gradx, grady);
 
+if(0){
+  FILE * fp = NULL;
+  fp = fopen ("gradx.txt", "w");
+  for (int jlat = 1, jglo = 0; jlat <= geom.Nj; jlat++)
+  for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++, jglo++)
+    if (jlat == geom.Nj/2)
+      fprintf (fp, "%f %f %f\n", (jlon-1) * 2 * M_PI/geom.pl[jlat-1], 
+               gradx[jglo], F[jglo]);
+  fclose (fp);
+  fp = fopen ("grady.txt", "w");
+  for (int jlat = 1, jglo = 0; jlat <= geom.Nj; jlat++)
+  for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++, jglo++)
+    if (jlon == 1)
+      fprintf (fp, "%f %f %f\n", M_PI * (0.5 - (float)jlat / (float)(geom.Nj + 1)),
+               grady[jglo], F[jglo]);
+  fclose (fp);
+}
+
+  norm (F, np, "F");
+
   for (int i = 0; i < np; i++)
     gradn[i] = sqrt (gradx[i] * gradx[i] + grady[i] * grady[i]);
 
-  float maxval = *std::max_element (F, F + np);
-  float minval = *std::min_element (F, F + np);
-
-  std::cout << " minval = " << minval << std::endl;
-  std::cout << " maxval = " << maxval << std::endl;
-
-  float gradmax = *std::max_element (gradn, gradn + np);
-
-  for (int i = 0; i < np; i++)
-    {
-      F[i] = (F[i] - minval) / (maxval - minval);
-      gradn[i] = gradn[i] / gradmax;
-    }
-
-  for (int i = 0; i < np; i++)
-    {
-      gradx[i] = fabs (gradx[i]);
-      grady[i] = fabs (grady[i]);
-    }
-
-
-  F = gradx;
-
-  std::cout << " minval (gradn) = " << *std::min_element (gradn, gradn + np) << std::endl;
-  std::cout << " maxval (gradn) = " << *std::max_element (gradn, gradn + np) << std::endl;
+  norm (gradn, np, "gradn");
+  norm (gradx, np, "gradx");
+  norm (grady, np, "grady");
 
   if (! glfwInit ()) 
     {   
@@ -287,7 +302,7 @@ void main ()
 {
   float val = 10 * mod (fragmentVal, 0.1);
   float d = apply ? (1 - fragmentGrd) * (1 - zoom) : 1 - zoom;
-  d = max (min (d, 0.95), 0.05);
+  d = max (min (d, 0.99), 0.01);
   vec4 col = texture2D (texture, vec2 (0.5, (1-d)/2 + val * d));
   color.r = 0.;
   color.g = 0.;
@@ -419,7 +434,7 @@ void main()
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
       }
 
-      if(0){
+      if(1){
       glUseProgram (programID);
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
