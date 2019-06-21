@@ -60,16 +60,18 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               isoline_data_t * iso, const std::vector<neigh_t> & neighlist)
 {
   static int II = 0;
-  II++;
   bool dbg = ((II == 2069) || (II == 2271));
-  dbg = false;
+  dbg = II == 2;
 
-  if(0)
-  if (dbg)
-  if (iso->xyz.size () > 0)
-    {
-      return;
-    }
+  if(II > 2)
+    return;
+
+  if (II == 2)
+     {
+       iso->drw.clear ();
+       iso->xyz.clear ();
+       iso->ind.clear ();
+     }
 
   int ind_start = iso->size ();         // Number of points so far
 
@@ -308,6 +310,7 @@ if (! keep)
 
 if (keep)
   {
+    II++;
     if (inst)
       {
         iso->push (0, 0, 0, 0);
@@ -371,6 +374,8 @@ printf (" II = %d\n", II);
 
   }
 }
+
+  return; 
 
   int jglo0 = geom.jglo (jlonlat0);
   if (! neigh.done (&seen[8*jglo0]))  // All edges of current point have not been explored
@@ -498,7 +503,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
-//if (i != N-1) continue;
+  if (i != N-1) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
