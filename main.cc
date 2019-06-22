@@ -19,7 +19,7 @@
 
 
 static bool inst = true;
-static bool uselist = true;
+static bool uselist = false;
 
 class isoline_data_t
 {
