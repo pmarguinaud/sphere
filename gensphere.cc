@@ -241,11 +241,21 @@ static inline int INORM (int KLO, int KLOEN)
 }
 
 static inline void IQR (int & iq, int & ir, 
-                        int iloen1, int iloen2, int jlon1, int jlon2)
+                        int iloen1, int iloen2, int jlon1)
 {
   int inum = iloen1 - iloen2 + jlon1 * iloen2, iden = iloen1;
   iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
 }
+
+static inline bool CMP (int p1, int q1, int p2, int q2, int p3, int q3) 
+{
+  if (p2 * q1 < p1 * p2)
+    p2 += q2;
+  if (p3 * q1 < p1 * p3)
+    p3 += q3;
+  return p3 * q2 - p2 * q3 > 0;
+}
+
 
 neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
 {
@@ -254,110 +264,191 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
   int jlat = jlonlat.jlat;
   int ir, iq, iloen, iloen1, iloen2;
   int inum, iden;
-  int jlat1, jlon1, jlat2, jlon2;
-  int jlone = INORM (jlon+1, pl[jlat-1]);
-  int jlonw = INORM (jlon-1, pl[jlat-1]);
-
-  neigh.add (neigh_t::I_E, jlone, jlat);
+  int jlat1, jlon1, jlat2;
+  int jlon__E = INORM (jlon+1, pl[jlat-1]);
+  int jlon__W = INORM (jlon-1, pl[jlat-1]);
+  int jlon_NE1 = -1, jlon_NE2 = -1, jlon_NE = -1;
+  int jlon_NW1 = -1, jlon_NW2 = -1, jlon_NW = -1;
+  int jlon_SE1 = -1, jlon_SE2 = -1, jlon_SE = -1;
+  int jlon_SW1 = -1, jlon_SW2 = -1, jlon_SW = -1;
   
-  if (jlat == 1) 
+  for (int i = 0; i < neigh_t::NMAX; i++)
+    neigh.jlonlat[i] = jlonlat_t (0, 0);
+
+  int n = 0;
+  neigh.jlonlat[n++] = jlonlat_t (jlon__E, jlat);
+
+  if (jlat > 1)
     {
-      neigh.add (neigh_t::INE, 0, 0);
-      neigh.add (neigh_t::IN_, 0, 0);
-      neigh.add (neigh_t::INW, 0, 0);
-    }
-  else
-    {
-      jlon1 = jlon;
       jlat1 = jlat     ; iloen1 = pl[jlat1-1];
       jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
-      IQR (iq, ir, iloen1, iloen2, jlon1, jlon2);
-      if (ir == 0) 
+
+      IQR (iq, ir, iloen1, iloen2, jlon);
+      jlon_NE2 = INORM (iq+1, iloen2);
+      jlon_NW2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);
+     
+      IQR (iq, ir, iloen1, iloen2, jlon__E);
+      jlon_NE1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+0, iloen2);
+     
+      IQR (iq, ir, iloen1, iloen2, jlon__W);
+      jlon_NW1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
+     
+      jlon_NW = CMP (jlon_NE2, iloen1, jlon_NW1, iloen2, jlon_NW2, iloen2) ? jlon_NW1 : jlon_NW2;
+      jlon_NE = CMP (jlon_NW2, iloen1, jlon_NE1, iloen2, jlon_NE2, iloen2) ? jlon_NE2 : jlon_NE1;
+
+      for (int jlon = jlon_NE; ;)
         {
-          neigh.add (neigh_t::INE, INORM (iq+1, iloen2), jlat2);
-          neigh.add (neigh_t::IN_, INORM (iq+0, iloen2), jlat2);
-          neigh.add (neigh_t::INW, INORM (iq-1, iloen2), jlat2);
+          neigh.jlonlat[n++] = jlonlat_t (jlon, jlat2);
+          if (jlon == jlon_NW)
+            break;
+          jlon = INORM (jlon-1, iloen2);
         }
-      else
-        {
-          int jlonnw = INORM (iq+0, iloen2);
-          int jlonne = INORM (iq+1, iloen2);
-          int iqnw, irnw, iqne, irne;
-          IQR (iqnw, irnw, iloen1, iloen2, jlonw, jlonnw);
-          IQR (iqne, irne, iloen1, iloen2, jlone, jlonne);
-          if ((irnw == 0) && (irne != 0))
-            {
-              int jlonnww = INORM (iqnw+0, iloen2);
-              neigh.add (neigh_t::INE, jlonne,  jlat2);
-              neigh.add (neigh_t::IN_, jlonnw,  jlat2);
-              neigh.add (neigh_t::INW, jlonnww, jlat2);
-            }
-          else if ((irnw != 0) && (irne == 0))
-            {
-              int jlonnee = INORM (iqne+1, iloen2);
-              neigh.add (neigh_t::INE, jlonnee, jlat2);
-              neigh.add (neigh_t::IN_, jlonne,  jlat2);
-              neigh.add (neigh_t::INW, jlonnw,  jlat2);
-            }
-          else
-            {
-              neigh.add (neigh_t::INE, jlonne, jlat2);
-              neigh.add (neigh_t::IN_,      0,     0);
-              neigh.add (neigh_t::INW, jlonnw, jlat2);
-            }
-        }
+
+  printf (" jlon_NW1 = %4d, jlon_NW2 = %4d, jlon_NW = %4d, %d\n", jlon_NW1, jlon_NW2, jlon_NW, CMP (jlon_NE2, iloen1, jlon_NW1, iloen2, jlon_NW2, iloen2));
+  printf (" jlon_NE1 = %4d, jlon_NE2 = %4d, jlon_NE = %4d, %d\n", jlon_NE1, jlon_NE2, jlon_NE, CMP (jlon_NW2, iloen1, jlon_NE1, iloen2, jlon_NE2, iloen2));
     }
 
-  neigh.add (neigh_t::I_W, jlonw, jlat);
-  
-  if (jlat == Nj) 
+  neigh.jlonlat[n++] = jlonlat_t (jlon__W, jlat);
+
+  if (jlat < Nj)
     {
-      neigh.add (neigh_t::ISW, 0, 0);
-      neigh.add (neigh_t::IS_, 0, 0);
-      neigh.add (neigh_t::ISE, 0, 0);
+      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+     
+      IQR (iq, ir, iloen1, iloen2, jlon);
+      jlon_SE2 = INORM (iq+1, iloen2);
+      jlon_SW2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);
+     
+      IQR (iq, ir, iloen1, iloen2, jlon__E);
+      jlon_SE1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+0, iloen2);
+     
+      IQR (iq, ir, iloen1, iloen2, jlon__W);
+      jlon_SW1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
+
+
+      jlon_SW = CMP (jlon_SE2, iloen1, jlon_SW1, iloen2, jlon_SW2, iloen2) ? jlon_SW1 : jlon_SW2;
+      jlon_SE = CMP (jlon_SW2, iloen1, jlon_SE1, iloen2, jlon_SE2, iloen2) ? jlon_SE2 : jlon_SE1;
+        
+      for (int jlon = jlon_SW; ;)
+        {
+          neigh.jlonlat[n++] = jlonlat_t (jlon, jlat2);
+          if (jlon == jlon_SE)
+            break;
+          jlon = INORM (jlon+1, iloen2);
+        }
+  printf (" jlon_SW1 = %4d, jlon_SW2 = %4d, jlon_SW = %4d, %d\n", jlon_SW1, jlon_SW2, jlon_SW, CMP (jlon_SE2, iloen1, jlon_SW1, iloen2, jlon_SW2, iloen2));
+  printf (" jlon_SE1 = %4d, jlon_SE2 = %4d, jlon_SE = %4d, %d\n", jlon_SE1, jlon_SE2, jlon_SE, CMP (jlon_SW2, iloen1, jlon_SE1, iloen2, jlon_SE2, iloen2));
+    }
+
+  printf (" (%4d, %4d) :", jlon, jlat);
+  for (int i = 0; i < neigh_t::NMAX; i++)
+    {
+      if (! neigh.jlonlat[i].ok ())
+        break;
+      printf (" (%4d, %4d)", neigh.jlonlat[i].jlon, neigh.jlonlat[i].jlat);
+    }
+  printf ("\n");
+
+
+
+#ifdef UNDEF
+  jlon1 = jlon;
+  jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+  jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
+  IQR (iq, ir, iloen1, iloen2, jlon1);
+  if (ir == 0) 
+    {
+      int jlon_N_E = INORM (iq+1, iloen2);
+      int jlon_N__ = INORM (iq+0, iloen2);
+      int jlon_N_W = INORM (iq-1, iloen2);
+      neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
+      int jlon_NNE = INORM (jlon_N_E - 1, iloen2);
+      if (jlon_NNE != jlon_N__)
+      neigh.add (neigh_t::INNE, jlon_NNE, jlat2);
+      neigh.add (neigh_t::IN__, jlon_N__, jlat2);
+      int jlon_NNW = INORM (jlon_N_W + 1, iloen2);
+      if (jlon_NNW != jlon_N__)
+      neigh.add (neigh_t::INNW, jlon_NNW, jlat2);
+      neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
     }
   else
     {
-      jlon1 = jlon;
-      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
-      IQR (iq, ir, iloen1, iloen2, jlon1, jlon2);
-      if (ir == 0) 
+      int jlon_N_W = INORM (iq+0, iloen2);
+      int jlon_N_E = INORM (iq+1, iloen2);
+      int iqnw, irnw, iqne, irne;
+      IQR (iqnw, irnw, iloen1, iloen2, jlon___W, jlon_N_W);
+      IQR (iqne, irne, iloen1, iloen2, jlon___E, jlon_N_E);
+      if ((irnw == 0) && (irne != 0))
         {
-          neigh.add (neigh_t::ISW, INORM (iq-1, iloen2), jlat2);
-          neigh.add (neigh_t::IS_, INORM (iq+0, iloen2), jlat2);
-          neigh.add (neigh_t::ISE, INORM (iq+1, iloen2), jlat2);
+          int jlonnww = INORM (iqnw+0, iloen2);
+          neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
+          neigh.add (neigh_t::INNW, jlon_N_W, jlat2);
+          neigh.add (neigh_t::IN_W, jlonnww,  jlat2);
+        }
+      else if ((irnw != 0) && (irne == 0))
+        {
+          int jlonnee = INORM (iqne+1, iloen2);
+          neigh.add (neigh_t::IN_E, jlonnee,  jlat2);
+          neigh.add (neigh_t::INNE, jlon_N_E, jlat2);
+          neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
         }
       else
         {
-          int jlonsw = INORM (iq+0, iloen2);
-          int jlonse = INORM (iq+1, iloen2);
-          int iqsw, irsw, iqse, irse;
-          IQR (iqsw, irsw, iloen1, iloen2, jlonw, jlonsw);
-          IQR (iqse, irse, iloen1, iloen2, jlone, jlonse);
-          if ((irsw == 0) && (irse != 0))
-            {
-              int jlonsww = INORM (iqsw+0, iloen2);
-              neigh.add (neigh_t::ISW, jlonsww, jlat2);
-              neigh.add (neigh_t::IS_, jlonsw,  jlat2);
-              neigh.add (neigh_t::ISE, jlonse,  jlat2);
-            }
-          else if ((irsw != 0) && (irse == 0))
-            {
-              int jlonsee = INORM (iqse+1, iloen2);
-              neigh.add (neigh_t::ISW, jlonsw,  jlat2);
-              neigh.add (neigh_t::IS_, jlonse,  jlat2);
-              neigh.add (neigh_t::ISE, jlonsee, jlat2);
-            }
-          else
-            {
-              neigh.add (neigh_t::ISW, jlonsw,  jlat2);
-              neigh.add (neigh_t::IS_,      0,      0);
-              neigh.add (neigh_t::ISE, jlonse,  jlat2);
-            }
-
+          neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
+          neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
         }
     }
+
+  neigh.add (neigh_t::I__W, jlon___W, jlat);
+  
+  
+  jlon1 = jlon;
+  jlat1 = jlat     ; iloen1 = pl[jlat1-1];
+  jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
+  IQR (iq, ir, iloen1, iloen2, jlon1);
+  if (ir == 0) 
+    {
+      int jlon_S_W = INORM (iq-1, iloen2);
+      int jlon_S__ = INORM (iq+0, iloen2);
+      int jlon_S_E = INORM (iq+1, iloen2);
+      neigh.add (neigh_t::IS_W, jlon_S_W, jlat2);
+      int jlon_SSW = INORM (jlon_S_W + 1, iloen2);
+      if (jlon_SSW ! = jlon_S__)
+      neigh.add (neigh_t::ISSW, jlon_SSW, jlat2);
+      int jlon_
+      neigh.add (neigh_t::IS__, jlon_S__, jlat2);
+      neigh.add (neigh_t::IS_E, jlon_S_E, jlat2);
+    }
+  else
+    {
+      int jlonsw = INORM (iq+0, iloen2);
+      int jlonse = INORM (iq+1, iloen2);
+      int iqsw, irsw, iqse, irse;
+      IQR (iqsw, irsw, iloen1, iloen2, jlon___W, jlonsw);
+      IQR (iqse, irse, iloen1, iloen2, jlon___E, jlonse);
+      if ((irsw == 0) && (irse != 0))
+        {
+          int jlonsww = INORM (iqsw+0, iloen2);
+          neigh.add (neigh_t::IS_W, jlonsww, jlat2);
+          neigh.add (neigh_t::IS__, jlonsw,  jlat2);
+          neigh.add (neigh_t::IS_E, jlonse,  jlat2);
+        }
+      else if ((irsw != 0) && (irse == 0))
+        {
+          int jlonsee = INORM (iqse+1, iloen2);
+          neigh.add (neigh_t::IS_W, jlonsw,  jlat2);
+          neigh.add (neigh_t::IS__, jlonse,  jlat2);
+          neigh.add (neigh_t::IS_E, jlonsee, jlat2);
+        }
+      else
+        {
+          neigh.add (neigh_t::IS_W, jlonsw,  jlat2);
+          neigh.add (neigh_t::IS__,      0,      0);
+          neigh.add (neigh_t::IS_E, jlonse,  jlat2);
+        }
+
+    }
+#endif
   
   return neigh;
 }
@@ -383,18 +474,22 @@ std::vector<neigh_t> geom_t::getNeighbours () const
 void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
 {
   printf ("\n\n");
-  printf (" %4d %4d %4d\n", 
-  	  geom.jglo (jlonlat[neigh_t::INW]),
-  	  geom.jglo (jlonlat[neigh_t::IN_]),
-  	  geom.jglo (jlonlat[neigh_t::INE]));
-  printf (" %4d %4d %4d\n", 
-          geom.jglo (jlonlat[neigh_t::I_W]),
+  printf (" %4d %4d %4d %4d %4d\n", 
+  	  geom.jglo (jlonlat[neigh_t::IN_W]),
+  	  geom.jglo (jlonlat[neigh_t::INNW]),
+  	  geom.jglo (jlonlat[neigh_t::IN__]),
+  	  geom.jglo (jlonlat[neigh_t::INNE]),
+  	  geom.jglo (jlonlat[neigh_t::IN_E]));
+  printf (" %4d     %4d     %4d\n", 
+          geom.jglo (jlonlat[neigh_t::I__W]),
           geom.jglo (_jlonlat),
-          geom.jglo (jlonlat[neigh_t::I_E]));
-  printf (" %4d %4d %4d\n", 
-          geom.jglo (jlonlat[neigh_t::ISW]),
-          geom.jglo (jlonlat[neigh_t::IS_]),
-          geom.jglo (jlonlat[neigh_t::ISE]));
+          geom.jglo (jlonlat[neigh_t::I__E]));
+  printf (" %4d %4d %4d %4d %4d\n", 
+          geom.jglo (jlonlat[neigh_t::IS_W]),
+          geom.jglo (jlonlat[neigh_t::ISSW]),
+          geom.jglo (jlonlat[neigh_t::IS__]),
+          geom.jglo (jlonlat[neigh_t::ISSE]),
+          geom.jglo (jlonlat[neigh_t::IS_E]));
   printf ("\n\n");
 }
   

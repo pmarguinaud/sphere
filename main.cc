@@ -79,7 +79,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 
   jlonlat_t jlonlat = jlonlat0;         // Current position
   neigh_t neigh = neigh0;               // Current neighbours
-  neigh_t::pos_t pos1 = neigh_t::I_E;   // Current edge
+  neigh_t::pos_t pos1 = neigh_t::I__E;   // Current edge
   neigh_t::rot_t rot1 = neigh_t::P;     // Current direction of rotation 
 
   int count = 0;                        // Number of points we added for the current line
@@ -239,7 +239,7 @@ again:
             push (); 
             neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
             // Look for position which corresponds to point #1 seen from point #2
-	    for (neigh_t::pos_t pos = neigh_t::I_E; ; ) 
+	    for (neigh_t::pos_t pos = neigh_t::I__E; ; ) 
               {
                 if (geom.jglo (neigh2.jlonlat[pos]) == jglo1)
                   {
@@ -247,7 +247,7 @@ again:
                     break;
 		  }
                 pos = neigh2.next (pos, neigh_t::P);  
-		if (pos == neigh_t::I_E)
+		if (pos == neigh_t::I__E)
 		  {
 		    pos1 = neigh_t::opposite (pos2);  // Not found; use this as we are sure this exists
 		    break;
@@ -347,14 +347,14 @@ printf (" II = %d\n", II);
   int jglo0 = geom.jglo (jlonlat0);
   std::cout << " done = " << neigh0.done (&seen[8*jglo0]) << std::endl;
   printf ("%30.20f\n", r[jglo0]);
-  std::cout << "I_E " << neigh0.jlonlat[neigh_t::I_E].ok () << " " << seen[8*jglo0+0]; if (neigh0.jlonlat[neigh_t::I_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I_E])]); printf ("\n"); 
-  std::cout << "INE " << neigh0.jlonlat[neigh_t::INE].ok () << " " << seen[8*jglo0+1]; if (neigh0.jlonlat[neigh_t::INE].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::INE])]); printf ("\n"); 
-  std::cout << "IN_ " << neigh0.jlonlat[neigh_t::IN_].ok () << " " << seen[8*jglo0+2]; if (neigh0.jlonlat[neigh_t::IN_].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_])]); printf ("\n"); 
-  std::cout << "INW " << neigh0.jlonlat[neigh_t::INW].ok () << " " << seen[8*jglo0+3]; if (neigh0.jlonlat[neigh_t::INW].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::INW])]); printf ("\n"); 
-  std::cout << "I_W " << neigh0.jlonlat[neigh_t::I_W].ok () << " " << seen[8*jglo0+4]; if (neigh0.jlonlat[neigh_t::I_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I_W])]); printf ("\n"); 
-  std::cout << "ISW " << neigh0.jlonlat[neigh_t::ISW].ok () << " " << seen[8*jglo0+5]; if (neigh0.jlonlat[neigh_t::ISW].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::ISW])]); printf ("\n"); 
-  std::cout << "IS_ " << neigh0.jlonlat[neigh_t::IS_].ok () << " " << seen[8*jglo0+6]; if (neigh0.jlonlat[neigh_t::IS_].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS_])]); printf ("\n"); 
-  std::cout << "ISE " << neigh0.jlonlat[neigh_t::ISE].ok () << " " << seen[8*jglo0+7]; if (neigh0.jlonlat[neigh_t::ISE].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::ISE])]); printf ("\n"); 
+  std::cout << "I__E " << neigh0.jlonlat[neigh_t::I__E].ok () << " " << seen[8*jglo0+0]; if (neigh0.jlonlat[neigh_t::I__E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I__E])]); printf ("\n"); 
+  std::cout << "IN_E " << neigh0.jlonlat[neigh_t::IN_E].ok () << " " << seen[8*jglo0+1]; if (neigh0.jlonlat[neigh_t::IN_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_E])]); printf ("\n"); 
+  std::cout << "IN__ " << neigh0.jlonlat[neigh_t::IN__].ok () << " " << seen[8*jglo0+2]; if (neigh0.jlonlat[neigh_t::IN__].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN__])]); printf ("\n"); 
+  std::cout << "IN_W " << neigh0.jlonlat[neigh_t::IN_W].ok () << " " << seen[8*jglo0+3]; if (neigh0.jlonlat[neigh_t::IN_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_W])]); printf ("\n"); 
+  std::cout << "I__W " << neigh0.jlonlat[neigh_t::I__W].ok () << " " << seen[8*jglo0+4]; if (neigh0.jlonlat[neigh_t::I__W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I__W])]); printf ("\n"); 
+  std::cout << "IS_W " << neigh0.jlonlat[neigh_t::IS_W].ok () << " " << seen[8*jglo0+5]; if (neigh0.jlonlat[neigh_t::IS_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS_W])]); printf ("\n"); 
+  std::cout << "IS__ " << neigh0.jlonlat[neigh_t::IS__].ok () << " " << seen[8*jglo0+6]; if (neigh0.jlonlat[neigh_t::IS__].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS__])]); printf ("\n"); 
+  std::cout << "IS_E " << neigh0.jlonlat[neigh_t::IS_E].ok () << " " << seen[8*jglo0+7]; if (neigh0.jlonlat[neigh_t::IS_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS_E])]); printf ("\n"); 
 
   printf ("<");
   neigh.prn (geom, jlonlat);
@@ -362,14 +362,14 @@ printf (" II = %d\n", II);
   int jglo = geom.jglo (jlonlat);
   std::cout << " done = " << neigh.done (&seen[8*jglo]) << std::endl;
   printf ("%30.20f\n", r[jglo]);
-  std::cout << "I_E " << neigh.jlonlat[neigh_t::I_E].ok () << " " << seen[8*jglo+0]; if (neigh.jlonlat[neigh_t::I_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I_E])]); printf ("\n"); 
-  std::cout << "INE " << neigh.jlonlat[neigh_t::INE].ok () << " " << seen[8*jglo+1]; if (neigh.jlonlat[neigh_t::INE].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::INE])]); printf ("\n"); 
-  std::cout << "IN_ " << neigh.jlonlat[neigh_t::IN_].ok () << " " << seen[8*jglo+2]; if (neigh.jlonlat[neigh_t::IN_].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_])]); printf ("\n"); 
-  std::cout << "INW " << neigh.jlonlat[neigh_t::INW].ok () << " " << seen[8*jglo+3]; if (neigh.jlonlat[neigh_t::INW].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::INW])]); printf ("\n"); 
-  std::cout << "I_W " << neigh.jlonlat[neigh_t::I_W].ok () << " " << seen[8*jglo+4]; if (neigh.jlonlat[neigh_t::I_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I_W])]); printf ("\n"); 
-  std::cout << "ISW " << neigh.jlonlat[neigh_t::ISW].ok () << " " << seen[8*jglo+5]; if (neigh.jlonlat[neigh_t::ISW].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::ISW])]); printf ("\n"); 
-  std::cout << "IS_ " << neigh.jlonlat[neigh_t::IS_].ok () << " " << seen[8*jglo+6]; if (neigh.jlonlat[neigh_t::IS_].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS_])]); printf ("\n"); 
-  std::cout << "ISE " << neigh.jlonlat[neigh_t::ISE].ok () << " " << seen[8*jglo+7]; if (neigh.jlonlat[neigh_t::ISE].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::ISE])]); printf ("\n"); 
+  std::cout << "I__E " << neigh.jlonlat[neigh_t::I__E].ok () << " " << seen[8*jglo+0]; if (neigh.jlonlat[neigh_t::I__E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I__E])]); printf ("\n"); 
+  std::cout << "IN_E " << neigh.jlonlat[neigh_t::IN_E].ok () << " " << seen[8*jglo+1]; if (neigh.jlonlat[neigh_t::IN_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_E])]); printf ("\n"); 
+  std::cout << "IN__ " << neigh.jlonlat[neigh_t::IN__].ok () << " " << seen[8*jglo+2]; if (neigh.jlonlat[neigh_t::IN__].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN__])]); printf ("\n"); 
+  std::cout << "IN_W " << neigh.jlonlat[neigh_t::IN_W].ok () << " " << seen[8*jglo+3]; if (neigh.jlonlat[neigh_t::IN_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_W])]); printf ("\n"); 
+  std::cout << "I__W " << neigh.jlonlat[neigh_t::I__W].ok () << " " << seen[8*jglo+4]; if (neigh.jlonlat[neigh_t::I__W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I__W])]); printf ("\n"); 
+  std::cout << "IS_W " << neigh.jlonlat[neigh_t::IS_W].ok () << " " << seen[8*jglo+5]; if (neigh.jlonlat[neigh_t::IS_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS_W])]); printf ("\n"); 
+  std::cout << "IS__ " << neigh.jlonlat[neigh_t::IS__].ok () << " " << seen[8*jglo+6]; if (neigh.jlonlat[neigh_t::IS__].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS__])]); printf ("\n"); 
+  std::cout << "IS_E " << neigh.jlonlat[neigh_t::IS_E].ok () << " " << seen[8*jglo+7]; if (neigh.jlonlat[neigh_t::IS_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS_E])]); printf ("\n"); 
 
 
   }
@@ -451,6 +451,37 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 }
 
 
+void checkSphere (const geom_t & geom)
+{
+  
+  for (int jlat = 1; jlat <= geom.Nj; jlat++)
+    printf ("%d\n", geom.pl[jlat-1]);
+
+  for (int jlat = 1; jlat <= geom.Nj; jlat++)
+  for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+    {
+      jlonlat_t jlonlat0 = jlonlat_t (jlon, jlat);
+      neigh_t neigh0 = geom.getNeighbours (jlonlat0);
+if(0)
+      for (int i = 0; i < 8; i++)
+        {
+          const jlonlat_t & jlonlat1 = neigh0.jlonlat[i];
+          if (! jlonlat1.ok ())
+            continue;
+          neigh_t neigh1 = geom.getNeighbours (jlonlat1);
+          for (int j = 0; j < 8; j++)
+             if (neigh1.jlonlat[j] == jlonlat0)
+               goto cont;
+          neigh0.prn (geom, jlonlat0);
+          neigh1.prn (geom, jlonlat1);
+          abort ();
+cont:
+          continue;
+        }
+    }
+}
+
+
 int main (int argc, char * argv[])
 {
   float * xyz;
@@ -477,6 +508,9 @@ int main (int argc, char * argv[])
     gensphere_grib (&geom, &np, &xyz, &nt, &ind, &F, type);
   else
     gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
+
+  checkSphere (geom);
+  exit (0);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)

@@ -23,12 +23,11 @@ public:
 };
 
 
-
 class neigh_t
 {
 public:
-
-  jlonlat_t jlonlat[8];
+  static const int NMAX = 12;
+  jlonlat_t jlonlat[NMAX];
 
   typedef enum
   {
@@ -47,14 +46,18 @@ public:
 
   typedef enum
   {
-    I_E=0,
-    INE=1,
-    IN_=2,
-    INW=3,
-    I_W=4,
-    ISW=5,
-    IS_=6,
-    ISE=7 
+    I__E=0,
+    IN_E=1,
+    INNE=2,
+    IN__=3,
+    INNW=4,
+    IN_W=5,
+    I__W=6,
+    IS_W=7,
+    ISSW=8,
+    IS__=9,
+    ISSE=10,
+    IS_E=11 
   } pos_t;
 
   void add (pos_t _pos, int _jlon, int _jlat)
@@ -76,14 +79,14 @@ public:
   {
     switch (pos)
       {
-        case I_E: return "I_E";
-        case INE: return "INE";
-        case IN_: return "IN_";
-        case INW: return "INW";
-        case I_W: return "I_W";
-        case ISW: return "ISW";
-        case IS_: return "IS_";
-        case ISE: return "ISE";
+        case I__E: return "I__E";
+        case IN_E: return "IN_E";
+        case IN__: return "IN__";
+        case IN_W: return "IN_W";
+        case I__W: return "I__W";
+        case IS_W: return "IS_W";
+        case IS__: return "IS__";
+        case IS_E: return "IS_E";
       }
   }
 
@@ -96,14 +99,14 @@ public:
       {
         switch (pos)
           {
-            case I_E: pos = INE; break; 
-            case INE: pos = IN_; break; 
-            case IN_: pos = INW; break;
-            case INW: pos = I_W; break; 
-            case I_W: pos = ISW; break;
-            case ISW: pos = IS_; break; 
-            case IS_: pos = ISE; break; 
-            case ISE: pos = I_E; break;
+            case I__E: pos = IN_E; break; 
+            case IN_E: pos = IN__; break; 
+            case IN__: pos = IN_W; break;
+            case IN_W: pos = I__W; break; 
+            case I__W: pos = IS_W; break;
+            case IS_W: pos = IS__; break; 
+            case IS__: pos = IS_E; break; 
+            case IS_E: pos = I__E; break;
           }
        if (jlonlat[pos].ok ())
          return pos;
@@ -118,14 +121,14 @@ public:
       {
         switch (pos)
           {
-            case INE: pos = I_E; break; 
-            case IN_: pos = INE; break; 
-            case INW: pos = IN_; break;
-            case I_W: pos = INW; break; 
-            case ISW: pos = I_W; break;
-            case IS_: pos = ISW; break; 
-            case ISE: pos = IS_; break; 
-            case I_E: pos = ISE; break;
+            case IN_E: pos = I__E; break; 
+            case IN__: pos = IN_E; break; 
+            case IN_W: pos = IN__; break;
+            case I__W: pos = IN_W; break; 
+            case IS_W: pos = I__W; break;
+            case IS__: pos = IS_W; break; 
+            case IS_E: pos = IS__; break; 
+            case I__E: pos = IS_E; break;
           }
         if (jlonlat[pos].ok ())
           return pos;
@@ -136,14 +139,14 @@ public:
   {
     switch (pos)
       {
-        case INE: return ISW; 
-        case IN_: return IS_; 
-        case INW: return ISE;
-        case I_W: return I_E; 
-        case ISW: return INE;
-        case IS_: return IN_; 
-        case ISE: return INW; 
-        case I_E: return I_W;
+        case IN_E: return IS_W; 
+        case IN__: return IS__; 
+        case IN_W: return IS_E;
+        case I__W: return I__E; 
+        case IS_W: return IN_E;
+        case IS__: return IN__; 
+        case IS_E: return IN_W; 
+        case I__E: return I__W;
       }
   }
 
