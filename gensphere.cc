@@ -141,47 +141,51 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
 {
   const int nstripe = 8;
   int indoff[nstripe];
+  bool init = geom->pl == NULL;
 
-  *xyz = NULL;
-
-  geom->pl = (long int *)malloc (sizeof (long int) * geom->Nj);
-
-  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+  if (init)
     {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
-      float coslat = cos (lat);
-      geom->pl[jlat-1] = (2. * geom->Nj * coslat);
+      *xyz = NULL;
+     
+      geom->pl = (long int *)malloc (sizeof (long int) * geom->Nj);
+     
+      for (int jlat = 1; jlat <= geom->Nj; jlat++)
+        {
+          float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
+          float coslat = cos (lat);
+          geom->pl[jlat-1] = (2. * geom->Nj * coslat);
+        }
+     
+      *nt = 0;
+      for (int jlat = 1; jlat < geom->Nj; jlat++)
+        *nt += geom->pl[jlat-1] + geom->pl[jlat];
+     
+      for (int istripe = 0; istripe < nstripe; istripe++)
+        {
+          int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
+          int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
+          indoff[istripe] = 0;
+          for (int jlat = jlat1; jlat <= jlat2; jlat++)
+            indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
+        }
+      
+      *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+      glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
+     
+     
+      int v_len = 0;
+      for (int jlat = 1; jlat <= geom->Nj; jlat++)
+        v_len += geom->pl[jlat-1];
+      
+      geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+      geom->jglooff[0] = 0;
+      for (int jlat = 2; jlat <= geom->Nj; jlat++)
+         geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
+     
+      *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+      *F = (float *)malloc (sizeof (float) * v_len);
+      *np  = v_len;
     }
-
-  *nt = 0;
-  for (int jlat = 1; jlat < geom->Nj; jlat++)
-    *nt += geom->pl[jlat-1] + geom->pl[jlat];
-
-  for (int istripe = 0; istripe < nstripe; istripe++)
-    {
-      int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
-      int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
-      indoff[istripe] = 0;
-      for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
-    }
-  
-  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
-
-
-  int v_len = 0;
-  for (int jlat = 1; jlat <= geom->Nj; jlat++)
-    v_len += geom->pl[jlat-1];
-  
-  geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
-  geom->jglooff[0] = 0;
-  for (int jlat = 2; jlat <= geom->Nj; jlat++)
-     geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
-
-  *xyz = (float *)malloc (3 * sizeof (float) * v_len);
-  *F = (float *)malloc (sizeof (float) * v_len);
-  *np  = v_len;
 
 #pragma omp parallel for
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
@@ -198,9 +202,12 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
           float Y = sinlon * coslat * radius;
           float Z =          sinlat * radius;
 
-          (*xyz)[3*jglo+0] = X;
-          (*xyz)[3*jglo+1] = Y;
-          (*xyz)[3*jglo+2] = Z;
+	  if (init)
+            {
+              (*xyz)[3*jglo+0] = X;
+              (*xyz)[3*jglo+1] = Y;
+              (*xyz)[3*jglo+2] = Z;
+	    }
 
           (*F)[jglo] = 0;
 	  if (type == "gradx")
@@ -247,13 +254,24 @@ static inline void IQR (int & iq, int & ir,
   iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
 }
 
-static inline bool CMP (int p1, int q1, int p2, int q2, int p3, int q3) 
+static inline bool GT (int p1, int q1, int p2, int q2, int p3, int q3) 
 {
-  if (p2 * q1 < p1 * p2)
+  p1--; p2--; p3--;
+  if (p2 * q1 < p1 * q2)
     p2 += q2;
-  if (p3 * q1 < p1 * p3)
+  if (p3 * q1 < p1 * q3)
     p3 += q3;
-  return p3 * q2 - p2 * q3 > 0;
+  return p2 * q3 - p3 * q2 > 0;
+}
+
+static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3) 
+{
+  p1--; p2--; p3--;
+  if (p2 * q1 < p1 * q2)
+    p2 += q2;
+  if (p3 * q1 < p1 * q3)
+    p3 += q3;
+  return p2 * q3 - p3 * q2 < 0;
 }
 
 
@@ -267,10 +285,12 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
   int jlat1, jlon1, jlat2;
   int jlon__E = INORM (jlon+1, pl[jlat-1]);
   int jlon__W = INORM (jlon-1, pl[jlat-1]);
-  int jlon_NE1 = -1, jlon_NE2 = -1, jlon_NE = -1;
-  int jlon_NW1 = -1, jlon_NW2 = -1, jlon_NW = -1;
-  int jlon_SE1 = -1, jlon_SE2 = -1, jlon_SE = -1;
-  int jlon_SW1 = -1, jlon_SW2 = -1, jlon_SW = -1;
+  int jlon_NE;
+  int jlon_NW;
+  int jlon_SE;
+  int jlon_SW;
+
+  neigh.jlonlatb = jlonlat;
   
   for (int i = 0; i < neigh_t::NMAX; i++)
     neigh.jlonlat[i] = jlonlat_t (0, 0);
@@ -284,17 +304,19 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
       jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
 
       IQR (iq, ir, iloen1, iloen2, jlon);
-      jlon_NE2 = INORM (iq+1, iloen2);
-      jlon_NW2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);
-     
-      IQR (iq, ir, iloen1, iloen2, jlon__E);
-      jlon_NE1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+0, iloen2);
-     
-      IQR (iq, ir, iloen1, iloen2, jlon__W);
-      jlon_NW1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
-     
-      jlon_NW = CMP (jlon_NE2, iloen1, jlon_NW1, iloen2, jlon_NW2, iloen2) ? jlon_NW1 : jlon_NW2;
-      jlon_NE = CMP (jlon_NW2, iloen1, jlon_NE1, iloen2, jlon_NE2, iloen2) ? jlon_NE2 : jlon_NE1;
+      jlon_NE = INORM (iq+1, iloen2);                                    // NE of current point
+      jlon_NW = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);   // NW of current point
+    
+      if (GT (jlon, iloen1, jlon__E, iloen1, jlon_NE, iloen2))           // If E > NE, then take NW of E instead of NE
+        {
+          IQR (iq, ir, iloen1, iloen2, jlon__E);
+          jlon_NE = INORM (iq+0, iloen2);   
+	}
+      if (LT (jlon, iloen1, jlon__W, iloen1, jlon_NW, iloen2))           // If W < NW, then take NE of W instead of NW
+        {
+          IQR (iq, ir, iloen1, iloen2, jlon__W);
+          jlon_NW = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
+	}
 
       for (int jlon = jlon_NE; ;)
         {
@@ -303,9 +325,6 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
             break;
           jlon = INORM (jlon-1, iloen2);
         }
-
-  printf (" jlon_NW1 = %4d, jlon_NW2 = %4d, jlon_NW = %4d, %d\n", jlon_NW1, jlon_NW2, jlon_NW, CMP (jlon_NE2, iloen1, jlon_NW1, iloen2, jlon_NW2, iloen2));
-  printf (" jlon_NE1 = %4d, jlon_NE2 = %4d, jlon_NE = %4d, %d\n", jlon_NE1, jlon_NE2, jlon_NE, CMP (jlon_NW2, iloen1, jlon_NE1, iloen2, jlon_NE2, iloen2));
     }
 
   neigh.jlonlat[n++] = jlonlat_t (jlon__W, jlat);
@@ -316,19 +335,20 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
       jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
      
       IQR (iq, ir, iloen1, iloen2, jlon);
-      jlon_SE2 = INORM (iq+1, iloen2);
-      jlon_SW2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);
-     
-      IQR (iq, ir, iloen1, iloen2, jlon__E);
-      jlon_SE1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+0, iloen2);
-     
-      IQR (iq, ir, iloen1, iloen2, jlon__W);
-      jlon_SW1 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
+      jlon_SE = INORM (iq+1, iloen2);                                    // SE of current point
+      jlon_SW = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);   // SW of current point
 
+      if (GT (jlon, iloen1, jlon__E, iloen1, jlon_SE, iloen2))
+        {
+          IQR (iq, ir, iloen1, iloen2, jlon__E);
+          jlon_SE = INORM (iq+0, iloen2);   
+	}
+      if (LT (jlon, iloen1, jlon__W, iloen1, jlon_SW, iloen2))
+        {
+          IQR (iq, ir, iloen1, iloen2, jlon__W);
+          jlon_SW = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
+	}
 
-      jlon_SW = CMP (jlon_SE2, iloen1, jlon_SW1, iloen2, jlon_SW2, iloen2) ? jlon_SW1 : jlon_SW2;
-      jlon_SE = CMP (jlon_SW2, iloen1, jlon_SE1, iloen2, jlon_SE2, iloen2) ? jlon_SE2 : jlon_SE1;
-        
       for (int jlon = jlon_SW; ;)
         {
           neigh.jlonlat[n++] = jlonlat_t (jlon, jlat2);
@@ -336,120 +356,22 @@ neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
             break;
           jlon = INORM (jlon+1, iloen2);
         }
-  printf (" jlon_SW1 = %4d, jlon_SW2 = %4d, jlon_SW = %4d, %d\n", jlon_SW1, jlon_SW2, jlon_SW, CMP (jlon_SE2, iloen1, jlon_SW1, iloen2, jlon_SW2, iloen2));
-  printf (" jlon_SE1 = %4d, jlon_SE2 = %4d, jlon_SE = %4d, %d\n", jlon_SE1, jlon_SE2, jlon_SE, CMP (jlon_SW2, iloen1, jlon_SE1, iloen2, jlon_SE2, iloen2));
     }
 
-  printf (" (%4d, %4d) :", jlon, jlat);
+  if (n > neigh_t::NMAX)
+    abort ();
+
+#ifdef UNDEF
+  printf (" (%4d, %4d) :", jlat, jlon);
   for (int i = 0; i < neigh_t::NMAX; i++)
     {
       if (! neigh.jlonlat[i].ok ())
         break;
-      printf (" (%4d, %4d)", neigh.jlonlat[i].jlon, neigh.jlonlat[i].jlat);
+      printf (" (%4d, %4d)", neigh.jlonlat[i].jlat, neigh.jlonlat[i].jlon);
     }
   printf ("\n");
-
-
-
-#ifdef UNDEF
-  jlon1 = jlon;
-  jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-  jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
-  IQR (iq, ir, iloen1, iloen2, jlon1);
-  if (ir == 0) 
-    {
-      int jlon_N_E = INORM (iq+1, iloen2);
-      int jlon_N__ = INORM (iq+0, iloen2);
-      int jlon_N_W = INORM (iq-1, iloen2);
-      neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
-      int jlon_NNE = INORM (jlon_N_E - 1, iloen2);
-      if (jlon_NNE != jlon_N__)
-      neigh.add (neigh_t::INNE, jlon_NNE, jlat2);
-      neigh.add (neigh_t::IN__, jlon_N__, jlat2);
-      int jlon_NNW = INORM (jlon_N_W + 1, iloen2);
-      if (jlon_NNW != jlon_N__)
-      neigh.add (neigh_t::INNW, jlon_NNW, jlat2);
-      neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
-    }
-  else
-    {
-      int jlon_N_W = INORM (iq+0, iloen2);
-      int jlon_N_E = INORM (iq+1, iloen2);
-      int iqnw, irnw, iqne, irne;
-      IQR (iqnw, irnw, iloen1, iloen2, jlon___W, jlon_N_W);
-      IQR (iqne, irne, iloen1, iloen2, jlon___E, jlon_N_E);
-      if ((irnw == 0) && (irne != 0))
-        {
-          int jlonnww = INORM (iqnw+0, iloen2);
-          neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
-          neigh.add (neigh_t::INNW, jlon_N_W, jlat2);
-          neigh.add (neigh_t::IN_W, jlonnww,  jlat2);
-        }
-      else if ((irnw != 0) && (irne == 0))
-        {
-          int jlonnee = INORM (iqne+1, iloen2);
-          neigh.add (neigh_t::IN_E, jlonnee,  jlat2);
-          neigh.add (neigh_t::INNE, jlon_N_E, jlat2);
-          neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
-        }
-      else
-        {
-          neigh.add (neigh_t::IN_E, jlon_N_E, jlat2);
-          neigh.add (neigh_t::IN_W, jlon_N_W, jlat2);
-        }
-    }
-
-  neigh.add (neigh_t::I__W, jlon___W, jlat);
-  
-  
-  jlon1 = jlon;
-  jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-  jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
-  IQR (iq, ir, iloen1, iloen2, jlon1);
-  if (ir == 0) 
-    {
-      int jlon_S_W = INORM (iq-1, iloen2);
-      int jlon_S__ = INORM (iq+0, iloen2);
-      int jlon_S_E = INORM (iq+1, iloen2);
-      neigh.add (neigh_t::IS_W, jlon_S_W, jlat2);
-      int jlon_SSW = INORM (jlon_S_W + 1, iloen2);
-      if (jlon_SSW ! = jlon_S__)
-      neigh.add (neigh_t::ISSW, jlon_SSW, jlat2);
-      int jlon_
-      neigh.add (neigh_t::IS__, jlon_S__, jlat2);
-      neigh.add (neigh_t::IS_E, jlon_S_E, jlat2);
-    }
-  else
-    {
-      int jlonsw = INORM (iq+0, iloen2);
-      int jlonse = INORM (iq+1, iloen2);
-      int iqsw, irsw, iqse, irse;
-      IQR (iqsw, irsw, iloen1, iloen2, jlon___W, jlonsw);
-      IQR (iqse, irse, iloen1, iloen2, jlon___E, jlonse);
-      if ((irsw == 0) && (irse != 0))
-        {
-          int jlonsww = INORM (iqsw+0, iloen2);
-          neigh.add (neigh_t::IS_W, jlonsww, jlat2);
-          neigh.add (neigh_t::IS__, jlonsw,  jlat2);
-          neigh.add (neigh_t::IS_E, jlonse,  jlat2);
-        }
-      else if ((irsw != 0) && (irse == 0))
-        {
-          int jlonsee = INORM (iqse+1, iloen2);
-          neigh.add (neigh_t::IS_W, jlonsw,  jlat2);
-          neigh.add (neigh_t::IS__, jlonse,  jlat2);
-          neigh.add (neigh_t::IS_E, jlonsee, jlat2);
-        }
-      else
-        {
-          neigh.add (neigh_t::IS_W, jlonsw,  jlat2);
-          neigh.add (neigh_t::IS__,      0,      0);
-          neigh.add (neigh_t::IS_E, jlonse,  jlat2);
-        }
-
-    }
 #endif
-  
+
   return neigh;
 }
 
@@ -588,4 +510,15 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
   
 }
 
+int geom_t::opposite (const neigh_t & neigh0, int pos0) const
+{
+  const jlonlat_t & jlonlat1 = neigh0.jlonlat[pos0];
+  if (! jlonlat1.ok ())
+    abort ();
+  neigh_t neigh1 = getNeighbours (jlonlat1);
+  for (int pos1 = 0; pos1 < neigh_t::NMAX; pos1++)
+    if (neigh1.jlonlat[pos1] == neigh0.jlonlatb)
+      return pos1;
+  abort ();
+}
 

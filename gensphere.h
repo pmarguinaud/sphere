@@ -28,6 +28,8 @@ class neigh_t
 public:
   static const int NMAX = 12;
   jlonlat_t jlonlat[NMAX];
+  jlonlat_t jlonlatb;
+
 
   typedef enum
   {
@@ -91,75 +93,38 @@ public:
   }
 
 
-  pos_t next (pos_t pos, rot_t rot = P)
+  int next (int pos, rot_t rot = P)
   {
     if (rot == N)
       return prev (pos);
     while (1)
       {
-        switch (pos)
-          {
-            case I__E: pos = IN_E; break; 
-            case IN_E: pos = IN__; break; 
-            case IN__: pos = IN_W; break;
-            case IN_W: pos = I__W; break; 
-            case I__W: pos = IS_W; break;
-            case IS_W: pos = IS__; break; 
-            case IS__: pos = IS_E; break; 
-            case IS_E: pos = I__E; break;
-          }
+       pos++;
+       if (pos == neigh_t::NMAX)
+         pos = 0;
        if (jlonlat[pos].ok ())
          return pos;
      }
   }
 
-  pos_t prev (pos_t pos, rot_t rot = P)
+  int prev (int pos, rot_t rot = P)
   {
     if (rot == N)
       return next (pos);
     while (1)
       {
-        switch (pos)
-          {
-            case IN_E: pos = I__E; break; 
-            case IN__: pos = IN_E; break; 
-            case IN_W: pos = IN__; break;
-            case I__W: pos = IN_W; break; 
-            case IS_W: pos = I__W; break;
-            case IS__: pos = IS_W; break; 
-            case IS_E: pos = IS__; break; 
-            case I__E: pos = IS_E; break;
-          }
+        pos--;
+	if (pos < 0)
+          pos += neigh_t::NMAX;
         if (jlonlat[pos].ok ())
           return pos;
       }
   }
 
-  static pos_t opposite (pos_t pos)
-  {
-    switch (pos)
-      {
-        case IN_E: return IS_W; 
-        case IN__: return IS__; 
-        case IN_W: return IS_E;
-        case I__W: return I__E; 
-        case IS_W: return IN_E;
-        case IS__: return IN__; 
-        case IS_E: return IN_W; 
-        case I__E: return I__W;
-      }
-  }
-
   bool done (bool * seen)
   {
-     if ((jlonlat[0].ok ()) && ! seen[0]) return false;
-     if ((jlonlat[1].ok ()) && ! seen[1]) return false;
-     if ((jlonlat[2].ok ()) && ! seen[2]) return false;
-     if ((jlonlat[3].ok ()) && ! seen[3]) return false;
-     if ((jlonlat[4].ok ()) && ! seen[4]) return false;
-     if ((jlonlat[5].ok ()) && ! seen[5]) return false;
-     if ((jlonlat[6].ok ()) && ! seen[6]) return false;
-     if ((jlonlat[7].ok ()) && ! seen[7]) return false;
+     for (int i = 0; i < NMAX; i++)
+       if ((jlonlat[i].ok ()) && ! seen[i]) return false;
      return true;
   }
 
@@ -180,6 +145,8 @@ public:
   { 
     return jlonlat.ok () ? jglooff[jlonlat.jlat-1] + (jlonlat.jlon-1) : - 1; 
   }
+  int opposite (const neigh_t &, int) const;
+  int size () const { return jglooff[Nj-1] + pl[Nj-1]; }
 };
 
 void gensphere (geom_t *, int *, float **, 

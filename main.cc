@@ -41,6 +41,12 @@ public:
     xyz.pop_back ();
     drw.pop_back ();
   }
+  void clear ()
+  {
+    xyz.clear ();
+    ind.clear ();
+    drw.clear ();
+  }
   int size ()
   {
     return xyz.size () / 3;
@@ -60,18 +66,9 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               isoline_data_t * iso, const std::vector<neigh_t> & neighlist)
 {
   static int II = 0;
-  bool dbg = ((II == 2069) || (II == 2271));
-  dbg = II == 2;
+  bool dbg = false;
 
-  if(II > 2)
-    return;
-
-  if (II == 2)
-     {
-       iso->drw.clear ();
-       iso->xyz.clear ();
-       iso->ind.clear ();
-     }
+  II++;
 
   int ind_start = iso->size ();         // Number of points so far
 
@@ -79,30 +76,29 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 
   jlonlat_t jlonlat = jlonlat0;         // Current position
   neigh_t neigh = neigh0;               // Current neighbours
-  neigh_t::pos_t pos1 = neigh_t::I__E;   // Current edge
+  int pos1 = 0;                         // Current edge
   neigh_t::rot_t rot1 = neigh_t::P;     // Current direction of rotation 
 
   int count = 0;                        // Number of points we added for the current line
 
-  struct 
-  {
-    neigh_t::pos_t pos0;                
-    neigh_t::pos_t pos1;                // Last edge where we got a match
-    neigh_t::rot_t rot1;                
-    jlonlat_t jlonlat;
-    neigh_t neigh;
-    bool valid = false;
-  } ok;
-    
-again:
 
-  bool close = false;
+  bool * seen0 = NULL, * seen1 = NULL;
+  bool reset = false;
 
   while (1)
     {
       int jglo0 = geom.jglo (jlonlat);
 
-      if (neigh.done (&seen[8*jglo0]))  // All edges of current point have been explored
+      if (count > 2 && ! reset)
+        {
+          *seen0 = false;
+          *seen1 = false;
+	  reset = true;
+	}
+
+      bool close = false;
+      bool stop = false;
+      if (neigh.done (&seen[neigh_t::NMAX*jglo0]))  // All edges of current point have been explored
         {
           if (count > 1)                // More than one point have been added; try to close the current line
             {
@@ -113,49 +109,46 @@ again:
                     iso->pop ();
                   close = true;
                 }
-	      else 
-                {
-                  for (int i = 0; i < 8; i++)
-                    if (geom.jglo (neigh.jlonlat[i]) == jglo0)
-                      {
-                        close = true;    // We came back to a point near to the first point
-                        break;
-		      }
-                }
-	      if (close)               // Close the current line
-                {
-                  iso->ind.push_back (iso->ind.back ());
-                  iso->ind.push_back (ind_start);
-		  if (inst)
-                    {
-                      iso->push (iso->xyz[3*ind_start+0], 
-                                 iso->xyz[3*ind_start+1], 
-				 iso->xyz[3*ind_start+2]);
-		    }
-	        }
-              else if (ok.valid)
-                {
-                  pos1     = ok.pos0;
-                  rot1     = neigh_t::inv (ok.rot1);
-                  jlonlat  = ok.neigh.jlonlat[ok.pos1];
-                  jglo0    = geom.jglo (jlonlat);
-                  neigh    = uselist ? neighlist[jglo0] : geom.getNeighbours (jlonlat);
-                  ok.valid = false;
-                  goto again;
-                }
 	    }
-          break;                       // Exit main loop; this is the only place where it is possible to exit
+          stop = true;
         }
 
-      neigh_t::pos_t pos2 = neigh.next (pos1, rot1);  // Next edge, following current direction of rotation
+
+      if (count > 1)
+      if ((iso->xyz[3*ind_start+0] == iso->xyz[3*(ind_start+count-1)+0])
+       && (iso->xyz[3*ind_start+1] == iso->xyz[3*(ind_start+count-1)+1])
+       && (iso->xyz[3*ind_start+2] == iso->xyz[3*(ind_start+count-1)+2]))
+        {
+	  stop = true;
+	}
+
+      if (close)               // Close the current line
+        {
+          iso->ind.push_back (iso->ind.back ());
+          iso->ind.push_back (ind_start);
+          if (inst)
+            {
+              iso->push (iso->xyz[3*ind_start+0], 
+                         iso->xyz[3*ind_start+1], 
+        		 iso->xyz[3*ind_start+2]);
+            }
+	  stop = true;
+        }
+
+      if (stop)
+        break;                       // Exit main loop; this is the only place where it is possible to exit
+
+      int pos2 = neigh.next (pos1, rot1);             // Next edge, following current direction of rotation
                                                       // We consider two edges: current edge (pos1), and next edge
 
-      if (seen[8*jglo0+pos1])                         // Current edge has been explored; skip
+      if (seen[neigh_t::NMAX*jglo0+pos1])             // Current edge has been explored; skip
         goto next;
 
       {
-        int jglo1 = geom.jglo (neigh.jlonlat[pos1]);   
-        int jglo2 = geom.jglo (neigh.jlonlat[pos2]);
+        jlonlat_t jlonlat1 = neigh.jlonlat[pos1];
+        jlonlat_t jlonlat2 = neigh.jlonlat[pos2];
+        int jglo1 = geom.jglo (jlonlat1);   
+        int jglo2 = geom.jglo (jlonlat2);
 
 	// Points are black
         bool b0 = r[jglo0] >= r0;   
@@ -167,21 +160,33 @@ again:
         bool w1 = ! b1; //r[jglo1] <= r0;
         bool w2 = ! b2; //r[jglo2] <= r0;
         
-	neigh_t::pos_t pos0 = neigh_t::opposite (pos1);  // If current edge points to NE 
-	                                                 // then pointed grid-point points back to SW
+	int pos0 = geom.opposite (neigh, pos1);           // If current edge points to NE 
+	                                                  // then pointed grid-point points back to SW
 
-        seen[8*jglo0+pos1] = true;                       // Mark these edges as visited
-        seen[8*jglo1+pos0] = true;
+        seen[neigh_t::NMAX*jglo0+pos1] = true;            // Mark these edges as visited
+        seen[neigh_t::NMAX*jglo1+pos0] = true;
 
-        auto push = [=, &count, &ok]()                        
+        auto push = [=, &count, &seen0, &seen1]()                        
 	{ 
-          float a = (r0 - r[jglo0]) / (r[jglo1] - r[jglo0]);        // Weight
+	  if (seen0 == NULL) seen0 = &seen[neigh_t::NMAX*jglo0+pos1]; 
+          if (seen1 == NULL) seen1 = &seen[neigh_t::NMAX*jglo1+pos0];
+
+          int jgloa, jglob;
+          if (jglo0 < jglo1)
+            {
+              jgloa = jglo0; jglob = jglo1;
+	    }
+	  else
+            {
+              jgloa = jglo1; jglob = jglo0;
+	    }
+          float a = (r0 - r[jgloa]) / (r[jglob] - r[jgloa]);        // Weight
 
 	  // Coordinates of point
 	  //
-          float X = (1 - a) * xyz[3*jglo0+0] + a * xyz[3*jglo1+0];  
-          float Y = (1 - a) * xyz[3*jglo0+1] + a * xyz[3*jglo1+1];
-          float Z = (1 - a) * xyz[3*jglo0+2] + a * xyz[3*jglo1+2];
+          float X = (1 - a) * xyz[3*jgloa+0] + a * xyz[3*jglob+0];  
+          float Y = (1 - a) * xyz[3*jgloa+1] + a * xyz[3*jglob+1];
+          float Z = (1 - a) * xyz[3*jgloa+2] + a * xyz[3*jglob+2];
 
 	  // Normalize
 	  float R = sqrt (X * X + Y * Y + Z * Z);
@@ -215,13 +220,6 @@ again:
 
           count++;
 
-          ok.pos0    = pos0;
-          ok.pos1    = pos1;
-          ok.rot1    = rot1;
-          ok.jlonlat = jlonlat;
-          ok.neigh   = neigh;
-          ok.valid   = true;
-
 	};
 
 	// 8 different cases
@@ -239,17 +237,17 @@ again:
             push (); 
             neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
             // Look for position which corresponds to point #1 seen from point #2
-	    for (neigh_t::pos_t pos = neigh_t::I__E; ; ) 
+	    for (int pos = 0; ; ) 
               {
-                if (geom.jglo (neigh2.jlonlat[pos]) == jglo1)
+                if (neigh2.jlonlat[pos] == jlonlat1)
                   {
                     pos1 = pos;                       // Found
                     break;
 		  }
                 pos = neigh2.next (pos, neigh_t::P);  
-		if (pos == neigh_t::I__E)
-		  {
-		    pos1 = neigh_t::opposite (pos2);  // Not found; use this as we are sure this exists
+		if (pos == 0)
+                  {
+                    pos1 = 0;
 		    break;
 		  }
 	      }
@@ -266,14 +264,18 @@ again:
         else if (w0 && b1 && b2) // C
           {
             push (); 
-	    jlonlat = neigh.jlonlat[pos2]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos2);
+	    jlonlat = neigh.jlonlat[pos2]; 
+	    rot1 = neigh_t::inv (rot1); 
+	    pos1 = geom.opposite (neigh, pos2); 
             neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
 	    continue;
           }
         else if (w0 && b1 && w2) // D
           {
             push (); 
-	    jlonlat = neigh.jlonlat[pos1]; rot1 = neigh_t::inv (rot1); pos1 = neigh_t::opposite (pos1);
+	    jlonlat = neigh.jlonlat[pos1]; 
+	    rot1 = neigh_t::inv (rot1); 
+	    pos1 = geom.opposite (neigh, pos1); 
             neigh = uselist ? neighlist[jglo1] : geom.getNeighbours (jlonlat);
 	    continue;
           }
@@ -293,6 +295,9 @@ next:
       pos1 = pos2; // Next edge
     }
 
+
+if (seen0) *seen0 = true;
+if (seen1) *seen1 = true;
 
 bool keep = count > 2;
 
@@ -325,19 +330,6 @@ if (count > 1)
 
   printf ("> count = %d, II = %d\n", count, II);
 
-  if(0)
-  if ((II == 2069) || (II == 2271))
-    {
-printf (" II = %d\n", II);
-    for (int i = ind_start; i < iso->size (); i++)
-       {
-         iso->xyz[3*i+0] = 1.2 * iso->xyz[3*i+0];
-         iso->xyz[3*i+1] = 1.2 * iso->xyz[3*i+1];
-         iso->xyz[3*i+2] = 1.2 * iso->xyz[3*i+2];
-       }
-
-    }
-
   if(1){
 
   std::cout << " r0 = " << r0 << std::endl;
@@ -345,31 +337,27 @@ printf (" II = %d\n", II);
   neigh0.prn (geom, jlonlat0);
 
   int jglo0 = geom.jglo (jlonlat0);
-  std::cout << " done = " << neigh0.done (&seen[8*jglo0]) << std::endl;
+  std::cout << " done = " << neigh0.done (&seen[neigh_t::NMAX*jglo0]) << std::endl;
   printf ("%30.20f\n", r[jglo0]);
-  std::cout << "I__E " << neigh0.jlonlat[neigh_t::I__E].ok () << " " << seen[8*jglo0+0]; if (neigh0.jlonlat[neigh_t::I__E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I__E])]); printf ("\n"); 
-  std::cout << "IN_E " << neigh0.jlonlat[neigh_t::IN_E].ok () << " " << seen[8*jglo0+1]; if (neigh0.jlonlat[neigh_t::IN_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_E])]); printf ("\n"); 
-  std::cout << "IN__ " << neigh0.jlonlat[neigh_t::IN__].ok () << " " << seen[8*jglo0+2]; if (neigh0.jlonlat[neigh_t::IN__].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN__])]); printf ("\n"); 
-  std::cout << "IN_W " << neigh0.jlonlat[neigh_t::IN_W].ok () << " " << seen[8*jglo0+3]; if (neigh0.jlonlat[neigh_t::IN_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IN_W])]); printf ("\n"); 
-  std::cout << "I__W " << neigh0.jlonlat[neigh_t::I__W].ok () << " " << seen[8*jglo0+4]; if (neigh0.jlonlat[neigh_t::I__W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::I__W])]); printf ("\n"); 
-  std::cout << "IS_W " << neigh0.jlonlat[neigh_t::IS_W].ok () << " " << seen[8*jglo0+5]; if (neigh0.jlonlat[neigh_t::IS_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS_W])]); printf ("\n"); 
-  std::cout << "IS__ " << neigh0.jlonlat[neigh_t::IS__].ok () << " " << seen[8*jglo0+6]; if (neigh0.jlonlat[neigh_t::IS__].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS__])]); printf ("\n"); 
-  std::cout << "IS_E " << neigh0.jlonlat[neigh_t::IS_E].ok () << " " << seen[8*jglo0+7]; if (neigh0.jlonlat[neigh_t::IS_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[neigh_t::IS_E])]); printf ("\n"); 
+
+  for (int i = 0; i < neigh_t::NMAX; i++)
+    {
+      std::cout << i << " " << neigh0.jlonlat[i].ok () << " " << seen[neigh_t::NMAX*jglo0+i]; 
+      if (neigh0.jlonlat[i].ok ()) printf ("%30.20f", r[geom.jglo (neigh0.jlonlat[i])]); printf ("\n"); 
+    }
 
   printf ("<");
   neigh.prn (geom, jlonlat);
 
   int jglo = geom.jglo (jlonlat);
-  std::cout << " done = " << neigh.done (&seen[8*jglo]) << std::endl;
+  std::cout << " done = " << neigh.done (&seen[neigh_t::NMAX*jglo]) << std::endl;
   printf ("%30.20f\n", r[jglo]);
-  std::cout << "I__E " << neigh.jlonlat[neigh_t::I__E].ok () << " " << seen[8*jglo+0]; if (neigh.jlonlat[neigh_t::I__E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I__E])]); printf ("\n"); 
-  std::cout << "IN_E " << neigh.jlonlat[neigh_t::IN_E].ok () << " " << seen[8*jglo+1]; if (neigh.jlonlat[neigh_t::IN_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_E])]); printf ("\n"); 
-  std::cout << "IN__ " << neigh.jlonlat[neigh_t::IN__].ok () << " " << seen[8*jglo+2]; if (neigh.jlonlat[neigh_t::IN__].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN__])]); printf ("\n"); 
-  std::cout << "IN_W " << neigh.jlonlat[neigh_t::IN_W].ok () << " " << seen[8*jglo+3]; if (neigh.jlonlat[neigh_t::IN_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IN_W])]); printf ("\n"); 
-  std::cout << "I__W " << neigh.jlonlat[neigh_t::I__W].ok () << " " << seen[8*jglo+4]; if (neigh.jlonlat[neigh_t::I__W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::I__W])]); printf ("\n"); 
-  std::cout << "IS_W " << neigh.jlonlat[neigh_t::IS_W].ok () << " " << seen[8*jglo+5]; if (neigh.jlonlat[neigh_t::IS_W].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS_W])]); printf ("\n"); 
-  std::cout << "IS__ " << neigh.jlonlat[neigh_t::IS__].ok () << " " << seen[8*jglo+6]; if (neigh.jlonlat[neigh_t::IS__].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS__])]); printf ("\n"); 
-  std::cout << "IS_E " << neigh.jlonlat[neigh_t::IS_E].ok () << " " << seen[8*jglo+7]; if (neigh.jlonlat[neigh_t::IS_E].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[neigh_t::IS_E])]); printf ("\n"); 
+
+  for (int i = 0; i < neigh_t::NMAX; i++)
+    {
+      std::cout << i << "  " << neigh.jlonlat[i].ok () << " " << seen[neigh_t::NMAX*jglo+i]; 
+      if (neigh.jlonlat[i].ok ()) printf ("%30.20f", r[geom.jglo (neigh.jlonlat[i])]); printf ("\n"); 
+    }
 
 
   }
@@ -378,7 +366,7 @@ printf (" II = %d\n", II);
   return; 
 
   int jglo0 = geom.jglo (jlonlat0);
-  if (! neigh.done (&seen[8*jglo0]))  // All edges of current point have not been explored
+  if (! neigh.done (&seen[neigh_t::NMAX*jglo0]))  // All edges of current point have not been explored
     process (jlonlat0, r, r0, seen, geom, xyz, iso, neighlist);
 
 }
@@ -410,12 +398,12 @@ if (verbose)
 std::cout << lonc << " " << latc << std::endl;
 	    break;
           case GLFW_KEY_LEFT:
-            lonc += 5;
+            lonc -= 5;
 if (verbose)
 std::cout << lonc << " " << latc << std::endl;
 	    break;
           case GLFW_KEY_RIGHT:
-            lonc -= 5;
+            lonc += 5;
 if (verbose)
 std::cout << lonc << " " << latc << std::endl;
 	    break;
@@ -453,23 +441,19 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 void checkSphere (const geom_t & geom)
 {
-  
-  for (int jlat = 1; jlat <= geom.Nj; jlat++)
-    printf ("%d\n", geom.pl[jlat-1]);
-
+#pragma omp parallel for
   for (int jlat = 1; jlat <= geom.Nj; jlat++)
   for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
     {
       jlonlat_t jlonlat0 = jlonlat_t (jlon, jlat);
       neigh_t neigh0 = geom.getNeighbours (jlonlat0);
-if(0)
-      for (int i = 0; i < 8; i++)
+      for (int i = 0; i < neigh_t::NMAX; i++)
         {
           const jlonlat_t & jlonlat1 = neigh0.jlonlat[i];
           if (! jlonlat1.ok ())
             continue;
           neigh_t neigh1 = geom.getNeighbours (jlonlat1);
-          for (int j = 0; j < 8; j++)
+          for (int j = 0; j < neigh_t::NMAX; j++)
              if (neigh1.jlonlat[j] == jlonlat0)
                goto cont;
           neigh0.prn (geom, jlonlat0);
@@ -495,22 +479,24 @@ int main (int argc, char * argv[])
   int w, h;
   unsigned char * r = NULL;
   float * F = NULL;
-  geom.Nj = atoi (argv[1]);
 
-
-  std::string type = "gradx";
-
- 
-  if (argc > 2)
-    type = argv[2];
-
-  if (endsWith (type, std::string (".grb")))
-    gensphere_grib (&geom, &np, &xyz, &nt, &ind, &F, type);
+  if (endsWith (argv[1], std::string (".grb")))
+    {
+      gensphere_grib (&geom, &np, &xyz, &nt, &ind, &F, argv[1]);
+      if (argc > 2)
+        gensphere (&geom, &np, &xyz, &nt, &ind, &F, argv[2]);
+    }
   else
-    gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
+    {
+      geom.Nj = atoi (argv[1]);
+      std::string type = "gradx";
+      if (argc > 2)
+        type = argv[2];
+      gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
+    }
 
-  checkSphere (geom);
-  exit (0);
+
+//checkSphere (geom);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -533,15 +519,16 @@ int main (int argc, char * argv[])
   const int N = 8;
   isoline_data_t iso_data[N];
 
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
-  if (i != N-1) continue;
-      bool * seen = (bool *)malloc (sizeof (bool) * 9 * np);
+//if (i != N-5) continue;
+//if (i != N-1) continue;
+      bool * seen = (bool *)malloc (sizeof (bool) * neigh_t::NMAX * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
-      for (int i = 0; i < 9 * np; i++)
+      for (int i = 0; i < neigh_t::NMAX * np; i++)
         seen[i] = false;
      
       // Process edges of the domain first
@@ -566,6 +553,7 @@ int main (int argc, char * argv[])
 
       free (seen);
     }
+
 
 
   if (! glfwInit ()) 
