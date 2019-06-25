@@ -63,12 +63,11 @@ typedef struct
 
 void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               bool * seen, const geom_t & geom, const float * xyz, 
-              isoline_data_t * iso, const std::vector<neigh_t> & neighlist)
+              isoline_data_t * iso, const std::vector<neigh_t> & neighlist, bool edge, bool remove_open)
 {
   static int II = 0;
   bool dbg = false;
 
-  II++;
 
   int ind_start = iso->size ();         // Number of points so far
 
@@ -84,6 +83,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 
   bool * seen0 = NULL, * seen1 = NULL;
   bool reset = false;
+  bool closed = false;
 
   while (1)
     {
@@ -120,6 +120,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
        && (iso->xyz[3*ind_start+2] == iso->xyz[3*(ind_start+count-1)+2]))
         {
 	  stop = true;
+	  closed = true;
 	}
 
       if (close)               // Close the current line
@@ -133,6 +134,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
         		 iso->xyz[3*ind_start+2]);
             }
 	  stop = true;
+	  closed = true;
         }
 
       if (stop)
@@ -299,11 +301,12 @@ next:
 if (seen0) *seen0 = true;
 if (seen1) *seen1 = true;
 
-bool keep = count > 2;
 
 // A single point was added; not enough to make a line
 // A two point segments is not considered useful
 // -> Remove
+bool keep = count > 2;
+
 if (! keep)
   {
     int size = iso->size () - ind_start;
@@ -315,20 +318,27 @@ if (! keep)
 
 if (keep)
   {
-    II++;
     if (inst)
       {
         iso->push (0, 0, 0, 0);
       }
   }
 
+if(remove_open)
+if ((! closed) && (! edge) && keep)
+  {
+    for (int i = ind_start; i < ind_start+count; i++)
+      {
+        iso->drw[i] = 0.;
+      }
+  }
 
 
 if (dbg)
 if (count > 1)
 {
 
-  printf ("> count = %d, II = %d\n", count, II);
+  printf ("> count = %d, II = %d, edge = %d, closed = %d\n", count, II, edge, closed);
 
   if(1){
 
@@ -367,7 +377,7 @@ if (count > 1)
 
   int jglo0 = geom.jglo (jlonlat0);
   if (! neigh.done (&seen[neigh_t::NMAX*jglo0]))  // All edges of current point have not been explored
-    process (jlonlat0, r, r0, seen, geom, xyz, iso, neighlist);
+    process (jlonlat0, r, r0, seen, geom, xyz, iso, neighlist, edge, remove_open);
 
 }
 
@@ -472,6 +482,11 @@ int main (int argc, char * argv[])
   int np; 
   unsigned int nt;
   unsigned int * ind;
+  bool remove_open;
+ 
+  const char * REMOVE_OPEN = getenv ("REMOVE_OPEN");
+
+  remove_open = (REMOVE_OPEN && atoi (REMOVE_OPEN));
 
   geom_t geom;
 
@@ -523,7 +538,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
-//if (i != N-5) continue;
+//if (i != N-4) continue;
 //if (i != N-1) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * neigh_t::NMAX * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
@@ -537,19 +552,19 @@ int main (int argc, char * argv[])
       for (int jlat = 1; jlat <= 1; jlat++)
         for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
           process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
-                   &iso_data[i], neighlist);
+                   &iso_data[i], neighlist, true, remove_open);
      
       // Bottom
       for (int jlat = geom.Nj; jlat <= geom.Nj; jlat++)
         for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
           process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
-                   &iso_data[i], neighlist);
+                   &iso_data[i], neighlist, true, remove_open);
      
       // Process center of the domain
       for (int jlat = 2; jlat < geom.Nj; jlat++)
         for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
           process (jlonlat_t (jlon, jlat), F, F0, seen, geom, xyz, 
-                   &iso_data[i], neighlist);
+                   &iso_data[i], neighlist, false, remove_open);
 
       free (seen);
     }
