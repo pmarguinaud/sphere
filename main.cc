@@ -66,7 +66,7 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
               isoline_data_t * iso, const std::vector<neigh_t> & neighlist, bool edge, bool remove_open)
 {
   static int II = 0;
-  bool dbg = false;
+  bool dbg = II == 762;
 
 
   int ind_start = iso->size ();         // Number of points so far
@@ -209,10 +209,11 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
                 float lat = asin (Z);
                 float lon = atan2 (Y, X);
                 if (count == 1)
-                printf (" %8d %9.4f %9.4f %9.4f %9.4f %9.4f\n",
+                printf (" %8d %9.4f %9.4f %9.4f %9.4f %9.4f   %d\n", 
                         ind_start, iso->xyz[3*ind_start+0], iso->xyz[3*ind_start+1],  iso->xyz[3*ind_start+2], 
                         180. * atan2 (iso->xyz[3*ind_start+1], iso->xyz[3*ind_start+0]) / M_PI, 
-                        180. * asin (iso->xyz[3*ind_start+2]) / M_PI);
+                        180. * asin (iso->xyz[3*ind_start+2]) / M_PI,
+                        geom.jglo (jlonlat0));
 
                 printf (" %8d %9.4f %9.4f %9.4f %9.4f %9.4f %s %4d %4d %1d %1d %1d\n", 
                         ind_start + count, X, Y, Z, 180. * lon / M_PI, 
@@ -333,10 +334,22 @@ if ((! closed) && (! edge) && keep)
       }
   }
 
+if (II != 762)
+  {
+    for (int i = ind_start; i < ind_start+count; i++)
+      {
+        iso->drw[i] = 0.;
+      }
+  }
+
+
+if (keep)
+  II++;
 
 if (dbg)
-if (count > 1)
+if (keep)
 {
+
 
   printf ("> count = %d, II = %d, edge = %d, closed = %d\n", count, II, edge, closed);
 
@@ -382,11 +395,11 @@ if (count > 1)
 }
 
 
-static bool verbose = false;
-static float lonc = 0.0f;
-static float latc = 0.0f;
+static bool verbose = true;
+static float lonc = 33.0f; // 0.0f;
+static float latc = -1.0f; // 0.0f;
 static float R = 6.0f;
-static float fov = 20.0f;
+static float fov = 0.8f; // 20.0f;
 static bool wireframe = false;
 static bool rotate = false;
 
@@ -538,7 +551,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
-//if (i != N-4) continue;
+  if (i != N-8) continue;
 //if (i != N-1) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * neigh_t::NMAX * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
