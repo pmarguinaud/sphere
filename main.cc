@@ -225,72 +225,76 @@ void process (const jlonlat_t & jlonlat0, const float * r, const float r0,
 
 	};
 
-	// 8 different cases
-	
-             if (b0 && b1 && b2) // Same colors for all three points; skip
-          {
-            goto next;
-          }
-        else if (b0 && b1 && w2) // Same colors for current point and point #1 (pointed by current edge); skip
-          {
-            goto next;
-          }
-        else if (b0 && w1 && b2) // A
+        bool cont = false;
+
+
+        auto alpha = [=, &pos1, &jlonlat, &neigh, &rot1]()                        
+	{ 
+          neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
+          // Look for position which corresponds to point #1 seen from point #2
+          for (int pos = 0; ; ) 
+            {
+              if (neigh2.jlonlat[pos] == jlonlat1)
+                {
+                  pos1 = pos;                       // Found
+                  break;
+                }
+              pos = neigh2.next (pos, neigh_t::P);  
+              if (pos == 0)
+                {
+                  pos1 = 0;
+                  break;
+                }
+            }
+          jlonlat = neigh.jlonlat[pos2];
+          neigh = neigh2;
+        };
+        auto beta = [=, &pos1, &jlonlat, &neigh, &rot1]()                        
+	{ 
+          jlonlat = neigh.jlonlat[pos1]; 
+          rot1 = neigh_t::inv (rot1); 
+          pos1 = geom.opposite (neigh, pos1); 
+          neigh = uselist ? neighlist[jglo1] : geom.getNeighbours (jlonlat);
+        };
+        auto gamma = [=, &pos1, &jlonlat, &neigh, &rot1]()                        
+	{ 
+          pos1 = pos2;
+        };
+        auto delta = [=, &pos1, &jlonlat, &neigh, &rot1]()                        
+	{ 
+          jlonlat = neigh.jlonlat[pos2]; 
+          rot1 = neigh_t::inv (rot1); 
+          pos1 = geom.opposite (neigh, pos2); 
+          neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
+        };
+
+        if (b0 && w1 && b2) // A
           {
             push (); 
-            neigh_t neigh2 = uselist ? neighlist[jglo2] : geom.getNeighbours (neigh.jlonlat[pos2]);
-            // Look for position which corresponds to point #1 seen from point #2
-	    for (int pos = 0; ; ) 
-              {
-                if (neigh2.jlonlat[pos] == jlonlat1)
-                  {
-                    pos1 = pos;                       // Found
-                    break;
-		  }
-                pos = neigh2.next (pos, neigh_t::P);  
-		if (pos == 0)
-                  {
-                    pos1 = 0;
-		    break;
-		  }
-	      }
-	    jlonlat = neigh.jlonlat[pos2];
-            neigh = neigh2;
-	    continue;
+            alpha ();
+            cont = true;
           }
         else if (b0 && w1 && w2) // B
           {
             push (); 
-	    pos1 = pos2;
-	    continue;
+            gamma ();
+            cont = true;
           }
         else if (w0 && b1 && b2) // C
           {
             push (); 
-	    jlonlat = neigh.jlonlat[pos2]; 
-	    rot1 = neigh_t::inv (rot1); 
-	    pos1 = geom.opposite (neigh, pos2); 
-            neigh = uselist ? neighlist[jglo2] : geom.getNeighbours (jlonlat);
-	    continue;
+            delta ();
+            cont = true;
           }
         else if (w0 && b1 && w2) // D
           {
             push (); 
-	    jlonlat = neigh.jlonlat[pos1]; 
-	    rot1 = neigh_t::inv (rot1); 
-	    pos1 = geom.opposite (neigh, pos1); 
-            neigh = uselist ? neighlist[jglo1] : geom.getNeighbours (jlonlat);
-	    continue;
+            beta ();
+            cont = true;
           }
-        else if (w0 && w1 && w2)
-          {
-            goto next;
-          }
-        else if (w0 && w1 && w2)
-        {
-          goto next;
-	}
 
+        if (cont)
+          continue;
       }
 
 next:
@@ -334,6 +338,7 @@ if ((! closed) && (! edge) && keep)
       }
   }
 
+if(0)
 if (II != 762)
   {
     for (int i = ind_start; i < ind_start+count; i++)
