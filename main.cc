@@ -400,7 +400,7 @@ if (keep)
 }
 
 
-static bool verbose = true;
+static bool verbose = false;
 static float lonc = 33.0f; // 0.0f;
 static float latc = -1.0f; // 0.0f;
 static float R = 6.0f;
@@ -493,6 +493,18 @@ cont:
     }
 }
 
+void checkSphere1 (const geom_t & geom)
+{
+  for (int jlat = 1; jlat <= geom.Nj; jlat++)
+    printf ("%4d\n", geom.pl[jlat-1]);
+  for (int jlat = 1; jlat <= geom.Nj; jlat++)
+  for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
+    {
+      jlonlat_t jlonlat = jlonlat_t (jlon, jlat);
+      int t = triangleUp (geom, jlonlat);
+      printf (" (%4d, %4d) %10d\n", jlat, jlon, t);
+    }
+}
 
 int main (int argc, char * argv[])
 {
@@ -528,8 +540,9 @@ int main (int argc, char * argv[])
       gensphere (&geom, &np, &xyz, &nt, &ind, &F, type);
     }
 
-
 //checkSphere (geom);
+
+  checkSphere1 (geom);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -556,7 +569,7 @@ int main (int argc, char * argv[])
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
-  if (i != N-8) continue;
+  if (i != N+1) continue;
 //if (i != N-1) continue;
       bool * seen = (bool *)malloc (sizeof (bool) * neigh_t::NMAX * np);
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);

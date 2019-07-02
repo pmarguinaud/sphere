@@ -159,4 +159,6 @@ void gensphere_grib
                 float **, const std::string &);
 
 
+int triangleUp (const geom_t &, const jlonlat_t &);
+
 #endif

@@ -33,7 +33,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
   for (int istripe = 1; istripe < nstripe; istripe++)
     indcntoff[istripe] = indcntoff[istripe-1] + indcnt[istripe-1];
 
-#pragma omp parallel for 
+//#pragma omp parallel for 
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
@@ -65,65 +65,62 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
             {
               int jlon1 = 1;
               int jlon2 = 1;
+              bool turn = false;
               for (;;)
                 {
                   int ica = 0, icb = 0, icc = 0;
-     
-      
-                  int idlonc = JDLON (jlon1, jlon2);
+
                   int jlon1n = JNEXT (jlon1, iloen1);
                   int jlon2n = JNEXT (jlon2, iloen2);
-                  int idlonn = JDLON (jlon1n, jlon2n);
+
+                  
 
 #define AV1 \
   do {                                                                        \
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;  \
     jlon1 = jlon1n;                                                           \
+    turn = turn || jlon1 == 1;                                                \
   } while (0)
 
 #define AV2 \
   do {                                                                        \
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;  \
     jlon2 = jlon2n;                                                           \
+    turn = turn || jlon2 == 1;                                                \
   } while (0)
 
+                  int idlonc = JDLON (jlon1, jlon2);
+                  int idlonn = JDLON (jlon1n, jlon2n);
+
                   if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
-                    {
-                      if (jlon2n != 1)
-                        AV2;
-                      else
-                        AV1;
-                    }
+                    AV2;
                   else if (idlonc < 0 || ((idlonc == 0) && (idlonn < 0))) 
-                    {
-                      if (jlon1n != 1)
-                        AV1;
-                      else
-                        AV2;
-                    }
+                    AV1;
                   else
-                    {
-                      abort ();
-                    }
+                    abort ();
              
                   PRINT (ica, icb, icc);
                  
-                  if ((jlon1 == 1) && (jlon2 == iloen2)) 
+                  if (turn)
                     {
-                      ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;
-                      PRINT (ica, icb, icc);
+                      if (jlon1 == 1)
+                        while (jlon2 != 1)
+                          {
+                            int jlon2n = JNEXT (jlon2, iloen2);
+                            AV2;
+                            PRINT (ica, icb, icc);
+                          }
+                      else if (jlon2 == 1)
+                        while (jlon1 != 1)
+                          {
+                            int jlon1n = JNEXT (jlon1, iloen1);
+                            AV1;
+                           PRINT (ica, icb, icc);
+                          }
+                      break;
                     }
-                  else if ((jlon1 == iloen1) && (jlon2 == 1)) 
-                    {
-                      ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;
-                      PRINT (ica, icb, icc);
-                    }
-                  else
-                    {
-                      continue;
-                    }
-                  break;
-              }
+
+                }
          
          
             }
@@ -520,5 +517,20 @@ int geom_t::opposite (const neigh_t & neigh0, int pos0) const
     if (neigh1.jlonlat[pos1] == neigh0.jlonlatb)
       return pos1;
   abort ();
+}
+
+int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
+{
+  if (jlonlat.jlat == 1)
+    return 0;
+  int jlat1 = jlonlat.jlat+0; int iloen1 = geom.pl[jlat1-1];
+  int jlat2 = jlonlat.jlat-1; int iloen2 = geom.pl[jlat2-1];
+  int jlon = INORM (jlonlat.jlon + 1, iloen1);
+  int iq, ir;
+  IQR (iq, ir, iloen1, iloen2, jlon);
+  int jlon2 = INORM (iq+0, iloen2);
+  printf (" jlon = %d, jlon2 = %d, %f, %f\n", jlon, jlon2, jlon * 180.0f / iloen1, jlon2 * 180.0f / iloen2);
+  return //geom.jglooff[jlat1-1] * 2 - geom.pl[jlat1-1] 
+       + INORM (jlon + jlon2 - 2, iloen1 + iloen2);
 }
 
