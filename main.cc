@@ -542,7 +542,7 @@ int main (int argc, char * argv[])
 
 //checkSphere (geom);
 
-//checkSphere1 (geom);
+  checkSphere1 (geom);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -759,10 +759,14 @@ out vec4 color;
 
 void main()
 {
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = fragmentColor.a;
+  color.r = 1.;
+  color.g = 1.;
+  color.b = 1.;
+  color.a = 1.;
+//color.r = fragmentColor.r;
+//color.g = fragmentColor.g;
+//color.b = fragmentColor.b;
+//color.a = fragmentColor.a;
 }
 )CODE",
 R"CODE(

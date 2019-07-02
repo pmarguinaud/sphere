@@ -46,7 +46,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
-          bool dbg = jlat == 4;
+          bool dbg = false; //jlat == 4;
      
           if (iloen1 == iloen2) 
             {
@@ -103,9 +103,9 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
 if (dbg) printf (" jlon1 = %4d, jlon2 = %4d, idlonc = %4d, idlonn = %4d", jlon1, jlon2, idlonc, idlonn);
 if (dbg) printf (" jlon1n = %4d, jlon2n = %4d", jlon1n, jlon2n);
 
-                  if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
+                  if (idlonn > 0 || ((idlonn == 0) && (idlonc > 0)))
                     AV2;
-                  else if (idlonc < 0 || ((idlonc == 0) && (idlonn < 0))) 
+                  else if (idlonn < 0 || ((idlonn == 0) && (idlonc < 0))) 
                     AV1;
                   else
                     abort ();
