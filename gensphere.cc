@@ -46,7 +46,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
-     
+          bool dbg = jlat == 4;
      
           if (iloen1 == iloen2) 
             {
@@ -80,6 +80,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;  \
     jlon1 = jlon1n;                                                           \
     turn = turn || jlon1 == 1;                                                \
+    if (dbg) printf (" AV1 ");                                                \
   } while (0)
 
 #define AV2 \
@@ -87,10 +88,20 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;  \
     jlon2 = jlon2n;                                                           \
     turn = turn || jlon2 == 1;                                                \
+    if (dbg) printf (" AV2 ");                                                \
   } while (0)
 
                   int idlonc = JDLON (jlon1, jlon2);
-                  int idlonn = JDLON (jlon1n, jlon2n);
+                  int idlonn;
+		  if ((jlon1n == 1) && (jlon2n != 1))
+                    idlonn = +1;
+		  else if ((jlon1n != 1) && (jlon2n == 1))
+                    idlonn = -1;
+		  else 
+                    idlonn = JDLON (jlon1n, jlon2n);
+
+if (dbg) printf (" jlon1 = %4d, jlon2 = %4d, idlonc = %4d, idlonn = %4d", jlon1, jlon2, idlonc, idlonn);
+if (dbg) printf (" jlon1n = %4d, jlon2n = %4d", jlon1n, jlon2n);
 
                   if (idlonc > 0 || ((idlonc == 0) && (idlonn > 0)))
                     AV2;
@@ -99,6 +110,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
                   else
                     abort ();
              
+if (dbg) printf (" jlon1 = %4d, jlon2 = %4d", jlon1, jlon2);
                   PRINT (ica, icb, icc);
                  
                   if (turn)
@@ -119,6 +131,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
                           }
                       break;
                     }
+if (dbg) printf ("\n");
 
                 }
          
@@ -523,14 +536,40 @@ int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
 {
   if (jlonlat.jlat == 1)
     return 0;
+
   int jlat1 = jlonlat.jlat+0; int iloen1 = geom.pl[jlat1-1];
   int jlat2 = jlonlat.jlat-1; int iloen2 = geom.pl[jlat2-1];
-  int jlon = INORM (jlonlat.jlon + 1, iloen1);
+
+  int jlonn = INORM (jlonlat.jlon + 1, iloen1);
   int iq, ir;
-  IQR (iq, ir, iloen1, iloen2, jlon);
-  int jlon2 = INORM (iq+0, iloen2);
-  printf (" jlon = %d, jlon2 = %d, %f, %f\n", jlon, jlon2, jlon * 180.0f / iloen1, jlon2 * 180.0f / iloen2);
+  int jlon2;
+
+  if (iloen1 == iloen2)
+    {
+      abort ();
+    }
+  else if (iloen1 < iloen2)
+    {
+      printf (" iloen1 < iloen2 ");
+      IQR (iq, ir, iloen1, iloen2, jlonn);
+      jlon2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2); // NW
+    }
+  else if (iloen1 > iloen2)
+    {
+      printf (" iloen1 > iloen2 ");
+      IQR (iq, ir, iloen1, iloen2, jlonlat.jlon);
+      jlon2 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2); // N or NE
+    }
+  printf (" jlon = %4d, %12.4f, jlonn = %4d, %12.4f jlon2 = %4d, %12.4f ir = %4d ", 
+          jlonlat.jlon, 
+          2 * (jlonlat.jlon-1) * 180.0f / iloen1, 
+	  jlonn, 
+          2 * (jlonn-1) * 180.0f / iloen1, 
+	  jlon2, 
+	  2 * (jlon2-1) * 180.0f / iloen2,
+	  ir
+	  );
   return //geom.jglooff[jlat1-1] * 2 - geom.pl[jlat1-1] 
-       + INORM (jlon + jlon2 - 2, iloen1 + iloen2);
+       + INORM (jlonn, iloen1) + INORM (jlon2, iloen2) - 2;
 }
 

@@ -401,11 +401,11 @@ if (keep)
 
 
 static bool verbose = false;
-static float lonc = 33.0f; // 0.0f;
-static float latc = -1.0f; // 0.0f;
+static float lonc = 0.0f;
+static float latc = 0.0f;
 static float R = 6.0f;
-static float fov = 0.8f; // 20.0f;
-static bool wireframe = false;
+static float fov = 20.0f;
+static bool wireframe = true;
 static bool rotate = false;
 
 static 
@@ -542,7 +542,7 @@ int main (int argc, char * argv[])
 
 //checkSphere (geom);
 
-  checkSphere1 (geom);
+//checkSphere1 (geom);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
