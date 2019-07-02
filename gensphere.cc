@@ -534,6 +534,8 @@ int geom_t::opposite (const neigh_t & neigh0, int pos0) const
 
 int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
 {
+  bool dbg = true;
+
   if (jlonlat.jlat == 1)
     return 0;
 
@@ -546,21 +548,22 @@ int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
 
   if (iloen1 == iloen2)
     {
-      abort ();
+      if (dbg) printf (" iloen1 = iloen2 ");
+      jlon2 = jlonlat.jlon;
     }
   else if (iloen1 < iloen2)
     {
-      printf (" iloen1 < iloen2 ");
+      if (dbg) printf (" iloen1 < iloen2 ");
       IQR (iq, ir, iloen1, iloen2, jlonn);
       jlon2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2); // NW
     }
   else if (iloen1 > iloen2)
     {
-      printf (" iloen1 > iloen2 ");
+      if (dbg) printf (" iloen1 > iloen2 ");
       IQR (iq, ir, iloen1, iloen2, jlonlat.jlon);
       jlon2 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2); // N or NE
     }
-  printf (" jlon = %4d, %12.4f, jlonn = %4d, %12.4f jlon2 = %4d, %12.4f ir = %4d ", 
+  if (dbg) printf (" jlon = %4d, %12.4f, jlonn = %4d, %12.4f jlon2 = %4d, %12.4f ir = %4d ", 
           jlonlat.jlon, 
           2 * (jlonlat.jlon-1) * 180.0f / iloen1, 
 	  jlonn, 
@@ -569,7 +572,14 @@ int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
 	  2 * (jlon2-1) * 180.0f / iloen2,
 	  ir
 	  );
-  return //geom.jglooff[jlat1-1] * 2 - geom.pl[jlat1-1] 
-       + INORM (jlonn, iloen1) + INORM (jlon2, iloen2) - 2;
+  if (jlonn == 1)
+    {
+      jlonn += iloen1;
+      if (jlon2 == 1)
+        jlon2 += iloen2;
+    }
+//printf (" jlat1 = %4d, %4d %4d %4d ", jlat1, geom.jglooff[jlat1-1], geom.pl[jlat1-2], geom.pl[0]);
+  return geom.jglooff[jlat1-1] * 2 - geom.pl[jlat1-2] - geom.pl[0]
+       + jlonn + jlon2 - 2;
 }
 

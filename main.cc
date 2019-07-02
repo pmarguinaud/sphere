@@ -493,7 +493,7 @@ cont:
     }
 }
 
-void checkSphere1 (const geom_t & geom)
+void checkSphere1 (const geom_t & geom, unsigned int nt, unsigned int * ind)
 {
   for (int jlat = 1; jlat <= geom.Nj; jlat++)
     printf ("%4d\n", geom.pl[jlat-1]);
@@ -502,7 +502,24 @@ void checkSphere1 (const geom_t & geom)
     {
       jlonlat_t jlonlat = jlonlat_t (jlon, jlat);
       int t = triangleUp (geom, jlonlat);
-      printf (" (%4d, %4d) %10d\n", jlat, jlon, t);
+      if (t == 0)
+        continue;
+      int jlonn = jlonlat.jlon + 1;
+      if (jlonn == geom.pl[jlat-1])
+        jlonn = 1;
+      int jglo1 = geom.jglo (jlonlat);
+      int jglo2 = geom.jglo (jlonlat_t (jlonn, jlat));
+      int count = 0;
+      for (int i = 0; i < 3; i++)
+        {
+          int jglo = ind[3*(t-1)+i];
+          if (jglo == jglo1) count++;
+          if (jglo == jglo2) count++;
+        }
+      if(0)
+      printf (" (%4d, %4d) %10d jglo1 = %4d jglo2 = %4d %d\n", 
+               jlat, jlon, t, jglo1, jglo2, count);
+      printf (" (%4d, %4d) %10d \n", jlat, jlon, t);
     }
 }
 
@@ -542,7 +559,7 @@ int main (int argc, char * argv[])
 
 //checkSphere (geom);
 
-  checkSphere1 (geom);
+  checkSphere1 (geom, nt, ind);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
