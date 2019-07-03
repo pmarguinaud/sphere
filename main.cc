@@ -62,17 +62,25 @@ typedef struct
 } isoline_t;
 
 int triNeigh (const geom_t & geom, bool up, int it,
-              const jlonlat_t & jlonlat0, 
-              const jlonlat_t & jlonlat1, 
-              const jlonlat_t & jlonlat2)
+              const jlonlat_t & jlonlat0, int jglo0, 
+              const jlonlat_t & jlonlat1, int jglo1, 
+              const jlonlat_t & jlonlat2, int jglo2)
 {
   int ntri = geom.pl[jlonlat0.jlat-1] + geom.pl[jlonlat2.jlat-1];
   int lat1 = up ? jlonlat2.jlat : jlonlat0.jlat;
-  int otri = lat1 == 1 ? 0 : geom.jglooff[lat1-1] * 2 - geom.pl[lat1-2] - geom.pl[0];
+  int otri = lat1 == 1 ? 0 : geom.jglooff[lat1] * 2 - geom.pl[lat1-1] - geom.pl[0];
   int ktri = it - otri;
   int Ltri = ktri == 0      ? ntri-1 : ktri-1; Ltri += otri;
   int Rtri = ktri == ntri-1 ?      0 : ktri+1; Rtri += otri;
+  int Vtri = up ? geom.trid[jglo0] : geom.triu[jglo0];
 
+  {
+  static int done = 0;
+  if (done++ % 10 == 0)
+  printf (" %4s %4s %4s %4s %4s %4s\n", "Ltri", "it", "Rtri", "Vtri", "otri", "lat1");
+  }
+  printf (" %4d %4d %4d %4d %4d %4d\n", Ltri, it, Rtri, Vtri, otri, lat1);
+  
 }
 
 void process (int it, const float * r, const float r0, bool * seen, 
@@ -87,8 +95,8 @@ void process (int it, const float * r, const float r0, bool * seen,
   int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
   int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
 
-  if ((bA == bB) && (bB == bC))
-    return;
+//if ((bA == bB) && (bB == bC))
+//  return;
 
   jlonlat_t jlonlatA = geom.jlonlat (jgloA);
   jlonlat_t jlonlatB = geom.jlonlat (jgloB);
@@ -118,7 +126,7 @@ void process (int it, const float * r, const float r0, bool * seen,
   bool b1 = r[jglo1] < r0, w1 = ! b1;
   bool b2 = r[jglo2] < r0, w2 = ! b2;
 
-  triNeigh (geom, up, it, jlonlat0, jlonlat1, jlonlat2);
+  triNeigh (geom, up, it, jlonlat0, jglo0, jlonlat1, jglo1, jlonlat2, jglo2);
 
   if (b0 && b1 && w2) 
     {
