@@ -27,7 +27,7 @@ public:
   std::vector<unsigned int> ind;
   std::vector<float> xyz;
   std::vector<float> drw;
-  void push (const float & x, const float & y, const float & z, const float d = 1.)
+  void push (const float x, const float y, const float z, const float d = 1.)
   {
     xyz.push_back (x);
     xyz.push_back (y);
@@ -64,7 +64,8 @@ typedef struct
 int triNeigh (const geom_t & geom, bool up, int it,
               const jlonlat_t & jlonlat0, int jglo0, 
               const jlonlat_t & jlonlat1, int jglo1, 
-              const jlonlat_t & jlonlat2, int jglo2)
+              const jlonlat_t & jlonlat2, int jglo2,
+              int * t01, int * t12, int * t20)
 {
   int ntri = geom.pl[jlonlat0.jlat-1] + geom.pl[jlonlat2.jlat-1];
   int lat1 = up ? jlonlat2.jlat : jlonlat0.jlat;
@@ -74,81 +75,109 @@ int triNeigh (const geom_t & geom, bool up, int it,
   int Rtri = ktri == ntri-1 ?      0 : ktri+1; Rtri += otri;
   int Vtri = up ? geom.trid[jglo0] : geom.triu[jglo0];
 
+  if(0)
   {
   static int done = 0;
   if (done++ % 10 == 0)
   printf (" %4s %4s %4s %4s %4s %4s\n", "Ltri", "it", "Rtri", "Vtri", "otri", "lat1");
-  }
   printf (" %4d %4d %4d %4d %4d %4d\n", Ltri, it, Rtri, Vtri, otri, lat1);
-  
+  }
+ 
+
+  *t01 = Vtri;
+  *t12 = Rtri;
+  *t20 = Ltri;
 }
 
 void process (int it, const float * r, const float r0, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
-  if (seen[it])
-    return;
-
-  seen[it] = true;
-
-  int jgloA = geom.ind[3*it+0]; bool bA = r[jgloA] < r0;
-  int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
-  int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
-
-//if ((bA == bB) && (bB == bC))
-//  return;
-
-  jlonlat_t jlonlatA = geom.jlonlat (jgloA);
-  jlonlat_t jlonlatB = geom.jlonlat (jgloB);
-  jlonlat_t jlonlatC = geom.jlonlat (jgloC);
-
-  int jglo0, jglo1, jglo2;
-  jlonlat_t jlonlat0, jlonlat1, jlonlat2;
-
-  if (jlonlatA.jlat == jlonlatB.jlat)
+  int count = 0;
+  bool cont = true;
+  while (cont)
     {
-      jglo0    = jgloA;    jglo1    = jgloB;    jglo2    = jgloC;    
-      jlonlat0 = jlonlatA; jlonlat1 = jlonlatB; jlonlat2 = jlonlatC;
-    }
-  else if (jlonlatA.jlat == jlonlatC.jlat)
-    {
-      jglo0    = jgloA;    jglo1    = jgloC;    jglo2    = jgloB;    
-      jlonlat0 = jlonlatA; jlonlat1 = jlonlatC; jlonlat2 = jlonlatB;
-    }
-  else if (jlonlatB.jlat == jlonlatC.jlat)
-    {
-      jglo0    = jgloB;    jglo1    = jgloC;    jglo2    = jgloA;    
-      jlonlat0 = jlonlatB; jlonlat1 = jlonlatC; jlonlat2 = jlonlatA;
-    }
-  bool up = jlonlat2.jlat < jlonlat0.jlat;
+      cont = false;
 
-  bool b0 = r[jglo0] < r0, w0 = ! b0;
-  bool b1 = r[jglo1] < r0, w1 = ! b1;
-  bool b2 = r[jglo2] < r0, w2 = ! b2;
+      if (seen[it])
+        return;
+      
+      seen[it] = true;
+      
+      int jgloA = geom.ind[3*it+0]; bool bA = r[jgloA] < r0;
+      int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
+      int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
 
-  triNeigh (geom, up, it, jlonlat0, jglo0, jlonlat1, jglo1, jlonlat2, jglo2);
+      if ((bA == bB) && (bB == bC))
+        return;
 
-  if (b0 && b1 && w2) 
-    {
-    }
-  else if (b0 && w1 && b2) 
-    {
-    }
-  else if (b0 && w1 && w2) 
-    {
-    }
-  else if (w0 && b1 && b2) 
-    {
-    }
-  else if (w0 && b1 && w2) 
-    {
-    }
-  else if (w0 && w1 && b2) 
-    {
+      jlonlat_t jlonlatA = geom.jlonlat (jgloA);
+      jlonlat_t jlonlatB = geom.jlonlat (jgloB);
+      jlonlat_t jlonlatC = geom.jlonlat (jgloC);
+      
+      int jglo0, jglo1, jglo2;
+      jlonlat_t jlonlat0, jlonlat1, jlonlat2;
+      
+      if (jlonlatA.jlat == jlonlatB.jlat)
+        {
+          jglo0    = jgloA;    jglo1    = jgloB;    jglo2    = jgloC;    
+          jlonlat0 = jlonlatA; jlonlat1 = jlonlatB; jlonlat2 = jlonlatC;
+        }
+      else if (jlonlatA.jlat == jlonlatC.jlat)
+        {
+          jglo0    = jgloA;    jglo1    = jgloC;    jglo2    = jgloB;    
+          jlonlat0 = jlonlatA; jlonlat1 = jlonlatC; jlonlat2 = jlonlatB;
+        }
+      else if (jlonlatB.jlat == jlonlatC.jlat)
+        {
+          jglo0    = jgloB;    jglo1    = jgloC;    jglo2    = jgloA;    
+          jlonlat0 = jlonlatB; jlonlat1 = jlonlatC; jlonlat2 = jlonlatA;
+        }
+      
+      bool up = jlonlat2.jlat < jlonlat0.jlat;
+      
+      int itr01, itr12, itr20;
+      
+      triNeigh (geom, up, it, 
+               jlonlat0, jglo0, 
+               jlonlat1, jglo1, 
+               jlonlat2, jglo2, 
+               &itr01, &itr12, &itr20);
+      
+      int jglo[3] = {jglo0, jglo1, jglo2};
+      int itri[3] = {itr01, itr12, itr20};
+      
+      for (int i = 0; i < 3; i++)
+        {
+          int iA = i, iB = (i + 1) % 3;
+          int jgloA = jglo[iA], jgloB = jglo[iB];
+          bool bA = r[jgloA] < r0, bB = r[jgloB] < r0;
+          int itAB = itri[iA];
+          if ((bA != bB) && (! seen[itAB]))
+            {
+              int jgloa = jgloA < jgloB ? jgloA : jgloB;
+              int jglob = jgloA < jgloB ? jgloB : jgloA;
+              float a = (r0 - r[jgloa]) / (r[jglob] - r[jgloa]);
+              // Coordinates of point
+              float X = (1 - a) * xyz[3*jgloa+0] + a * xyz[3*jglob+0];  
+              float Y = (1 - a) * xyz[3*jgloa+1] + a * xyz[3*jglob+1];
+              float Z = (1 - a) * xyz[3*jgloa+2] + a * xyz[3*jglob+2];
+              // Normalize
+              float R = sqrt (X * X + Y * Y + Z * Z);
+              X /= R; Y /= R; Z /= R;
+      
+              iso->push (X, Y, Z);
+      
+              printf (" %4d %6.2f %6.2f %6.2f\n", count, X, Y, Z);
+      
+              it = itAB;
+              count++;
+              cont = true;
+              break;
+            }
+        }
     }
 
-
-
+  return;
 }
 
 static bool verbose = false;
@@ -341,7 +370,7 @@ int main (int argc, char * argv[])
   const int N = 8;
   isoline_data_t iso_data[N];
 
-#pragma omp parallel for
+//#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
 //if (i != 0) continue;
@@ -360,6 +389,7 @@ int main (int argc, char * argv[])
     }
 
 
+  return 0;
 
   if (! glfwInit ()) 
     {   
