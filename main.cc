@@ -19,7 +19,6 @@
 
 
 static bool inst = true;
-static bool uselist = false;
 
 class isoline_data_t
 {
@@ -89,11 +88,14 @@ int triNeigh (const geom_t & geom, bool up, int it,
   *t20 = Ltri;
 }
 
-void process (int it, const float * r, const float r0, bool * seen, 
+void process (int it0, const float * r, const float r0, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
   int count = 0;
   bool cont = true;
+  int it = it0;
+  int ind_start = iso->size ();
+
   while (cont)
     {
       cont = false;
@@ -145,6 +147,27 @@ void process (int it, const float * r, const float r0, bool * seen,
       
       int jglo[3] = {jglo0, jglo1, jglo2};
       int itri[3] = {itr01, itr12, itr20};
+
+
+    
+      if(0)
+      if (count == 0)
+        {
+          int c = 0;
+          for (int i = 0; i < 3; i++)
+            {
+              int iA = i, iB = (i + 1) % 3;
+              int jgloA = jglo[iA], jgloB = jglo[iB];
+              bool bA = r[jgloA] < r0, bB = r[jgloB] < r0;
+              int itAB = itri[iA];
+              if ((bA != bB) && (! seen[itAB]))
+                c++;
+            }
+std::cout << " c = " << c << std::endl;
+          if (c == 2)
+            seen[it] = false;
+        }
+       
       
       for (int i = 0; i < 3; i++)
         {
@@ -167,7 +190,8 @@ void process (int it, const float * r, const float r0, bool * seen,
       
               iso->push (X, Y, Z);
       
-              printf (" %4d %6.2f %6.2f %6.2f\n", count, X, Y, Z);
+              if(1)
+              printf (" %4d %4d %6.2f %6.2f %6.2f %4d\n", count, it, X, Y, Z, itAB);
       
               it = itAB;
               count++;
@@ -363,9 +387,6 @@ int main (int argc, char * argv[])
     r[i] = 255 * (F[i] - minval) / (maxval - minval);
 
 
-  std::vector<neigh_t> neighlist;
-  if (uselist)
-  neighlist = geom.getNeighbours ();
 
   const int N = 8;
   isoline_data_t iso_data[N];
@@ -382,14 +403,13 @@ int main (int argc, char * argv[])
       for (int i = 0; i < nt; i++)
         seen[i] = false;
      
-      for (int i = 0; i < nt; i++)
-        process (i, F, F0, seen, geom, xyz, &iso_data[i]);
+      for (int it = 0; it < nt; it++)
+        process (it, F, F0, seen, geom, xyz, &iso_data[i]);
 
       free (seen);
     }
 
 
-  return 0;
 
   if (! glfwInit ()) 
     {   
