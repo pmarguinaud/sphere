@@ -20,18 +20,28 @@
   } while (0)
 
 static 
-void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const int nstripe, int indcnt[])
+void glgauss (const long int Nj, const long int pl[], unsigned int * ind, 
+              const int nstripe, int indcnt[], int * triu = NULL, 
+	      int * trid = NULL)
 {
   int iglooff[Nj];
   int indcntoff[nstripe];
   
   iglooff[0] = 0;
-  for (int jlat = 2; jlat <= Nj-1; jlat++)
+  for (int jlat = 2; jlat <= Nj; jlat++)
     iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
   indcntoff[0] = 0;
   for (int istripe = 1; istripe < nstripe; istripe++)
     indcntoff[istripe] = indcntoff[istripe-1] + indcnt[istripe-1];
+
+  if (triu)
+    for (int jlon = 1; jlon <= pl[0]; jlon++)
+      triu[iglooff[0]+jlon-1] = -1;
+
+  if (trid)
+    for (int jlon = 1; jlon <= pl[Nj-1]; jlon++)
+      trid[iglooff[Nj-1]+jlon-1] = -1;
 
 //#pragma omp parallel for 
   for (int istripe = 0; istripe < nstripe; istripe++)
@@ -46,7 +56,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
-          bool dbg = false; //jlat == 4;
+          bool dbg = false;
      
           if (iloen1 == iloen2) 
             {
@@ -57,8 +67,10 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
                   int icb = jglooff2 + jlon2;
                   int icc = jglooff2 + JNEXT (jlon2, iloen2);
                   int icd = jglooff1 + JNEXT (jlon1, iloen1);
+		  if (triu) triu[icb-1] = (inds - ind) / 3;
                   PRINT (ica, icb, icc);
-                  PRINT (icc, icd, ica);
+		  if (trid) trid[ica-1] = (inds - ind) / 3;
+                  PRINT (ica, icc, icd);
                 }
             }
           else 
@@ -78,17 +90,19 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind, const 
 #define AV1 \
   do {                                                                        \
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff1 + jlon1n;  \
+    if (trid) trid[ica-1] = (inds - ind) / 3;                                 \
     jlon1 = jlon1n;                                                           \
     turn = turn || jlon1 == 1;                                                \
-    if (dbg) printf (" AV1 ");                                                \
+    if (dbg) printf (" AV1 [%4d %4d %4d %4d] ", ica-1, icb-1, icc-1, trid[ica-1]); \
   } while (0)
 
 #define AV2 \
   do {                                                                        \
     ica = jglooff1 + jlon1; icb = jglooff2 + jlon2; icc = jglooff2 + jlon2n;  \
+    if (triu) triu[icb-1] = (inds - ind) / 3;                                 \
     jlon2 = jlon2n;                                                           \
     turn = turn || jlon2 == 1;                                                \
-    if (dbg) printf (" AV2 ");                                                \
+    if (dbg) printf (" AV2 [%4d %4d %4d %4d] ", ica-1, icb-1, icc-1, triu[icb-1]); \
   } while (0)
 
                   int idlonc = JDLON (jlon1, jlon2);
@@ -146,8 +160,7 @@ if (dbg) printf ("\n");
 #undef MODULO
 
 void gensphere (geom_t * geom, int * np, float ** xyz, 
-                unsigned int * nt, unsigned int ** ind, 
-	        float ** F, const std::string & type)
+                unsigned int * nt, float ** F, const std::string & type)
 {
   const int nstripe = 8;
   int indoff[nstripe];
@@ -179,22 +192,26 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
             indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
         }
       
-      *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-      glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
-     
-     
       int v_len = 0;
       for (int jlat = 1; jlat <= geom->Nj; jlat++)
         v_len += geom->pl[jlat-1];
+      *np  = v_len;
       
-      geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+      geom->triu = (int *)malloc ((*np) * sizeof (int));
+      geom->trid = (int *)malloc ((*np) * sizeof (int));
+      for (int i = 0; i < *np; i++) geom->triu[i] = -2;
+      for (int i = 0; i < *np; i++) geom->trid[i] = -2;
+      geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+      glgauss (geom->Nj, geom->pl, geom->ind, nstripe, indoff, geom->triu, geom->trid);
+     
+     
+      geom->jglooff = (int *)malloc ((1 + geom->Nj) * sizeof (int));
       geom->jglooff[0] = 0;
-      for (int jlat = 2; jlat <= geom->Nj; jlat++)
+      for (int jlat = 2; jlat <= geom->Nj + 1; jlat++)
          geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
      
       *xyz = (float *)malloc (3 * sizeof (float) * v_len);
       *F = (float *)malloc (sizeof (float) * v_len);
-      *np  = v_len;
     }
 
 #pragma omp parallel for
@@ -428,7 +445,7 @@ void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
 
 
 void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
-                     unsigned int * nt, unsigned int ** ind, float ** F,
+                     unsigned int * nt, float ** F,
                      const std::string & file)
 {
   const int nstripe = 8;
@@ -466,21 +483,25 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
         indoff[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
     }
   
-  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (geom->Nj, geom->pl, *ind, nstripe, indoff);
-
-
   v_len = 0;
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     v_len += geom->pl[jlat-1];
+  *np  = v_len;
   
-  geom->jglooff = (int *)malloc (geom->Nj * sizeof (int));
+  geom->triu = (int *)malloc ((*np) * sizeof (int));
+  geom->trid = (int *)malloc ((*np) * sizeof (int));
+  for (int i = 0; i < *np; i++) geom->triu[i] = -2;
+  for (int i = 0; i < *np; i++) geom->trid[i] = -2;
+  geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+  glgauss (geom->Nj, geom->pl, geom->ind, nstripe, indoff, geom->triu, geom->trid);
+
+
+  geom->jglooff = (int *)malloc ((1 + geom->Nj) * sizeof (int));
   geom->jglooff[0] = 0;
-  for (int jlat = 2; jlat <= geom->Nj; jlat++)
+  for (int jlat = 2; jlat <= geom->Nj+1; jlat++)
      geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
-  *np  = v_len;
 
 
 //#pragma omp parallel for
@@ -530,56 +551,5 @@ int geom_t::opposite (const neigh_t & neigh0, int pos0) const
     if (neigh1.jlonlat[pos1] == neigh0.jlonlatb)
       return pos1;
   abort ();
-}
-
-int triangleUp (const geom_t & geom, const jlonlat_t & jlonlat)
-{
-  bool dbg = true;
-
-  if (jlonlat.jlat == 1)
-    return 0;
-
-  int jlat1 = jlonlat.jlat+0; int iloen1 = geom.pl[jlat1-1];
-  int jlat2 = jlonlat.jlat-1; int iloen2 = geom.pl[jlat2-1];
-
-  int jlonn = INORM (jlonlat.jlon + 1, iloen1);
-  int iq, ir;
-  int jlon2;
-
-  if (iloen1 == iloen2)
-    {
-      if (dbg) printf (" iloen1 = iloen2 ");
-      jlon2 = jlonlat.jlon;
-    }
-  else if (iloen1 < iloen2)
-    {
-      if (dbg) printf (" iloen1 < iloen2 ");
-      IQR (iq, ir, iloen1, iloen2, jlonn);
-      jlon2 = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2); // NW
-    }
-  else if (iloen1 > iloen2)
-    {
-      if (dbg) printf (" iloen1 > iloen2 ");
-      IQR (iq, ir, iloen1, iloen2, jlonlat.jlon);
-      jlon2 = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2); // N or NE
-    }
-  if (dbg) printf (" jlon = %4d, %12.4f, jlonn = %4d, %12.4f jlon2 = %4d, %12.4f ir = %4d ", 
-          jlonlat.jlon, 
-          2 * (jlonlat.jlon-1) * 180.0f / iloen1, 
-	  jlonn, 
-          2 * (jlonn-1) * 180.0f / iloen1, 
-	  jlon2, 
-	  2 * (jlon2-1) * 180.0f / iloen2,
-	  ir
-	  );
-  if (jlonn == 1)
-    {
-      jlonn += iloen1;
-      if (jlon2 == 1)
-        jlon2 += iloen2;
-    }
-//printf (" jlat1 = %4d, %4d %4d %4d ", jlat1, geom.jglooff[jlat1-1], geom.pl[jlat1-2], geom.pl[0]);
-  return geom.jglooff[jlat1-1] * 2 - geom.pl[jlat1-2] - geom.pl[0]
-       + jlonn + jlon2 - 2;
 }
 

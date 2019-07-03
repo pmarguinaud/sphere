@@ -139,6 +139,9 @@ public:
   long int Nj = 0;
   long int * pl = NULL;
   int * jglooff = NULL;
+  unsigned int * ind = NULL;
+  int * triu = NULL;
+  int * trid = NULL;
   neigh_t getNeighbours (const class jlonlat_t &) const;
   std::vector<neigh_t> getNeighbours () const;
   int jglo (const class jlonlat_t & jlonlat) const 
@@ -147,18 +150,29 @@ public:
   }
   int opposite (const neigh_t &, int) const;
   int size () const { return jglooff[Nj-1] + pl[Nj-1]; }
+  jlonlat_t jlonlat (int jglo) const 
+  {
+    int jlat1 = 0, jlat2 = Nj, jlat;
+    while (jlat2 != jlat1 + 1)
+      {
+        int jlatm = (jlat1 + jlat2) / 2;
+	if ((jglooff[jlat1] <= jglo) && (jglo < jglooff[jlatm]))
+          jlat2 = jlatm;
+        else if ((jglooff[jlatm] <= jglo) && (jglo < jglooff[jlat2]))
+          jlat1 = jlatm;
+      }
+    jlat = 1 + jlat1;
+    int jlon = 1 + jglo - jglooff[jlat-1];
+    return jlonlat_t (jlon, jlat);
+  }
 };
 
 void gensphere (geom_t *, int *, float **, 
-                unsigned int *, unsigned int **, 
-	        float **, const std::string &);
+                unsigned int *, float **, const std::string &);
 
 void gensphere_grib 
                (geom_t *, int *, float **, 
-                unsigned int *, unsigned int **, 
-                float **, const std::string &);
+                unsigned int *, float **, const std::string &);
 
-
-int triangleUp (const geom_t &, const jlonlat_t &);
 
 #endif
