@@ -93,8 +93,12 @@ void process (int it0, const float * r, const float r0, bool * seen,
 {
   int count = 0;
   bool cont = true;
-  int it = it0;
+  bool edge = false;
+  int it = it0; 
+  int its[2];
   int ind_start = iso->size ();
+  static int II = 0;
+  bool dbg = false;
 
   while (cont)
     {
@@ -149,8 +153,6 @@ void process (int it0, const float * r, const float r0, bool * seen,
       int itri[3] = {itr01, itr12, itr20};
 
 
-    
-      if(0)
       if (count == 0)
         {
           int c = 0;
@@ -163,10 +165,9 @@ void process (int it0, const float * r, const float r0, bool * seen,
               if ((bA != bB) && (! seen[itAB]))
                 c++;
             }
-std::cout << " c = " << c << std::endl;
-          if (c == 2)
-            seen[it] = false;
+          edge = c != 2;
         }
+
        
       
       for (int i = 0; i < 3; i++)
@@ -190,8 +191,11 @@ std::cout << " c = " << c << std::endl;
       
               iso->push (X, Y, Z);
       
-              if(1)
+              if (dbg)
               printf (" %4d %4d %6.2f %6.2f %6.2f %4d\n", count, it, X, Y, Z, itAB);
+
+              if (count < 2)
+                its[count] = it;
       
               it = itAB;
               count++;
@@ -199,6 +203,18 @@ std::cout << " c = " << c << std::endl;
               break;
             }
         }
+
+      if ((count == 2) && (! edge))
+        seen[its[0]] = false;
+      if ((count == 3) && (! edge))
+        seen[its[1]] = false;
+    }
+
+  if (count > 0)
+    {
+      iso->push (0., 0., 0., 0.);
+      if (dbg)
+        printf ("--------------------------------- %d\n", II++);
     }
 
   return;
@@ -209,7 +225,7 @@ static float lonc = 0.0f;
 static float latc = 0.0f;
 static float R = 6.0f;
 static float fov = 20.0f;
-static bool wireframe = true;
+static bool wireframe = false;
 static bool rotate = false;
 
 static 
@@ -273,6 +289,7 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 void checkSphere1 (const geom_t & geom, unsigned int nt)
 {
+  if(0)
   for (int jlat = 1; jlat <= geom.Nj; jlat++)
     printf ("%4d\n", geom.pl[jlat-1]);
 
@@ -280,7 +297,7 @@ void checkSphere1 (const geom_t & geom, unsigned int nt)
   for (int i = 0; i < nt; i++)
     printf (" %4d | %4d %4d %4d\n", i, geom.ind[3*i+0], geom.ind[3*i+1], geom.ind[3*i+2]);
 
-
+  if(0)
   printf (" jlat jlon jglo triu trid\n");
   for (int jlat = 1; jlat <= geom.Nj; jlat++)
   for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
@@ -388,23 +405,21 @@ int main (int argc, char * argv[])
 
 
 
-  const int N = 8;
+  const int N = 10;
   isoline_data_t iso_data[N];
 
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
-//if (i != 0) continue;
-  if (i != N/2) continue;
-//if (i != N-1) continue;
-      bool * seen = (bool *)malloc (sizeof (bool) * nt);
+      bool * seen = (bool *)malloc (sizeof (bool) * (nt + 1));
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
-      for (int i = 0; i < nt; i++)
+      for (int i = 0; i < nt+1; i++)
         seen[i] = false;
+      seen[0] = true;
      
       for (int it = 0; it < nt; it++)
-        process (it, F, F0, seen, geom, xyz, &iso_data[i]);
+        process (it, F, F0, seen+1, geom, xyz, &iso_data[i]);
 
       free (seen);
     }
