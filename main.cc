@@ -60,33 +60,57 @@ typedef struct
   GLuint size_inst;
 } isoline_t;
 
-int triNeigh (const geom_t & geom, bool up, int it,
-              const jlonlat_t & jlonlat0, int jglo0, 
-              const jlonlat_t & jlonlat1, int jglo1, 
-              const jlonlat_t & jlonlat2, int jglo2,
-              int * t01, int * t12, int * t20)
+bool triNeigh (const geom_t & geom, const float * r, const float r0, 
+               int it, int jglo[3], int itri[3])
 {
-  int ntri = geom.pl[jlonlat0.jlat-1] + geom.pl[jlonlat2.jlat-1];
+  int jgloA = geom.ind[3*it+0]; bool bA = r[jgloA] < r0;
+  int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
+  int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
+  
+  if ((bA == bB) && (bB == bC))
+    return false;
+  
+  jlonlat_t jlonlatA = geom.jlonlat (jgloA);
+  jlonlat_t jlonlatB = geom.jlonlat (jgloB);
+  jlonlat_t jlonlatC = geom.jlonlat (jgloC);
+  
+  int jglo0, jglo1, jglo2;
+  jlonlat_t jlonlat0, jlonlat1, jlonlat2;
+  
+  if (jlonlatA.jlat == jlonlatB.jlat)
+    {
+      jglo0    = jgloA;    jglo1    = jgloB;    jglo2    = jgloC;    
+      jlonlat0 = jlonlatA; jlonlat1 = jlonlatB; jlonlat2 = jlonlatC;
+    }
+  else if (jlonlatA.jlat == jlonlatC.jlat)
+    {
+      jglo0    = jgloA;    jglo1    = jgloC;    jglo2    = jgloB;    
+      jlonlat0 = jlonlatA; jlonlat1 = jlonlatC; jlonlat2 = jlonlatB;
+    }
+  else if (jlonlatB.jlat == jlonlatC.jlat)
+    {
+      jglo0    = jgloB;    jglo1    = jgloC;    jglo2    = jgloA;    
+      jlonlat0 = jlonlatB; jlonlat1 = jlonlatC; jlonlat2 = jlonlatA;
+    }
+  
+  bool up = jlonlat2.jlat < jlonlat0.jlat;
+  
+  int ntri = geom.pl[jlonlat0.jlat-1] + geom.pl[jlonlat2.jlat-1];                    // Number of triangles on this row
   int lat1 = up ? jlonlat2.jlat : jlonlat0.jlat;
-  int otri = lat1 == 1 ? 0 : geom.jglooff[lat1] * 2 - geom.pl[lat1-1] - geom.pl[0];
-  int ktri = it - otri;
-  int Ltri = ktri == 0      ? ntri-1 : ktri-1; Ltri += otri;
-  int Rtri = ktri == ntri-1 ?      0 : ktri+1; Rtri += otri;
-  int Vtri = up ? geom.trid[jglo0] : geom.triu[jglo0];
+  int otri = lat1 == 1 ? 0 : geom.jglooff[lat1] * 2 - geom.pl[lat1-1] - geom.pl[0];  // Offset of triangles counting
+  int ktri = it - otri;                                                              // Rank of current triangle in current row
+  int Ltri = ktri == 0      ? ntri-1 : ktri-1; Ltri += otri;                         // Rank of left triangle
+  int Rtri = ktri == ntri-1 ?      0 : ktri+1; Rtri += otri;                         // Rank of right triangle
+  int Vtri = up ? geom.trid[jglo0] : geom.triu[jglo0];                               // Rank of triangle above of under segment 01
 
-  if(0)
-  {
-  static int done = 0;
-  if (done++ % 10 == 0)
-  printf (" %4s %4s %4s %4s %4s %4s\n", "Ltri", "it", "Rtri", "Vtri", "otri", "lat1");
-  printf (" %4d %4d %4d %4d %4d %4d\n", Ltri, it, Rtri, Vtri, otri, lat1);
-  }
- 
+  int itr01 = Vtri, itr12 = Rtri, itr20 = Ltri;
+  
+  jglo[0] = jglo0; jglo[1] = jglo1; jglo[2] = jglo2;
+  itri[0] = itr01; itri[1] = itr12; itri[2] = itr20;
 
-  *t01 = Vtri;
-  *t12 = Rtri;
-  *t20 = Ltri;
+  return true;
 }
+
 
 void process (int it0, const float * r, const float r0, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
@@ -96,7 +120,6 @@ void process (int it0, const float * r, const float r0, bool * seen,
   bool edge = false;
   int it = it0; 
   int its[2];
-  int ind_start = iso->size ();
   static int II = 0;
   bool dbg = false;
 
@@ -105,53 +128,14 @@ void process (int it0, const float * r, const float r0, bool * seen,
       cont = false;
 
       if (seen[it])
-        return;
+        break;
       
       seen[it] = true;
-      
-      int jgloA = geom.ind[3*it+0]; bool bA = r[jgloA] < r0;
-      int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
-      int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
 
-      if ((bA == bB) && (bB == bC))
-        return;
+      int jglo[3], itri[3];
 
-      jlonlat_t jlonlatA = geom.jlonlat (jgloA);
-      jlonlat_t jlonlatB = geom.jlonlat (jgloB);
-      jlonlat_t jlonlatC = geom.jlonlat (jgloC);
-      
-      int jglo0, jglo1, jglo2;
-      jlonlat_t jlonlat0, jlonlat1, jlonlat2;
-      
-      if (jlonlatA.jlat == jlonlatB.jlat)
-        {
-          jglo0    = jgloA;    jglo1    = jgloB;    jglo2    = jgloC;    
-          jlonlat0 = jlonlatA; jlonlat1 = jlonlatB; jlonlat2 = jlonlatC;
-        }
-      else if (jlonlatA.jlat == jlonlatC.jlat)
-        {
-          jglo0    = jgloA;    jglo1    = jgloC;    jglo2    = jgloB;    
-          jlonlat0 = jlonlatA; jlonlat1 = jlonlatC; jlonlat2 = jlonlatB;
-        }
-      else if (jlonlatB.jlat == jlonlatC.jlat)
-        {
-          jglo0    = jgloB;    jglo1    = jgloC;    jglo2    = jgloA;    
-          jlonlat0 = jlonlatB; jlonlat1 = jlonlatC; jlonlat2 = jlonlatA;
-        }
-      
-      bool up = jlonlat2.jlat < jlonlat0.jlat;
-      
-      int itr01, itr12, itr20;
-      
-      triNeigh (geom, up, it, 
-               jlonlat0, jglo0, 
-               jlonlat1, jglo1, 
-               jlonlat2, jglo2, 
-               &itr01, &itr12, &itr20);
-      
-      int jglo[3] = {jglo0, jglo1, jglo2};
-      int itri[3] = {itr01, itr12, itr20};
-
+      if (! triNeigh (geom, r, r0, it, jglo, itri))
+        break;
 
       if (count == 0)
         {
@@ -167,8 +151,6 @@ void process (int it0, const float * r, const float r0, bool * seen,
             }
           edge = c != 2;
         }
-
-       
       
       for (int i = 0; i < 3; i++)
         {
