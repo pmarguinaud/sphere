@@ -458,6 +458,11 @@ int main (int argc, char * argv[])
       glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
       glVertexAttribDivisor (4, 1);
 
+//    glGenBuffers (1, &iso[i].elementbuffer);
+//    glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer); 
+//    unsigned int ind[6] = {1, 0, 2, 1, 3, 2};
+//    glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * 2 * sizeof (unsigned int), ind , GL_STATIC_DRAW);
+
 
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
@@ -582,6 +587,9 @@ void main()
   if (gl_VertexID == 2)
     vertexPos = vertexPos + 0.05 * n;
 
+  if (gl_VertexID == 3)
+    vertexPos = vertexPos + 0.05 * n;
+
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
   col.x = (1 + vertexPos.x) / 2.0;
@@ -627,6 +635,7 @@ void main()
       else
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
       }
 
       // Line 
@@ -637,7 +646,8 @@ void main()
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
+          glDrawArraysInstanced (GL_LINE_STRIP, 0, 4, iso[i].size_inst);
+//        glDrawArraysInstanced (GL_TRIANGLES, 0, 6, iso[i].size_inst);
           glBindVertexArray (0);
         }
 
