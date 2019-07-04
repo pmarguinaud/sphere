@@ -56,7 +56,6 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
-          bool dbg = false;
      
           if (iloen1 == iloen2) 
             {
@@ -93,7 +92,6 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     if (trid) trid[ica-1] = (inds - ind) / 3;                                 \
     jlon1 = jlon1n;                                                           \
     turn = turn || jlon1 == 1;                                                \
-    if (dbg) printf (" AV1 [%4d %4d %4d %4d] ", ica-1, icb-1, icc-1, trid[ica-1]); \
   } while (0)
 
 #define AV2 \
@@ -102,7 +100,6 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     if (triu) triu[icb-1] = (inds - ind) / 3;                                 \
     jlon2 = jlon2n;                                                           \
     turn = turn || jlon2 == 1;                                                \
-    if (dbg) printf (" AV2 [%4d %4d %4d %4d] ", ica-1, icb-1, icc-1, triu[icb-1]); \
   } while (0)
 
                   int idlonc = JDLON (jlon1, jlon2);
@@ -114,9 +111,6 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 		  else 
                     idlonn = JDLON (jlon1n, jlon2n);
 
-if (dbg) printf (" jlon1 = %4d, jlon2 = %4d, idlonc = %4d, idlonn = %4d", jlon1, jlon2, idlonc, idlonn);
-if (dbg) printf (" jlon1n = %4d, jlon2n = %4d", jlon1n, jlon2n);
-
                   if (idlonn > 0 || ((idlonn == 0) && (idlonc > 0)))
                     AV2;
                   else if (idlonn < 0 || ((idlonn == 0) && (idlonc < 0))) 
@@ -124,7 +118,6 @@ if (dbg) printf (" jlon1n = %4d, jlon2n = %4d", jlon1n, jlon2n);
                   else
                     abort ();
              
-if (dbg) printf (" jlon1 = %4d, jlon2 = %4d", jlon1, jlon2);
                   PRINT (ica, icb, icc);
                  
                   if (turn)
@@ -145,7 +138,6 @@ if (dbg) printf (" jlon1 = %4d, jlon2 = %4d", jlon1, jlon2);
                           }
                       break;
                     }
-if (dbg) printf ("\n");
 
                 }
          
@@ -302,148 +294,6 @@ static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3)
 }
 
 
-neigh_t geom_t::getNeighbours (const jlonlat_t & jlonlat) const
-{
-  neigh_t neigh;
-  int jlon = jlonlat.jlon;
-  int jlat = jlonlat.jlat;
-  int ir, iq, iloen, iloen1, iloen2;
-  int inum, iden;
-  int jlat1, jlon1, jlat2;
-  int jlon__E = INORM (jlon+1, pl[jlat-1]);
-  int jlon__W = INORM (jlon-1, pl[jlat-1]);
-  int jlon_NE;
-  int jlon_NW;
-  int jlon_SE;
-  int jlon_SW;
-
-  neigh.jlonlatb = jlonlat;
-  
-  for (int i = 0; i < neigh_t::NMAX; i++)
-    neigh.jlonlat[i] = jlonlat_t (0, 0);
-
-  int n = 0;
-  neigh.jlonlat[n++] = jlonlat_t (jlon__E, jlat);
-
-  if (jlat > 1)
-    {
-      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-      jlat2 = jlat - 1 ; iloen2 = pl[jlat2-1];
-
-      IQR (iq, ir, iloen1, iloen2, jlon);
-      jlon_NE = INORM (iq+1, iloen2);                                    // NE of current point
-      jlon_NW = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);   // NW of current point
-    
-      if (GT (jlon, iloen1, jlon__E, iloen1, jlon_NE, iloen2))           // If E > NE, then take NW of E instead of NE
-        {
-          IQR (iq, ir, iloen1, iloen2, jlon__E);
-          jlon_NE = INORM (iq+0, iloen2);   
-	}
-      if (LT (jlon, iloen1, jlon__W, iloen1, jlon_NW, iloen2))           // If W < NW, then take NE of W instead of NW
-        {
-          IQR (iq, ir, iloen1, iloen2, jlon__W);
-          jlon_NW = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
-	}
-
-      for (int jlon = jlon_NE; ;)
-        {
-          neigh.jlonlat[n++] = jlonlat_t (jlon, jlat2);
-          if (jlon == jlon_NW)
-            break;
-          jlon = INORM (jlon-1, iloen2);
-        }
-    }
-
-  neigh.jlonlat[n++] = jlonlat_t (jlon__W, jlat);
-
-  if (jlat < Nj)
-    {
-      jlat1 = jlat     ; iloen1 = pl[jlat1-1];
-      jlat2 = jlat + 1 ; iloen2 = pl[jlat2-1];
-     
-      IQR (iq, ir, iloen1, iloen2, jlon);
-      jlon_SE = INORM (iq+1, iloen2);                                    // SE of current point
-      jlon_SW = ir == 0 ? INORM (iq-1, iloen2) : INORM (iq+0, iloen2);   // SW of current point
-
-      if (GT (jlon, iloen1, jlon__E, iloen1, jlon_SE, iloen2))
-        {
-          IQR (iq, ir, iloen1, iloen2, jlon__E);
-          jlon_SE = INORM (iq+0, iloen2);   
-	}
-      if (LT (jlon, iloen1, jlon__W, iloen1, jlon_SW, iloen2))
-        {
-          IQR (iq, ir, iloen1, iloen2, jlon__W);
-          jlon_SW = ir == 0 ? INORM (iq+0, iloen2) : INORM (iq+1, iloen2);
-	}
-
-      for (int jlon = jlon_SW; ;)
-        {
-          neigh.jlonlat[n++] = jlonlat_t (jlon, jlat2);
-          if (jlon == jlon_SE)
-            break;
-          jlon = INORM (jlon+1, iloen2);
-        }
-    }
-
-  if (n > neigh_t::NMAX)
-    abort ();
-
-#ifdef UNDEF
-  printf (" (%4d, %4d) :", jlat, jlon);
-  for (int i = 0; i < neigh_t::NMAX; i++)
-    {
-      if (! neigh.jlonlat[i].ok ())
-        break;
-      printf (" (%4d, %4d)", neigh.jlonlat[i].jlat, neigh.jlonlat[i].jlon);
-    }
-  printf ("\n");
-#endif
-
-  return neigh;
-}
-
-std::vector<neigh_t> geom_t::getNeighbours () const 
-{
-  std::vector<neigh_t> list;
-
-  int size = 0;
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    size += pl[jlat-1]; 
-  
-  list.resize (size);
-
-#pragma omp parallel for
-  for (int jlat = 1; jlat <= Nj; jlat++)
-    for (int jlon = 1; jlon <= pl[jlat-1]; jlon++)
-      list[jglooff[jlat-1]+jlon-1] = getNeighbours (jlonlat_t (jlon, jlat));
-  
-  return list;
-}
- 
-void neigh_t::prn (const geom_t & geom, const jlonlat_t & _jlonlat) const
-{
-  printf ("\n\n");
-  printf (" %4d %4d %4d %4d %4d\n", 
-  	  geom.jglo (jlonlat[neigh_t::IN_W]),
-  	  geom.jglo (jlonlat[neigh_t::INNW]),
-  	  geom.jglo (jlonlat[neigh_t::IN__]),
-  	  geom.jglo (jlonlat[neigh_t::INNE]),
-  	  geom.jglo (jlonlat[neigh_t::IN_E]));
-  printf (" %4d     %4d     %4d\n", 
-          geom.jglo (jlonlat[neigh_t::I__W]),
-          geom.jglo (_jlonlat),
-          geom.jglo (jlonlat[neigh_t::I__E]));
-  printf (" %4d %4d %4d %4d %4d\n", 
-          geom.jglo (jlonlat[neigh_t::IS_W]),
-          geom.jglo (jlonlat[neigh_t::ISSW]),
-          geom.jglo (jlonlat[neigh_t::IS__]),
-          geom.jglo (jlonlat[neigh_t::ISSE]),
-          geom.jglo (jlonlat[neigh_t::IS_E]));
-  printf ("\n\n");
-}
-  
-
-
 void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
                      unsigned int * nt, float ** F,
                      const std::string & file)
@@ -504,7 +354,7 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
   *xyz = (float *)malloc (3 * sizeof (float) * v_len);
 
 
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
       float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
@@ -541,15 +391,4 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
   
 }
 
-int geom_t::opposite (const neigh_t & neigh0, int pos0) const
-{
-  const jlonlat_t & jlonlat1 = neigh0.jlonlat[pos0];
-  if (! jlonlat1.ok ())
-    abort ();
-  neigh_t neigh1 = getNeighbours (jlonlat1);
-  for (int pos1 = 0; pos1 < neigh_t::NMAX; pos1++)
-    if (neigh1.jlonlat[pos1] == neigh0.jlonlatb)
-      return pos1;
-  abort ();
-}
 

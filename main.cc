@@ -18,8 +18,6 @@
 #include "gensphere.h"
 
 
-static bool inst = true;
-
 class isoline_data_t
 {
 public:
@@ -67,7 +65,7 @@ bool triNeigh (const geom_t & geom, const float * r, const float r0,
   int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
   int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
   
-  if ((bA == bB) && (bB == bC))
+  if ((bA == bB) && (bB == bC))  // All points have same color
     return false;
   
   jlonlat_t jlonlatA = geom.jlonlat (jgloA);
@@ -82,12 +80,14 @@ bool triNeigh (const geom_t & geom, const float * r, const float r0,
       jglo0    = jgloA;    jglo1    = jgloB;    jglo2    = jgloC;    
       jlonlat0 = jlonlatA; jlonlat1 = jlonlatB; jlonlat2 = jlonlatC;
     }
-  else if (jlonlatA.jlat == jlonlatC.jlat)
+  else 
+  if (jlonlatA.jlat == jlonlatC.jlat)
     {
       jglo0    = jgloA;    jglo1    = jgloC;    jglo2    = jgloB;    
       jlonlat0 = jlonlatA; jlonlat1 = jlonlatC; jlonlat2 = jlonlatB;
     }
-  else if (jlonlatB.jlat == jlonlatC.jlat)
+  else 
+  if (jlonlatB.jlat == jlonlatC.jlat)
     {
       jglo0    = jgloB;    jglo1    = jgloC;    jglo2    = jgloA;    
       jlonlat0 = jlonlatB; jlonlat1 = jlonlatC; jlonlat2 = jlonlatA;
@@ -269,73 +269,6 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 }
 
 
-void checkSphere1 (const geom_t & geom, unsigned int nt)
-{
-  if(0)
-  for (int jlat = 1; jlat <= geom.Nj; jlat++)
-    printf ("%4d\n", geom.pl[jlat-1]);
-
-  if(0)
-  for (int i = 0; i < nt; i++)
-    printf (" %4d | %4d %4d %4d\n", i, geom.ind[3*i+0], geom.ind[3*i+1], geom.ind[3*i+2]);
-
-  if(0)
-  printf (" jlat jlon jglo triu trid\n");
-  for (int jlat = 1; jlat <= geom.Nj; jlat++)
-  for (int jlon = 1; jlon <= geom.pl[jlat-1]; jlon++)
-    {
-      int jglo = geom.jglo (jlonlat_t (jlon, jlat));
-      int jlonn = jlon == geom.pl[jlat-1] ? 1 : jlon + 1;
-      int jglon = geom.jglo (jlonlat_t (jlonn, jlat));
-
-      int triu = geom.triu[jglo];
-      int trid = geom.trid[jglo];
-      int countd = 0;
-      int countu = 0;
-
-      if (triu >= 0)
-        for (int i = 0; i < 3; i++)
-          {
-            if (geom.ind[3*triu+i] == jglo) countu++;
-            if (geom.ind[3*triu+i] == jglon) countu++;
-	  }
-      else
-        countu = 2;
-      if (trid >= 0)
-        for (int i = 0; i < 3; i++)
-          {
-            if (geom.ind[3*trid+i] == jglo) countd++;
-            if (geom.ind[3*trid+i] == jglon) countd++;
-	  }
-      else
-        countd = 2;
-
-      if (countu != 2 || countd != 2)
-      {
-      printf (" %4d %4d %4d %4d %4d ", jlat, jlon, jglo, triu, trid);
-
-      if (triu >= 0)
-        printf (" %4d %4d %4d ", geom.ind[3*triu+0], geom.ind[3*triu+1], geom.ind[3*triu+2]);
-      else
-        printf (" %4s %4s %4s ", "", "", "");
-      if (trid >= 0)
-        printf (" %4d %4d %4d ", geom.ind[3*trid+0], geom.ind[3*trid+1], geom.ind[3*trid+2]);
-      else
-        printf (" %4s %4s %4s ", "", "", "");
-
-      if (triu >= 0)
-        printf (" %d ", countu);
-      else
-	printf ("   ");
-      if (trid >= 0)
-        printf (" %d ", countd);
-      else
-	printf ("   ");
-      printf ("\n");
-      }
-    }
-}
-
 int main (int argc, char * argv[])
 {
   float * xyz;
@@ -369,8 +302,6 @@ int main (int argc, char * argv[])
       gensphere (&geom, &np, &xyz, &nt, &F, type);
     }
 
-
-  checkSphere1 (geom, nt);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -503,18 +434,15 @@ int main (int argc, char * argv[])
 
       glEnableVertexAttribArray (0); 
       glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-      if (inst)
-        glVertexAttribDivisor (0, 1);
+      glVertexAttribDivisor (0, 1);
 
       glEnableVertexAttribArray (1); 
       glVertexAttribPointer (1, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(3 * sizeof (float))); 
-      if (inst)
-        glVertexAttribDivisor (1, 1);
+      glVertexAttribDivisor (1, 1);
 
       glEnableVertexAttribArray (2); 
       glVertexAttribPointer (2, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(6 * sizeof (float))); 
-      if (inst)
-        glVertexAttribDivisor (2, 1);
+      glVertexAttribDivisor (2, 1);
 
 
       glGenBuffers (1, &iso[i].normalbuffer);
@@ -524,29 +452,12 @@ int main (int argc, char * argv[])
 
       glEnableVertexAttribArray (3); 
       glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
-      if (inst)
-        glVertexAttribDivisor (3, 1);
+      glVertexAttribDivisor (3, 1);
 
       glEnableVertexAttribArray (4); 
       glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
-      if (inst)
-        glVertexAttribDivisor (4, 1);
+      glVertexAttribDivisor (4, 1);
 
-
-
-      if (inst)
-        {
-
-        }
-      else
-        {
-          glGenBuffers (1, &iso[i].elementbuffer);
-          glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer);
-          glBufferData (GL_ELEMENT_ARRAY_BUFFER, iso_data[i].ind.size () * sizeof (unsigned int), 
-		        iso_data[i].ind.data (), GL_STATIC_DRAW);
-        }
-
-      std::cout << i << " np = " << iso_data[i].size () << std::endl;
 
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
@@ -595,47 +506,6 @@ void main()
   fragmentColor.b = 1. - vertexCol.r;
   fragmentColor.a = 1.;
 
-}
-)CODE");
-
-  GLuint programID_l = shader 
-(
-R"CODE(
-#version 330 core
-
-out vec4 color;
-in vec3 col;
-
-void main()
-{
-  if(true){
-  color.r = 0.;
-  color.g = 1.;
-  color.b = 0.;
-  }else{
-  color.r = col.r;
-  color.g = col.g;
-  color.b = col.b;
-  }
-  color.a = 1.;
-}
-)CODE",
-R"CODE(
-#version 330 core
-
-layout(location = 0) in vec3 vertexPos;
-
-out vec3 col;
-
-
-uniform mat4 MVP;
-
-void main()
-{
-  gl_Position =  MVP * vec4 (vertexPos, 1);
-  col.x = (1 + vertexPos.x) / 2.0;
-  col.y = (1 + vertexPos.y) / 2.0;
-  col.z = (1 + vertexPos.z) / 2.0;
 }
 )CODE");
 
@@ -761,29 +631,13 @@ void main()
 
       // Line 
       //
-      if (inst)
-        {
-          glUseProgram (programID_l_inst);
-          glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
-			      1, GL_FALSE, &MVP[0][0]);
-	}
-      else
-        {
-          glUseProgram (programID_l);
-          glUniformMatrix4fv (glGetUniformLocation (programID_l, "MVP"), 
-			      1, GL_FALSE, &MVP[0][0]);
-	}
+      glUseProgram (programID_l_inst);
+      glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
+			  1, GL_FALSE, &MVP[0][0]);
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-	  if (inst)
-            {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
-	    }
-          else
-            {
-              glDrawElements (GL_LINES, iso[i].size, GL_UNSIGNED_INT, NULL);
-	    }
+          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
           glBindVertexArray (0);
         }
 
