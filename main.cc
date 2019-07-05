@@ -122,6 +122,8 @@ void process (int it0, const float * r, const float r0, bool * seen,
   int its[2];
   static int II = 0;
   bool dbg = false;
+  int ind_start = iso->size (); 
+
 
   while (cont)
     {
@@ -196,6 +198,8 @@ void process (int it0, const float * r, const float r0, bool * seen,
 
   if (count > 0)
     {
+      if (! edge)
+        iso->push (iso->xyz[3*(ind_start+1)+0], iso->xyz[3*(ind_start+1)+1], iso->xyz[3*(ind_start+2)+2], 0.);
       iso->push (0., 0., 0., 0.);
       if (dbg)
         printf ("--------------------------------- %d\n", II++);
@@ -525,9 +529,9 @@ void main()
   if(true){
   if (instid < 0.6)
     {
-      color.r = 0.;
+      color.r = 1.;
       color.g = 1.;
-      color.b = 0.;
+      color.b = 1.;
     }
   else
     {
@@ -570,28 +574,35 @@ uniform mat4 MVP;
 void main()
 {
   vec3 vertexPos;
-  vec3 t = normalize (vertexPos1 - vertexPos0);
+  vec3 t;
 
   if ((gl_VertexID == 0) || (gl_VertexID == 2))
-    vertexPos = vertexPos0;
+    {
+      t = normalize (vertexPos1 - vertexPos0);
+      vertexPos = vertexPos0;
+    }
   else if ((gl_VertexID == 1) || (gl_VertexID == 3))
-    vertexPos = vertexPos1;
+    {
+      t = normalize (vertexPos2 - vertexPos1);
+      vertexPos = vertexPos1;  
+    }
 
   vec3 p = normalize (vertexPos);
   vec3 n = cross (t, p);
 
   if (gl_VertexID == 2)
-    vertexPos = vertexPos + 0.01 * n;
+    vertexPos = vertexPos + 0.001 * n;
 
   if (gl_VertexID == 3)
-    vertexPos = vertexPos + 0.01 * n;
+    vertexPos = vertexPos + 0.001 * n;
 
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
   col.x = (1 + vertexPos.x) / 2.0;
   col.y = (1 + vertexPos.y) / 2.0;
   col.z = (1 + vertexPos.z) / 2.0;
-  instid = mod (gl_InstanceID, 2);
+//instid = mod (gl_InstanceID, 2);
+  instid = gl_InstanceID;
   norm = min (norm0, norm1);
 
 
@@ -642,9 +653,9 @@ void main()
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-//        glDrawArraysInstanced (GL_LINE_STRIP, 0, 4, iso[i].size_inst);
+          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
           unsigned int ind[6] = {1, 0, 2, 3, 1, 2};
-          glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
+//        glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
           glBindVertexArray (0);
         }
 
