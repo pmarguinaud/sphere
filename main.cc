@@ -137,7 +137,7 @@ void process (int it0, const float * r, const float r0, bool * seen,
       if (! triNeigh (geom, r, r0, it, jglo, itri))
         break;
 
-      if (count == 0)
+      if (count == 0) // First triangle; see if it is at the edge of the domain
         {
           int c = 0;
           for (int i = 0; i < 3; i++)
@@ -152,6 +152,7 @@ void process (int it0, const float * r, const float r0, bool * seen,
           edge = c != 2;
         }
       
+      // Find a way out of current triangle
       for (int i = 0; i < 3; i++)
         {
           int iA = i, iB = (i + 1) % 3;
@@ -186,6 +187,7 @@ void process (int it0, const float * r, const float r0, bool * seen,
             }
         }
 
+      // Reset back seen array to false for first two triangles, so that contour lines be closed
       if ((count == 2) && (! edge))
         seen[its[0]] = false;
       if ((count == 3) && (! edge))
@@ -458,12 +460,6 @@ int main (int argc, char * argv[])
       glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
       glVertexAttribDivisor (4, 1);
 
-//    glGenBuffers (1, &iso[i].elementbuffer);
-//    glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, iso[i].elementbuffer); 
-//    unsigned int ind[6] = {1, 0, 2, 1, 3, 2};
-//    glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * 2 * sizeof (unsigned int), ind , GL_STATIC_DRAW);
-
-
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
       
@@ -585,10 +581,10 @@ void main()
   vec3 n = cross (t, p);
 
   if (gl_VertexID == 2)
-    vertexPos = vertexPos + 0.05 * n;
+    vertexPos = vertexPos + 0.01 * n;
 
   if (gl_VertexID == 3)
-    vertexPos = vertexPos + 0.05 * n;
+    vertexPos = vertexPos + 0.01 * n;
 
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
@@ -646,8 +642,9 @@ void main()
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-          glDrawArraysInstanced (GL_LINE_STRIP, 0, 4, iso[i].size_inst);
-//        glDrawArraysInstanced (GL_TRIANGLES, 0, 6, iso[i].size_inst);
+//        glDrawArraysInstanced (GL_LINE_STRIP, 0, 4, iso[i].size_inst);
+          unsigned int ind[6] = {1, 0, 2, 3, 1, 2};
+          glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
           glBindVertexArray (0);
         }
 
