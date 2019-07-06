@@ -650,12 +650,20 @@ void main()
       glUseProgram (programID_l_inst);
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
+
+      bool wide = false;
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
-          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
-          unsigned int ind[6] = {1, 0, 2, 3, 1, 2};
-//        glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
+          if (! wide)
+            {
+              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
+            }
+          else
+            {
+              unsigned int ind[6] = {1, 0, 2, 3, 1, 2};
+              glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
+            }
           glBindVertexArray (0);
         }
 
