@@ -121,9 +121,12 @@ void process (int it0, const float * r, const float r0, bool * seen,
   int it = it0; 
   int its[2];
   static int II = 0;
-  bool dbg = false;
+  bool dbg = true;
   int ind_start = iso->size (); 
+  static FILE * fp = NULL;
 
+  if (fp == NULL)
+    fp = fopen ("debug.txt", "w");
 
   while (cont)
     {
@@ -177,7 +180,14 @@ void process (int it0, const float * r, const float r0, bool * seen,
               iso->push (X, Y, Z);
       
               if (dbg)
-              printf (" %4d %4d %6.2f %6.2f %6.2f %4d\n", count, it, X, Y, Z, itAB);
+              fprintf (fp, " %4d %4d | %4d %4d | ", iA, iB, jgloA, jgloB);
+
+              if (dbg)
+              fprintf (fp, " %6.2f %6.2f %6.2f | %6.2f %6.2f %6.2f | ", xyz[3*jgloa+0], xyz[3*jgloa+1], xyz[3*jgloa+2],
+                                                                        xyz[3*jglob+0], xyz[3*jglob+1], xyz[3*jglob+2]);
+
+              if (dbg)
+              fprintf (fp, " %4d %4d %6.2f %6.2f %6.2f %4d\n", count, it, X, Y, Z, itAB);
 
               if (count < 2)
                 its[count] = it;
@@ -202,7 +212,10 @@ void process (int it0, const float * r, const float r0, bool * seen,
         iso->push (iso->xyz[3*(ind_start+1)+0], iso->xyz[3*(ind_start+1)+1], iso->xyz[3*(ind_start+2)+2], 0.);
       iso->push (0., 0., 0., 0.);
       if (dbg)
-        printf ("--------------------------------- %d\n", II++);
+        fprintf (fp, "--------------------------------- %d\n", II);
+      if (dbg)
+        fflush (fp);
+      II++;
     }
 
   return;
@@ -320,7 +333,8 @@ int main (int argc, char * argv[])
 
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
-    r[i] = 255 * (F[i] - minval) / (maxval - minval);
+    r[i] = F[i];
+//  r[i] = 255 * (F[i] - minval) / (maxval - minval);
 
 
 
@@ -481,14 +495,14 @@ out vec4 color;
 
 void main()
 {
-  color.r = 1.;
-  color.g = 1.;
-  color.b = 1.;
+  color.r = 0.;
+  color.g = 0.;
+  color.b = 0.;
   color.a = 1.;
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = fragmentColor.a;
+//color.r = fragmentColor.r;
+//color.g = fragmentColor.g;
+//color.b = fragmentColor.b;
+//color.a = fragmentColor.a;
 }
 )CODE",
 R"CODE(
@@ -591,10 +605,10 @@ void main()
   vec3 n = cross (t, p);
 
   if (gl_VertexID == 2)
-    vertexPos = vertexPos + 0.001 * n;
+    vertexPos = vertexPos + 0.010 * n;
 
   if (gl_VertexID == 3)
-    vertexPos = vertexPos + 0.001 * n;
+    vertexPos = vertexPos + 0.010 * n;
 
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
@@ -651,7 +665,7 @@ void main()
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
 
-      bool wide = false;
+      bool wide = true;
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
