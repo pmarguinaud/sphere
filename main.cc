@@ -121,11 +121,11 @@ void process (int it0, const float * r, const float r0, bool * seen,
   int it = it0; 
   int its[2];
   static int II = 0;
-  bool dbg = true;
+  bool dbg = false;
   int ind_start = iso->size (); 
   static FILE * fp = NULL;
 
-  if (fp == NULL)
+  if ((fp == NULL) && dbg)
     fp = fopen ("debug.txt", "w");
 
   while (cont)
@@ -540,19 +540,9 @@ in float norm;
 
 void main()
 {
-  if(true){
-  if (instid < 0.6)
-    {
-      color.r = 1.;
-      color.g = 1.;
-      color.b = 1.;
-    }
-  else
-    {
-      color.r = 0.;
-      color.g = 1.;
-      color.b = 0.;
-    }
+  color.r = col.r;
+  color.g = col.g;
+  color.b = col.b;
   if (norm < 1.) 
     {
       color.a = 0.;
@@ -561,12 +551,6 @@ void main()
     {
       color.a = 1.;
     }
-  }else{
-  color.r = col.r;
-  color.g = col.g;
-  color.b = col.b;
-  color.a = 1.;
-  }
 }
 )CODE",
 R"CODE(
@@ -588,33 +572,49 @@ uniform mat4 MVP;
 void main()
 {
   vec3 vertexPos;
-  vec3 t;
+  vec3 t0, t1;
+
+  t0 = normalize (vertexPos1 - vertexPos0);
+  t1 = normalize (vertexPos2 - vertexPos1);
 
   if ((gl_VertexID == 0) || (gl_VertexID == 2))
-    {
-      t = normalize (vertexPos1 - vertexPos0);
-      vertexPos = vertexPos0;
-    }
-  else if ((gl_VertexID == 1) || (gl_VertexID == 3))
-    {
-      t = normalize (vertexPos2 - vertexPos1);
-      vertexPos = vertexPos1;  
-    }
+    vertexPos = vertexPos0;
+  else if ((gl_VertexID == 1) || (gl_VertexID == 3) || (gl_VertexID == 4))
+    vertexPos = vertexPos1;  
 
   vec3 p = normalize (vertexPos);
-  vec3 n = cross (t, p);
+  vec3 n0 = cross (t0, p);
+  vec3 n1 = cross (t1, p);
+
+  float c = 0.010;
+
+  if ((gl_VertexID == 4) && (dot (cross (n0, n1), vertexPos) < 0.))
+    c = 0.0;
 
   if (gl_VertexID == 2)
-    vertexPos = vertexPos + 0.010 * n;
-
+    vertexPos = vertexPos + c * n0;
   if (gl_VertexID == 3)
-    vertexPos = vertexPos + 0.010 * n;
+    vertexPos = vertexPos + c * n0;
+  if (gl_VertexID == 4)
+    vertexPos = vertexPos + c * n1;
 
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
-  col.x = (1 + vertexPos.x) / 2.0;
-  col.y = (1 + vertexPos.y) / 2.0;
-  col.z = (1 + vertexPos.z) / 2.0;
+
+  if (gl_VertexID == 4 && false)
+    {
+      col.r = 1.;
+      col.g = 0.;
+      col.b = 0.;
+    }
+  else
+    {
+      col.r = 0.;
+      col.g = 1.;
+      col.b = 0.;
+    }
+
+
 //instid = mod (gl_InstanceID, 2);
   instid = gl_InstanceID;
   norm = min (norm0, norm1);
@@ -675,8 +675,8 @@ void main()
             }
           else
             {
-              unsigned int ind[6] = {1, 0, 2, 3, 1, 2};
-              glDrawElementsInstanced (GL_TRIANGLES, 6, GL_UNSIGNED_INT, ind, iso[i].size_inst);
+              unsigned int ind[9] = {1, 0, 2, 3, 1, 2, 1, 3, 4};
+              glDrawElementsInstanced (GL_TRIANGLES, 9, GL_UNSIGNED_INT, ind, iso[i].size_inst);
             }
           glBindVertexArray (0);
         }
