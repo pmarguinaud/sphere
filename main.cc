@@ -24,12 +24,26 @@ public:
   std::vector<unsigned int> ind;
   std::vector<float> xyz;
   std::vector<float> drw;
+  std::vector<float> dis;
   void push (const float x, const float y, const float z, const float d = 1.)
   {
+    float D = 0.0f;
+    if (d > 0)
+      {
+        int sz = size (), last = sz - 1;
+        if (sz > 0)
+          {
+            float dx = x - xyz[3*last+0];
+            float dy = y - xyz[3*last+1];
+            float dz = z - xyz[3*last+2];
+            D = dis[last] + sqrt (dx * dx + dy * dy + dz * dz);
+          }
+      }
     xyz.push_back (x);
     xyz.push_back (y);
     xyz.push_back (z);
     drw.push_back (d);
+    dis.push_back (D);
   }
   void pop ()
   {
@@ -37,12 +51,14 @@ public:
     xyz.pop_back ();
     xyz.pop_back ();
     drw.pop_back ();
+    dis.pop_back ();
   }
   void clear ()
   {
     xyz.clear ();
     ind.clear ();
     drw.clear ();
+    dis.clear ();
   }
   int size ()
   {
@@ -53,7 +69,7 @@ public:
 typedef struct
 {
   GLuint VertexArrayID;
-  GLuint vertexbuffer, elementbuffer, normalbuffer;
+  GLuint vertexbuffer, elementbuffer, normalbuffer, distbuffer;
   GLuint size;    // Number of indices
   GLuint size_inst;
 } isoline_t;
@@ -360,7 +376,20 @@ int main (int argc, char * argv[])
       free (seen);
     }
 
+  
+  int texw = 100;
+  int texh = 100;
 
+  unsigned char * rgb = (unsigned char *)malloc (sizeof (unsigned char) * texw * texh * 3);
+  
+  for (int i = 0; i < texw; i++)
+    for (int j = 0; j < texh; j++)
+      {
+        rgb[3*(texw*j+i)+0] = j > texh / 2 ? 255 :   0;
+        rgb[3*(texw*j+i)+1] = j > texh / 2 ?   0 : 255;
+        rgb[3*(texw*j+i)+2] = j > texh / 2 ?   0 :   0;
+      }
+     
 
   if (! glfwInit ()) 
     {   
@@ -481,6 +510,21 @@ int main (int argc, char * argv[])
       glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
       glVertexAttribDivisor (4, 1);
 
+      glGenBuffers (1, &iso[i].distbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iso[i].distbuffer);
+      glBufferData (GL_ARRAY_BUFFER, iso_data[i].dis.size () * sizeof (float), 
+                    iso_data[i].dis.data (), GL_STATIC_DRAW);
+
+      glEnableVertexAttribArray (5); 
+      glVertexAttribPointer (5, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+      glVertexAttribDivisor (5, 1);
+
+      glEnableVertexAttribArray (6); 
+      glVertexAttribPointer (6, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+      glVertexAttribDivisor (6, 1);
+
+
+
       iso_data[i].xyz.clear ();
       iso_data[i].ind.clear ();
       
@@ -540,12 +584,20 @@ out vec4 color;
 in vec3 col;
 in float instid;
 in float norm;
+in float dist;
+
+uniform sampler2D texture;
 
 void main()
 {
-  color.r = col.r;
-  color.g = col.g;
-  color.b = col.b;
+  float val = 2 * mod (dist, 0.5);
+  vec4 colt = texture2D (texture, vec2 (0.5, val));
+  color.r = colt.r;
+  color.g = colt.g;
+  color.b = colt.b;
+//color.r = mod (dist, 1);
+//color.g = 0.;
+//color.b = 0.;
   if (norm < 1.)
     {
       color.a = 0.;
@@ -564,10 +616,13 @@ layout(location = 1) in vec3 vertexPos1;
 layout(location = 2) in vec3 vertexPos2;
 layout(location = 3) in float norm0;
 layout(location = 4) in float norm1;
+layout(location = 5) in float dist0;
+layout(location = 6) in float dist1;
 
 out vec3 col;
 out float instid;
 out float norm;
+out float dist;
 
 
 uniform mat4 MVP;
@@ -623,6 +678,14 @@ void main()
   instid = gl_InstanceID;
   norm = min (norm0, norm1);
 
+  if ((gl_VertexID == 0) && (gl_VertexID == 2))
+    {
+      dist = dist0;
+    }
+  else
+    {
+      dist = dist1;
+    }
 
 
 
@@ -636,7 +699,15 @@ void main()
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
   }
 
-
+  GLuint texture;
+  glGenTextures (1, &texture);
+  glBindTexture (GL_TEXTURE_2D, texture); 
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, texw, texh, 0, GL_RGB, 
+                GL_UNSIGNED_BYTE, rgb);
 
   while (1) 
     {   
@@ -666,6 +737,7 @@ void main()
       // Line 
       //
       glUseProgram (programID_l_inst);
+      glUniform1i (glGetUniformLocation (programID, "texture"), 0);
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
 
