@@ -151,7 +151,7 @@ void main()
   normedPos.y = y * r;
   normedPos.z = z * r;
 
-  if(true)
+  if(false)
   {
   float lon = (atan (normedPos.y, normedPos.x) / pi + 1.0) * 0.5;
   float lat = asin (normedPos.z) / pi + 0.5;
