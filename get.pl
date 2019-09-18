@@ -16,8 +16,8 @@ $ua->agent_alias ('Linux Mozilla');
 
 my $lev = 5;
 
-my ($row0, $col0) = (11, 15);
-my $d = 1;
+my ($row0, $col0) = (9, 11);
+my $d = 4;
 
 my ($rowA, $rowB) = ($row0, $row0 + $d);
 my ($colA, $colB) = ($col0, $col0 + $d);

@@ -48,6 +48,10 @@ qw (
 21              0.0746455354     0.00000067055225372315                          267
 );
 
+# Pour faire le tour de la Terre, nombre d'images de 256 pixels :
+# 0 -> 1 = 2^0
+# 1 -> 2 = 2^1
+# 2 -> 4 = 2^2
 
 my @F;
 

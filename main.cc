@@ -24,11 +24,26 @@ const float rad2deg = 180 / M_PI;
 const float deg2rad = M_PI / 180;
 
 int webm = 1;
+float fov = 5;
+float lonc = 2;
+float latc = 44.7;
 static
 void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
 {
   if ((key == GLFW_KEY_SPACE) && (action == GLFW_PRESS))
     webm = ! webm;
+  if ((key == GLFW_KEY_UP) && (action == GLFW_PRESS))
+    latc += 1;
+  if ((key == GLFW_KEY_DOWN) && (action == GLFW_PRESS))
+    latc -= 1;
+  if ((key == GLFW_KEY_LEFT) && (action == GLFW_PRESS))
+    lonc += 1;
+  if ((key == GLFW_KEY_RIGHT) && (action == GLFW_PRESS))
+    lonc -= 1;
+  if ((key == GLFW_KEY_PAGE_UP) && (action == GLFW_PRESS))
+    fov += 1;
+  if ((key == GLFW_KEY_PAGE_DOWN) && (action == GLFW_PRESS))
+    fov -= 1;
 }
 
 
@@ -46,7 +61,7 @@ int main (int argc, char * argv[])
   unsigned char * rgb1 = NULL;
 
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb0, &w0, &h0);
-  bmp ("Full_00005_00011_00015_00012_00016.bmp", &rgb1, &w1, &h1);
+  bmp ("Full_00005_00009_00011_00013_00015.bmp", &rgb1, &w1, &h1);
 
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
@@ -129,6 +144,7 @@ const float a = 6378137;
 
 uniform bool webm = true;
 uniform float F;
+uniform int N;
 uniform float X0 = -20037508.3427892476320267;
 uniform float Y0 = +20037508.3427892476320267;
 uniform int IX0;
@@ -159,7 +175,7 @@ void main ()
   float X = a * lon;
   float Y = a * log (tan (PI / 4. + lat * 0.5));
 
-  float Z = 256 * F;
+  float Z = 256 * F / N;
 
   float DX = X - X0;
   float DY = Y0 - Y;
@@ -234,37 +250,16 @@ void main()
   glUseProgram (programID);
 
 
-  float lonc = 2;
-  float latc = 44.7;
-  float fov = 5;
-  float coslonc = cos (deg2rad * lonc), sinlonc = sin (deg2rad * lonc);
-  float coslatc = cos (deg2rad * latc), sinlatc = sin (deg2rad * latc);
-
-  float r = 6;
-  float xc = r * coslonc * coslatc;
-  float yc = r * sinlonc * coslatc;
-  float zc = r *           sinlatc;
-
-  glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
-  glm::mat4 View       = glm::lookAt (glm::vec3 (xc, yc, zc),
-		                      glm::vec3 (0,0,0), 
-                                      glm::vec3 (0,0,1));
-  glm::mat4 Model      = glm::mat4 (1.0f);
-
-  glm::mat4 MVP = Projection * View * Model; 
-
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
   int L = 5;
+  int N = 1;
   float F = 2 * PI * a / 256;
   for (int i = 0; i < L; i++)
-    F = F / 2;
-  int IX0 = 15;
-  int IY0 = 11;
-  int IX1 = 16;
-  int IY1 = 12;
+    N = N * 2;
+  int IX0 = 11, IX1 = 15;
+  int IY0 =  9, IY1 = 13;
 
   glUniform1f (glGetUniformLocation (programID, "F"), F);
+  glUniform1i (glGetUniformLocation (programID, "N"), N);
   glUniform1i (glGetUniformLocation (programID, "IX0"), IX0);
   glUniform1i (glGetUniformLocation (programID, "IY0"), IY0);
   glUniform1i (glGetUniformLocation (programID, "IX1"), IX1);
@@ -300,6 +295,24 @@ void main()
 
   while (1) 
     {   
+      float coslonc = cos (deg2rad * lonc), sinlonc = sin (deg2rad * lonc);
+      float coslatc = cos (deg2rad * latc), sinlatc = sin (deg2rad * latc);
+
+      float r = 6;
+      float xc = r * coslonc * coslatc;
+      float yc = r * sinlonc * coslatc;
+      float zc = r *           sinlatc;
+
+      glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
+      glm::mat4 View       = glm::lookAt (glm::vec3 (xc, yc, zc),
+            	                      glm::vec3 (0,0,0), 
+                                          glm::vec3 (0,0,1));
+      glm::mat4 Model      = glm::mat4 (1.0f);
+
+      glm::mat4 MVP = Projection * View * Model; 
+
+      glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+
 
       glUniform1i (glGetUniformLocation (programID, "webm"), webm);
 
