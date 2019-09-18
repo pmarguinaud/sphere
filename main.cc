@@ -170,17 +170,18 @@ void main ()
   int IX = int (DX / Z); 
   int IY = int (DY / Z); 
 
-  X = (DX - IX0 * Z) / (Z * IDX);
+  X = 0 + (DX - IX0 * Z) / (Z * IDX);
   Y = 1 - (DY - IY0 * Z) / (Z * IDY);
-
 
   bool inl = (IX0 <= IX) && (IX <= IX1)
           && (IY0 <= IY) && (IY <= IY1);
 
+  inl = (0 <= X) && (X <= 1) && (0 <= Y) && (Y <= 1);
+
   if (inl && webm){
   vec4 col1 = texture2D (texture1, vec2 (X, Y));
   if(false){
-  color.r = +X;
+  color.r = +Y;
   color.g = 0;
   color.b = 0;
   }else{
