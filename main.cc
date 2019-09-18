@@ -34,7 +34,7 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
 
 int main (int argc, char * argv[])
 {
-  int Nj = atoi (argv[1]);
+  int Nj = argc == 1 ? 100 : atoi (argv[1]);
   int np; 
   float * xyz;
   unsigned int nt;
@@ -46,7 +46,7 @@ int main (int argc, char * argv[])
   unsigned char * rgb1 = NULL;
 
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb0, &w0, &h0);
-  bmp ("TileMatrix=5&TileCol=15&TileRow=11.bmp", &rgb1, &w1, &h1);
+  bmp ("Full_00005_00011_00015_00012_00016.bmp", &rgb1, &w1, &h1);
 
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
@@ -133,6 +133,8 @@ uniform float X0 = -20037508.3427892476320267;
 uniform float Y0 = +20037508.3427892476320267;
 uniform int IX0;
 uniform int IY0;
+uniform int IX1;
+uniform int IY1;
 
 void main ()
 {
@@ -162,20 +164,30 @@ void main ()
   float DX = X - X0;
   float DY = Y0 - Y;
 
+  float IDX = 1 + IX1 - IX0;
+  float IDY = 1 + IY1 - IY0;
+
   int IX = int (DX / Z); 
   int IY = int (DY / Z); 
 
-  X = (X - IX) / Z;
-  Y = (Y - IY) / Z;
+  X = (DX - IX0 * Z) / (Z * IDX);
+  Y = 1 - (DY - IY0 * Z) / (Z * IDY);
 
 
-  bool inl = (IX == IX0) && (IY == IY0);
+  bool inl = (IX0 <= IX) && (IX <= IX1)
+          && (IY0 <= IY) && (IY <= IY1);
 
   if (inl && webm){
   vec4 col1 = texture2D (texture1, vec2 (X, Y));
+  if(false){
+  color.r = +X;
+  color.g = 0;
+  color.b = 0;
+  }else{
   color.r = col1.r;
   color.g = col1.g;
   color.b = col1.b;
+  }
   color.a = 1.;
   }else{
   color.r = col0.r;
@@ -222,7 +234,7 @@ void main()
 
 
   float lonc = 2;
-  float latc = 46.7;
+  float latc = 44.7;
   float fov = 5;
   float coslonc = cos (deg2rad * lonc), sinlonc = sin (deg2rad * lonc);
   float coslatc = cos (deg2rad * latc), sinlatc = sin (deg2rad * latc);
@@ -248,10 +260,14 @@ void main()
     F = F / 2;
   int IX0 = 15;
   int IY0 = 11;
+  int IX1 = 16;
+  int IY1 = 12;
 
   glUniform1f (glGetUniformLocation (programID, "F"), F);
   glUniform1i (glGetUniformLocation (programID, "IX0"), IX0);
   glUniform1i (glGetUniformLocation (programID, "IY0"), IY0);
+  glUniform1i (glGetUniformLocation (programID, "IX1"), IX1);
+  glUniform1i (glGetUniformLocation (programID, "IY1"), IY1);
 
   unsigned int texture0;
   glGenTextures (1, &texture0);
