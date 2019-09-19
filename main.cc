@@ -30,20 +30,32 @@ float latc = 44.7;
 static
 void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
 {
-  if ((key == GLFW_KEY_SPACE) && (action == GLFW_PRESS))
+  if (action != GLFW_PRESS && action != GLFW_REPEAT)
+    return;
+  if (key == GLFW_KEY_SPACE)
     webm = ! webm;
-  if ((key == GLFW_KEY_UP) && (action == GLFW_PRESS))
+  if (key == GLFW_KEY_UP) 
     latc += 1;
-  if ((key == GLFW_KEY_DOWN) && (action == GLFW_PRESS))
+  if (key == GLFW_KEY_DOWN) 
     latc -= 1;
-  if ((key == GLFW_KEY_LEFT) && (action == GLFW_PRESS))
+  if (key == GLFW_KEY_LEFT) 
     lonc += 1;
-  if ((key == GLFW_KEY_RIGHT) && (action == GLFW_PRESS))
+  if (key == GLFW_KEY_RIGHT) 
     lonc -= 1;
-  if ((key == GLFW_KEY_PAGE_UP) && (action == GLFW_PRESS))
-    fov += 1;
-  if ((key == GLFW_KEY_PAGE_DOWN) && (action == GLFW_PRESS))
-    fov -= 1;
+  if (key == GLFW_KEY_PAGE_UP) 
+    {
+      if (fov <= 1.)
+        fov += 0.1;
+      else
+        fov += 1;
+    }
+  if (key == GLFW_KEY_PAGE_DOWN) 
+    {
+      if (fov <= 1.)
+        fov -= 0.1;
+      else
+        fov -= 1;
+    }
 }
 
 
@@ -61,7 +73,17 @@ int main (int argc, char * argv[])
   unsigned char * rgb1 = NULL;
 
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb0, &w0, &h0);
-  bmp ("Full_00005_00009_00011_00013_00015.bmp", &rgb1, &w1, &h1);
+
+//int L =     5, IY0 =     9, IX0 =    11, IY1 =    13, IX1 =    15;
+//int L =     8, IY0 =    86, IX0 =   120, IY1 =   105, IX1 =   135;
+  int L =     3, IY0 =     2, IX0 =     7, IY1 =     5, IX1 =     9;
+  
+
+  char landscape[128];
+  sprintf (landscape, "Full_%5.5d_%5.5d_%5.5d_%5.5d_%5.5d.bmp", L, IY0, IX0, IY1, IX1);
+  printf ("%s\n", landscape);
+
+  bmp (landscape, &rgb1, &w1, &h1);
 
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
@@ -250,13 +272,10 @@ void main()
   glUseProgram (programID);
 
 
-  int L = 5;
   int N = 1;
   float F = 2 * PI * a / 256;
   for (int i = 0; i < L; i++)
     N = N * 2;
-  int IX0 = 11, IX1 = 15;
-  int IY0 =  9, IY1 = 13;
 
   glUniform1f (glGetUniformLocation (programID, "F"), F);
   glUniform1i (glGetUniformLocation (programID, "N"), N);
