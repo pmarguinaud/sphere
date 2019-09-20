@@ -24,9 +24,11 @@ const float rad2deg = 180 / M_PI;
 const float deg2rad = M_PI / 180;
 
 int webm = 1;
-float fov = 5;
-float lonc = 2;
-float latc = 44.7;
+float fov = 20;
+float lonc = 180;
+float latc = 0;
+bool do_rotate = false;
+
 static
 void key_callback (GLFWwindow * window, int key, int scancode, int action, int mods)
 {
@@ -56,12 +58,14 @@ void key_callback (GLFWwindow * window, int key, int scancode, int action, int m
       else
         fov -= 1;
     }
+  if (key == GLFW_KEY_TAB)
+    do_rotate = ! do_rotate;
 }
 
 
 int main (int argc, char * argv[])
 {
-  int Nj = argc == 1 ? 100 : atoi (argv[1]);
+  int Nj = 1000;
   int np; 
   float * xyz;
   unsigned int nt;
@@ -74,14 +78,9 @@ int main (int argc, char * argv[])
 
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb0, &w0, &h0);
 
-//int L =     5, IY0 =     9, IX0 =    11, IY1 =    13, IX1 =    15;
-//int L =     8, IY0 =    86, IX0 =   120, IY1 =   105, IX1 =   135;
-  int L =     3, IY0 =     2, IX0 =     7, IY1 =     5, IX1 =     9;
-  
-
-  char landscape[128];
-  sprintf (landscape, "Full_%5.5d_%5.5d_%5.5d_%5.5d_%5.5d.bmp", L, IY0, IX0, IY1, IX1);
-  printf ("%s\n", landscape);
+  const char * landscape = argv[1];
+  int L, IY0, IX0, IY1, IX1;
+  sscanf (landscape, "Full_%5d_%5d_%5d_%5d_%5d.bmp", &L, &IY0, &IX0, &IY1, &IX1);
 
   bmp (landscape, &rgb1, &w1, &h1);
 
@@ -178,21 +177,6 @@ void main ()
 {
   float lon = atan (fragmentPos.y, fragmentPos.x);
   float lat = asin (fragmentPos.z);
-  float lonmin = -PI;
-  float lonmax = +PI;
-  float latmin = -PI/2;
-  float latmax = +PI/2;
-
-  float x, xmin, xmax;
-  float y, ymin, ymax;
-
-  x = lon; xmin = lonmin; xmax = lonmax;
-  y = lat; ymin = latmin; ymax = latmax;
-
-  float xt0 = (x - xmin) / (xmax - xmin);
-  float yt0 = (y - ymin) / (ymax - ymin);
-
-  vec4 col0 = texture2D (texture0, vec2 (xt0, yt0));
 
   float X = a * lon;
   float Y = a * log (tan (PI / 4. + lat * 0.5));
@@ -214,12 +198,21 @@ void main ()
   bool inl = (IX0 <= IX) && (IX <= IX1)
           && (IY0 <= IY) && (IY <= IY1);
 
+  float XP1 = X + float (N) / float (IDX);
+  float XM1 = X - float (N) / float (IDX);
+
+  if ((0 <= XM1) && (XM1 <= 1))
+    X = XM1;
+
+  if ((0 <= XP1) && (XP1 <= 1))
+    X = XP1;
+
   inl = (0 <= X) && (X <= 1) && (0 <= Y) && (Y <= 1);
 
   if (inl && webm){
   vec4 col1 = texture2D (texture1, vec2 (X, Y));
   if(false){
-  color.r = +Y;
+  color.r = +X;
   color.g = 0;
   color.b = 0;
   }else{
@@ -229,6 +222,22 @@ void main ()
   }
   color.a = 1.;
   }else{
+  float lonmin = -PI;
+  float lonmax = +PI;
+  float latmin = -PI/2;
+  float latmax = +PI/2;
+
+  float x, xmin, xmax;
+  float y, ymin, ymax;
+
+  x = lon; xmin = lonmin; xmax = lonmax;
+  y = lat; ymin = latmin; ymax = latmax;
+
+  float xt0 = (x - xmin) / (xmax - xmin);
+  float yt0 = (y - ymin) / (ymax - ymin);
+
+  vec4 col0 = texture2D (texture0, vec2 (xt0, yt0));
+
   color.r = col0.r;
   color.g = col0.g;
   color.b = col0.b;
@@ -314,6 +323,9 @@ void main()
 
   while (1) 
     {   
+      if (do_rotate)
+        lonc += 1;
+
       float coslonc = cos (deg2rad * lonc), sinlonc = sin (deg2rad * lonc);
       float coslatc = cos (deg2rad * latc), sinlatc = sin (deg2rad * latc);
 
