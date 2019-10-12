@@ -78,6 +78,7 @@ int main (int argc, char * argv[])
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
+
   if (multi)
   glEnable (GL_MULTISAMPLE);
 
