@@ -590,23 +590,12 @@ uniform sampler2D texture;
 
 void main()
 {
-  float val = 2 * mod (dist, 0.5);
-  vec4 colt = texture2D (texture, vec2 (0.5, val));
-  color.r = colt.r;
-  color.g = colt.g;
-  color.b = colt.b;
-//color.r = mod (dist, 1);
-//color.g = 0.;
-//color.b = 0.;
+  color.r = 1.;
+  color.g = 0.;
+  color.b = 0.;
+  color.a = 1.;
   if (norm < 1.)
-    {
-      color.a = 0.;
-      discard;
-    }
-  else
-    {
-      color.a = 1.;
-    }
+    discard;
 }
 )CODE",
 R"CODE(
