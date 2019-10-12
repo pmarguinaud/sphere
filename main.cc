@@ -601,6 +601,7 @@ void main()
   if (norm < 1.)
     {
       color.a = 0.;
+      discard;
     }
   else
     {
@@ -741,7 +742,7 @@ void main()
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
 
-      bool wide = true;
+      bool wide = false;
       for (int i = 0; i < N; i++)
         {
           glBindVertexArray (iso[i].VertexArrayID);
