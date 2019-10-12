@@ -377,20 +377,6 @@ int main (int argc, char * argv[])
     }
 
   
-  int texw = 100;
-  int texh = 100;
-
-  unsigned char * rgb = (unsigned char *)malloc (sizeof (unsigned char) * texw * texh * 3);
-  
-  for (int i = 0; i < texw; i++)
-    for (int j = 0; j < texh; j++)
-      {
-        rgb[3*(texw*j+i)+0] = j > texh / 2 ? 255 :   0;
-        rgb[3*(texw*j+i)+1] = j > texh / 2 ?   0 : 255;
-        rgb[3*(texw*j+i)+2] = j > texh / 2 ?   0 :   0;
-      }
-     
-
   if (! glfwInit ()) 
     {   
       fprintf (stderr, "Failed to initialize GLFW\n");
@@ -464,10 +450,6 @@ int main (int argc, char * argv[])
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
 
   std::cout << " nt = " << nt << " np = " << np << std::endl;
-
-  // Line 
-
-
 
   isoline_t iso[N];
   for (int i = 0; i < N; i++)
@@ -543,7 +525,7 @@ out vec4 color;
 void main()
 {
   color.r = 0.;
-  color.g = 0.;
+  color.g = 1.;
   color.b = 0.;
   color.a = 1.;
 //color.r = fragmentColor.r;
@@ -585,8 +567,6 @@ in vec3 col;
 in float instid;
 in float norm;
 in float dist;
-
-uniform sampler2D texture;
 
 void main()
 {
@@ -689,16 +669,6 @@ void main()
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
   }
 
-  GLuint texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, texw, texh, 0, GL_RGB, 
-                GL_UNSIGNED_BYTE, rgb);
-
   while (1) 
     {   
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
@@ -711,7 +681,7 @@ void main()
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      if(0){
+      if(1){
       // Sphere
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
@@ -727,7 +697,6 @@ void main()
       // Line 
       //
       glUseProgram (programID_l_inst);
-      glUniform1i (glGetUniformLocation (programID, "texture"), 0);
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
 
