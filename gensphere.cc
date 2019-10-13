@@ -152,7 +152,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 #undef MODULO
 
 void gensphere (geom_t * geom, int * np, float ** xyz, 
-                unsigned int * nt, float ** F, const std::string & type)
+                unsigned int * nt, float ** Fx, float ** Fy, const std::string & type)
 {
   const int nstripe = 8;
   int indoff[nstripe];
@@ -203,7 +203,8 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
          geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
      
       *xyz = (float *)malloc (3 * sizeof (float) * v_len);
-      *F = (float *)malloc (sizeof (float) * v_len);
+      *Fx = (float *)malloc (sizeof (float) * v_len);
+      *Fy = (float *)malloc (sizeof (float) * v_len);
     }
 
 #pragma omp parallel for
@@ -228,25 +229,53 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
               (*xyz)[3*jglo+2] = Z;
 	    }
 
-          (*F)[jglo] = 0;
-	  if (type == "gradx")
-            (*F)[jglo] = (1 + coslon) * coslat / 2.0;
+          (*Fx)[jglo] = 0;
+          (*Fy)[jglo] = 0;
+	  if (type == "constx")
+            {
+              (*Fx)[jglo] = 1.;
+            }
+	  else if (type == "consty")
+            {
+              (*Fy)[jglo] = 1.;
+            }
+	  else if (type == "constxy")
+            {
+              (*Fx)[jglo] = 1.;
+              (*Fy)[jglo] = 1.;
+            }
+	  else if (type == "gradx")
+            {
+              (*Fx)[jglo] = (1 + coslon) * coslat / 2.0;
+            }
 	  else if (type == "lon")
-            (*F)[jglo] = lon / (2 * M_PI);
+            {
+              (*Fx)[jglo] = lon / (2 * M_PI);
+            }
 	  else if (type == "lat")
-            (*F)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
+            {
+              (*Fx)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
+            }
 	  else if (type == "coslatxcos2lon")
-            (*F)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
+            {
+              (*Fx)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
+            }
 	  else if (type == "coslatxcos3lon")
-            (*F)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
+            {
+              (*Fx)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
+            }
 	  else if (type == "lat2xcos2lon")
-            (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
+            {
+              (*Fx)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
+            }
 	  else if (type == "XxYxZ")
-            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
+            {
+              (*Fx)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
+            }
 	  else if (type == "saddle0")
             {
               float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
-              (*F)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
+              (*Fx)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
 	    }
 	  else
             abort ();

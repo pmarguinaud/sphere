@@ -11,6 +11,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -27,6 +28,7 @@ public:
   std::vector<float> dis;
   void push (const float x, const float y, const float z, const float d = 1.)
   {
+//  printf (" %12.5f %12.5f %12.5f\n", x, y, z);
     float D = 0.0f;
     if (d > 0)
       {
@@ -74,15 +76,11 @@ typedef struct
   GLuint size_inst;
 } isoline_t;
 
-bool triNeigh (const geom_t & geom, const float * r, const float r0, 
-               int it, int jglo[3], int itri[3])
+void triNeigh (const geom_t & geom, int it, int jglo[3], int itri[3])
 {
-  int jgloA = geom.ind[3*it+0]; bool bA = r[jgloA] < r0;
-  int jgloB = geom.ind[3*it+1]; bool bB = r[jgloB] < r0;
-  int jgloC = geom.ind[3*it+2]; bool bC = r[jgloC] < r0;
-  
-  if ((bA == bB) && (bB == bC))  // All points have same color
-    return false;
+  int jgloA = geom.ind[3*it+0]; 
+  int jgloB = geom.ind[3*it+1]; 
+  int jgloC = geom.ind[3*it+2]; 
   
   jlonlat_t jlonlatA = geom.jlonlat (jgloA);
   jlonlat_t jlonlatB = geom.jlonlat (jgloB);
@@ -124,128 +122,128 @@ bool triNeigh (const geom_t & geom, const float * r, const float r0,
   jglo[0] = jglo0; jglo[1] = jglo1; jglo[2] = jglo2;
   itri[0] = itr01; itri[1] = itr12; itri[2] = itr20;
 
-  return true;
 }
 
 
-void process (int it0, const float * r, const float r0, bool * seen, 
+void process (int it0, const float * ru, const float * rv, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
-  int count = 0;
-  bool cont = true;
-  bool edge = false;
+  const glm::vec3 north = glm::vec3 (0., 0., 1.);
   int it = it0; 
-  int its[2];
-  static int II = 0;
-  bool dbg = false;
-  int ind_start = iso->size (); 
-  static FILE * fp = NULL;
-
-  if ((fp == NULL) && dbg)
-    fp = fopen ("debug.txt", "w");
-
-  while (cont)
+  float w[3] = {0.5f, 0.0f, 0.5f};
+  int count = 0;
+  
+  
+  while (1)
     {
-      cont = false;
-
-      if (seen[it])
-        break;
-      
-      seen[it] = true;
+      bool dbg = count == 4;
 
       int jglo[3], itri[3];
+      triNeigh (geom, it, jglo, itri);
 
-      if (! triNeigh (geom, r, r0, it, jglo, itri))
-        break;
 
-      if (count == 0) // First triangle; see if it is at the edge of the domain
-        {
-          int c = 0;
-          for (int i = 0; i < 3; i++)
-            {
-              int iA = i, iB = (i + 1) % 3;
-              int jgloA = jglo[iA], jgloB = jglo[iB];
-              bool bA = r[jgloA] < r0, bB = r[jgloB] < r0;
-              int itAB = itri[iA];
-              if ((bA != bB) && (! seen[itAB]))
-                c++;
-            }
-          edge = c != 2;
-        }
-      
-      // Find a way out of current triangle
+      if (dbg)
+        printf (" %5d %5d %5d\n", jglo[0], jglo[1], jglo[2]);
+
+      glm::vec3 P[3], uP[3], vP[3], VP[3];
+
       for (int i = 0; i < 3; i++)
         {
-          int iA = i, iB = (i + 1) % 3;
-          int jgloA = jglo[iA], jgloB = jglo[iB];
-          bool bA = r[jgloA] < r0, bB = r[jgloB] < r0;
-          int itAB = itri[iA];
-          if ((bA != bB) && (! seen[itAB]))
-            {
-              int jgloa = jgloA < jgloB ? jgloA : jgloB;
-              int jglob = jgloA < jgloB ? jgloB : jgloA;
-              float a = (r0 - r[jgloa]) / (r[jglob] - r[jgloa]);
-              // Coordinates of point
-              float X = (1 - a) * xyz[3*jgloa+0] + a * xyz[3*jglob+0];  
-              float Y = (1 - a) * xyz[3*jgloa+1] + a * xyz[3*jglob+1];
-              float Z = (1 - a) * xyz[3*jgloa+2] + a * xyz[3*jglob+2];
-              // Normalize
-              float R = sqrt (X * X + Y * Y + Z * Z);
-              X /= R; Y /= R; Z /= R;
-      
-              iso->push (X, Y, Z);
-      
-              if (dbg)
-              fprintf (fp, " %4d %4d | %4d %4d | ", iA, iB, jgloA, jgloB);
-
-              if (dbg)
-              fprintf (fp, " %6.2f %6.2f %6.2f | %6.2f %6.2f %6.2f | ", xyz[3*jgloa+0], xyz[3*jgloa+1], xyz[3*jgloa+2],
-                                                                        xyz[3*jglob+0], xyz[3*jglob+1], xyz[3*jglob+2]);
-
-              if (dbg)
-              fprintf (fp, " %4d %4d %6.2f %6.2f %6.2f %4d\n", count, it, X, Y, Z, itAB);
-
-              if (count < 2)
-                its[count] = it;
-      
-              it = itAB;
-              count++;
-              cont = true;
-              break;
-            }
+          P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
+          uP[i] = glm::normalize (glm::cross (north, P[i]));
+          vP[i] = glm::cross (P[i], uP[i]);
+          VP[i] = ru[jglo[i]] * uP[i] + rv[jglo[i]] * vP[i];
         }
 
-      // Reset back seen array to false for first two triangles, so that contour lines be closed
-      if ((count == 2) && (! edge))
-        seen[its[0]] = false;
-      if ((count == 3) && (! edge))
-        seen[its[1]] = false;
-    }
 
-  if (count > 0)
-    {
-      if (! edge)
+      glm::vec3 M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]); // One of the coefficients is zero
+      glm::vec3 uM = glm::normalize (glm::cross (north, M));
+      glm::vec3 vM = glm::cross (M, uM);
+      glm::vec3 VM = glm::normalize (w[0] * VP[0] + w[1] * VP[1] + w[2] * VP[2]); // One of the coefficients is zero
+
+      if (dbg)
+        printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
+
+
+
+        
+      // Project everything on local tangent plane
+      glm::vec2 VM2 = glm::vec2 (glm::dot (VM, uM), glm::dot (VM, vM)), P2[3];
+      glm::vec3 NPQ[3], MNPQ[3];
+      float lPQ[3];
+
+      for (int i = 0; i < 3; i++)
+        P2[i] = glm::vec2 (glm::dot (P[i], uM), glm::dot (P[i], vM));
+
+      for (int i = 0; i < 3; i++)
         {
-        iso->push (iso->xyz[3*(ind_start+1)+0], iso->xyz[3*(ind_start+1)+1], iso->xyz[3*(ind_start+1)+2], 0.);
-//      iso->push (iso->xyz[3*(ind_start+2)+0], iso->xyz[3*(ind_start+2)+1], iso->xyz[3*(ind_start+2)+2], 0.);
+          int j = (i + 1) % 3;
+          // Intersection of (VM2) with triangle edges
+          lPQ[i] = (VM2.x * P2[i].y - VM2.y * P2[i].x) / (VM2.y * (P2[j].x - P2[i].x) - VM2.x * (P2[j].y - P2[i].y));
+          NPQ[i] = glm::normalize (P[i] + lPQ[i] * (P[j] - P[i])); 
+          MNPQ[i] = glm::normalize (NPQ[i] - M);
         }
-      iso->push (0., 0., 0., 0.);
-      if (dbg)
-        fprintf (fp, "--------------------------------- %d\n", II);
-      if (dbg)
-        fflush (fp);
-      II++;
+      
+      if (count == 0)
+        iso->push (M.x, M.y, M.z);
+
+      for (int i = 0; i < 3; i++)
+        if ((0.0f <= lPQ[i]) && (lPQ[i] <= 1.0f) && (glm::dot (VM, MNPQ[i]) >= 0.0f))
+          {
+
+            if (dbg)
+              {
+                glm::vec3 R = M - NPQ[i];
+                printf (" %12.5f %12.5f %12.5f\n", R.x, R.y, R.z);
+                
+              }
+
+            int it1 = itri[i];
+
+            int j = (i + 1) % 3;
+
+            iso->push (NPQ[i].x, NPQ[i].y, NPQ[i].z);
+
+            int jglo1[3], itri1[3];
+            triNeigh (geom, it1, jglo1, itri1);
+
+            for (int k = 0; k < 3; k++)
+              w[k] = 0.0f;
+
+            for (int k = 0; k < 3; k++)
+              {
+                if (jglo1[k] == jglo[i])
+                  w[k] = 1.0f - lPQ[i];
+                else
+                if (jglo1[k] == jglo[j])
+                  w[k] = lPQ[i];
+              }
+  
+
+            it = it1;
+
+            break;
+          }
+
+      std::cout << " it = " << it << std::endl;
+
+      count++;
+
+      if (count == 60)
+        break;
     }
+
+
 
   return;
 }
 
 static bool verbose = false;
 static float lonc = 0.0f;
-static float latc = 0.0f;
+static float latc = 89.0f;
 static float R = 6.0f;
-static float fov = 20.0f;
-static bool wireframe = false;
+static float fov = 10.0f;
+static bool wireframe = true;
 static bool rotate = false;
 
 static 
@@ -312,68 +310,70 @@ int main (int argc, char * argv[])
   float * xyz;
   int np; 
   unsigned int nt;
-  bool remove_open;
- 
-  const char * REMOVE_OPEN = getenv ("REMOVE_OPEN");
-
-  remove_open = (REMOVE_OPEN && atoi (REMOVE_OPEN));
 
   geom_t geom;
 
   const int width = 1024, height = 1024;
   int w, h;
-  unsigned char * r = NULL;
-  float * F = NULL;
+  unsigned char * rx = NULL, * ry = NULL;
+  float * Fx = NULL, * Fy = NULL;
 
-  if (endsWith (argv[1], std::string (".grb")))
-    {
-      gensphere_grib (&geom, &np, &xyz, &nt, &F, argv[1]);
-      if (argc > 2)
-        gensphere (&geom, &np, &xyz, &nt, &F, argv[2]);
-    }
-  else
-    {
+//if (endsWith (argv[1], std::string (".grb")))
+//  {
+//    gensphere_grib (&geom, &np, &xyz, &nt, &Fx, argv[1]);
+//    if (argc > 2)
+//      gensphere (&geom, &np, &xyz, &nt, &Fx, argv[2]);
+//  }
+//else
+//  {
       geom.Nj = atoi (argv[1]);
       std::string type = "gradx";
       if (argc > 2)
         type = argv[2];
-      gensphere (&geom, &np, &xyz, &nt, &F, type);
-    }
+      gensphere (&geom, &np, &xyz, &nt, &Fx, &Fy, type);
+//  }
 
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
     size += geom.pl[jlat-1];
 
-  float maxval = *std::max_element (F, F + size);
-  float minval = *std::min_element (F, F + size);
+  float maxval = *std::max_element (Fx, Fx + size);
+  float minval = *std::min_element (Fx, Fx + size);
 
-  std::cout << minval << " " << maxval << std::endl;
-
-  r = (unsigned char *)malloc (sizeof (unsigned char) * size);
+  rx = (unsigned char *)malloc (sizeof (unsigned char) * size);
+  ry = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
-    r[i] = F[i];
-//  r[i] = 255 * (F[i] - minval) / (maxval - minval);
+    {
+      rx[i] = Fx[i];
+      ry[i] = Fy[i];
+    }
+//  rx[i] = 255 * (Fx[i] - minval) / (maxval - minval);
 
 
 
   const int N = 10;
   isoline_data_t iso_data[N];
 
-#pragma omp parallel for
   for (int i = 0; i < N; i++)
     {
+
       bool * seen = (bool *)malloc (sizeof (bool) * (nt + 1));
       float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
 
       for (int i = 0; i < nt+1; i++)
         seen[i] = false;
+
       seen[0] = true;
      
       for (int it = 0; it < nt; it++)
-        process (it, F, F0, seen+1, geom, xyz, &iso_data[i]);
+        {
+          process (it, Fx, Fy, seen+1, geom, xyz, &iso_data[i]);
+          break;
+        }
 
       free (seen);
+      break;
     }
 
   
@@ -426,7 +426,7 @@ int main (int argc, char * argv[])
 
   // Sphere
   GLuint VertexArrayID;
-  GLuint vertexbuffer, colorbuffer, elementbuffer;
+  GLuint vertexbuffer, colorbufferx, colorbuffery, elementbuffer;
 
   glGenVertexArrays (1, &VertexArrayID);
   glBindVertexArray (VertexArrayID);
@@ -438,18 +438,23 @@ int main (int argc, char * argv[])
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
 
   const int ncol = 1;
-  glGenBuffers (1, &colorbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, colorbuffer);
-  glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), r, GL_STATIC_DRAW);
+  glGenBuffers (1, &colorbufferx);
+  glBindBuffer (GL_ARRAY_BUFFER, colorbufferx);
+  glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), rx, GL_STATIC_DRAW);
   glEnableVertexAttribArray (1); 
   glVertexAttribPointer (1, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
+
+  glGenBuffers (1, &colorbuffery);
+  glBindBuffer (GL_ARRAY_BUFFER, colorbuffery);
+  glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), ry, GL_STATIC_DRAW);
+  glEnableVertexAttribArray (2); 
+  glVertexAttribPointer (2, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
 
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
 
-  std::cout << " nt = " << nt << " np = " << np << std::endl;
 
   isoline_t iso[N];
   for (int i = 0; i < N; i++)
@@ -518,8 +523,6 @@ int main (int argc, char * argv[])
 R"CODE(
 #version 330 core
 
-in vec4 fragmentColor;
-
 out vec4 color;
 
 void main()
@@ -538,7 +541,8 @@ R"CODE(
 #version 330 core
 
 layout(location = 0) in vec3 vertexPos;
-layout(location = 1) in vec3 vertexCol;
+layout(location = 1) in float colx;
+layout(location = 2) in float coly;
 
 out vec4 fragmentColor;
 
@@ -548,12 +552,6 @@ void main()
 {
   vec3 pos = 0.99 * vertexPos;
   gl_Position = MVP * vec4 (pos, 1);
-
-  fragmentColor.r = vertexCol.r;
-  fragmentColor.g = 0.;
-  fragmentColor.b = 1. - vertexCol.r;
-  fragmentColor.a = 1.;
-
 }
 )CODE");
 
