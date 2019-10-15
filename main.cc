@@ -4,6 +4,7 @@
 
 #include "shader.h"
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -125,78 +127,145 @@ void triNeigh (const geom_t & geom, int it, int jglo[3], int itri[3])
 }
 
 
+static glm::vec2 calcR (float a1x, float a2x, float a1y, float a2y, float a1n1, float a2n2)
+{
+  glm::mat2 Dir; 
+  float * dir = glm::value_ptr (Dir);
+  dir[0] = a1x; dir[1] = a2x; dir[2] = a1y; dir[3] = a2y;
+  glm::mat2 Inv = glm::inverse (Dir);
+  return Inv * glm::vec2 (a1n1, a2n2);
+}
+
+bool planeInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, const glm::vec3 & N2, 
+                     glm::vec3 & A, glm::vec3 & V)
+{
+  V = glm::cross (N1, N2);
+
+  if (glm::length (V) == 0.)
+    return false;
+
+  float a1n1 = glm::dot (A1, N1);
+  float a2n2 = glm::dot (A2, N2);
+
+  glm::vec3 W = glm::vec3 (fabsf (V.x), fabs (V.y), fabsf (V.z));
+
+  float Wmax = std::max (W.x, std::max (W.y, W.z));
+
+  if (W.z == Wmax)
+    {
+      glm::vec2 R = calcR (N1.x, N2.x, N1.y, N2.y, a1n1, a2n2);
+      A = glm::vec3 (R.x, R.y, 0.0f);
+    }
+  else
+  if (W.y == Wmax)
+    {
+      glm::vec2 R = calcR (N1.x, N2.x, N1.z, N2.z, a1n1, a2n2);
+      A = glm::vec3 (R.x, 0.0f, R.y);
+    }
+  else
+  if (W.x == Wmax)
+    {
+      glm::vec2 R = calcR (N1.y, N2.y, N1.z, N2.z, a1n1, a2n2);
+      A = glm::vec3 (0.0f, R.x, R.y);
+    }
+
+  return true;
+}
+
+static void getuv (const glm::vec3 & M, glm::vec3 & u, glm::vec3 & v)
+{
+  const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
+  u = glm::normalize (glm::cross (north, M));
+  v = glm::normalize (glm::cross (M, u));
+}
+
 void process (int it0, const float * ru, const float * rv, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
-  const glm::vec3 north = glm::vec3 (0., 0., 1.);
+  const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
   int it = it0; 
   float w[3] = {0.5f, 0.0f, 0.5f};
   int count = 0;
+  glm::vec3 M;
   
   
   while (1)
     {
-      bool dbg = count == 4;
 
       int jglo[3], itri[3];
       triNeigh (geom, it, jglo, itri);
 
-
-      if (dbg)
-        printf (" %5d %5d %5d\n", jglo[0], jglo[1], jglo[2]);
-
-      glm::vec3 P[3], uP[3], vP[3], VP[3];
+      glm::vec3 P[3];
 
       for (int i = 0; i < 3; i++)
-        {
-          P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
-          uP[i] = glm::normalize (glm::cross (north, P[i]));
-          vP[i] = glm::cross (P[i], uP[i]);
-          VP[i] = ru[jglo[i]] * uP[i] + rv[jglo[i]] * vP[i];
-        }
+        P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
+
+      if (count == 0)
+        M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
+
+      glm::vec3 u, v;
+      getuv (M, u, v);
+
+      float Vx = w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]];
+      float Vy = w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]];
+
+      glm::vec3 A1 = M;
+      glm::vec3 N1 = Vx * north - Vy * u;
 
 
-      glm::vec3 M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]); // One of the coefficients is zero
-      glm::vec3 uM = glm::normalize (glm::cross (north, M));
-      glm::vec3 vM = glm::cross (M, uM);
-      glm::vec3 VM = glm::normalize (w[0] * VP[0] + w[1] * VP[1] + w[2] * VP[2]); // One of the coefficients is zero
+      printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
 
-      if (dbg)
-        printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
-
-
-
-        
-      // Project everything on local tangent plane
-      glm::vec2 VM2 = glm::vec2 (glm::dot (VM, uM), glm::dot (VM, vM)), P2[3];
-      glm::vec3 NPQ[3], MNPQ[3];
-      float lPQ[3];
-
-      for (int i = 0; i < 3; i++)
-        P2[i] = glm::vec2 (glm::dot (P[i], uM), glm::dot (P[i], vM));
+      glm::vec3 Mn = M;
 
       for (int i = 0; i < 3; i++)
         {
           int j = (i + 1) % 3;
-          // Intersection of (VM2) with triangle edges
-          lPQ[i] = (VM2.x * P2[i].y - VM2.y * P2[i].x) / (VM2.y * (P2[j].x - P2[i].x) - VM2.x * (P2[j].y - P2[i].y));
-          NPQ[i] = glm::normalize (P[i] + lPQ[i] * (P[j] - P[i])); 
-          MNPQ[i] = glm::normalize (NPQ[i] - M);
-        }
-      
-      if (count == 0)
-        iso->push (M.x, M.y, M.z);
 
+          glm::vec3 A2 = glm::vec3 (0.0f, 0.0f, 0.0f);
+          glm::vec3 PQ = P[j] - P[i];
+	  glm::vec3 N2 = glm::normalize (glm::cross (PQ, P[i]));
+
+          glm::vec3 A, V;
+          planeInsersect (A1, N1, A2, N2, A, V);
+
+	  float a = glm::dot (V, V); 
+	  float b = glm::dot (V, A) * 2.0f;
+	  float c = glm::dot (A, A) - 1.0f;
+          float delta = b * b - 4 * a * c;
+
+	  if (delta >= 0.0f)
+            {
+	      float lam1 = (-b + sqrt (delta)) / (2.0f * a);
+	      float lam2 = (-b - sqrt (delta)) / (2.0f * a);
+
+	      glm::vec3 B1 = A + lam1 * V;
+	      glm::vec3 B2 = A + lam2 * V;
+	      glm::vec3 B;
+
+	      if (glm::length (B1 - P[i]) < glm::length (B2 - P[i]))
+	        B = B1;
+	      else
+	        B = B2;
+
+	      if (glm::length (B - M) >= glm::length (B - Mn))
+                Mn = B;
+
+
+	    }
+         }
+
+
+       printf (" Mn = %12.5f %12.5f %12.5f\n", Mn.x, Mn.y, Mn.z);
+
+       if (count == 0)
+         iso->push (M.x, M.y, M.z);
+
+       iso->push (Mn.x, Mn.y, Mn.z);
+
+#ifdef UNDEF
       for (int i = 0; i < 3; i++)
         if ((0.0f <= lPQ[i]) && (lPQ[i] <= 1.0f) && (glm::dot (VM, MNPQ[i]) >= 0.0f))
           {
-
-            if (dbg)
-              {
-                glm::vec3 R = M - NPQ[i];
-                printf (" %12.5f %12.5f %12.5f\n", R.x, R.y, R.z);
-                
-              }
 
             int it1 = itri[i];
 
@@ -226,10 +295,11 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
           }
 
       std::cout << " it = " << it << std::endl;
+#endif
 
       count++;
 
-      if (count == 60)
+      if (count == 1)
         break;
     }
 
@@ -307,6 +377,7 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 int main (int argc, char * argv[])
 {
+
   float * xyz;
   int np; 
   unsigned int nt;
