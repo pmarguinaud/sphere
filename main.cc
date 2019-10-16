@@ -13,7 +13,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/string_cast.hpp>
 
 #include <unistd.h>
 #include <sys/time.h>
@@ -184,10 +183,11 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 {
   const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
   int it = it0; 
-  float w[3] = {0.5f, 0.0f, 0.5f};
+//float w[3] = {0.5f, 0.0f, 0.5f};
+  float w[3] = {0.0f, 0.5f, 0.5f};
+  int I = 1;
   int count = 0;
   glm::vec3 M;
-  
   
   while (1)
     {
@@ -200,25 +200,37 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       for (int i = 0; i < 3; i++)
         P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
 
-      if (count == 0)
-        M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
+      for (int i = 0; i < 3; i++)
+        printf ("P[%d] = %12.5f, %12.5f, %12.5f\n", i, P[i].x, P[i].y, P[i].z);
 
+      if (count == 0)
+        {
+          M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
+          iso->push (M.x, M.y, M.z);
+        }
+  
       glm::vec3 u, v;
       getuv (M, u, v);
 
       float Vx = w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]];
       float Vy = w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]];
+      glm::vec3 V = Vx * u + Vy * v;
+
 
       glm::vec3 A1 = M;
       glm::vec3 N1 = Vx * north - Vy * u;
 
 
+      printf (" it = %d, I = %d ", it, I);
       printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
 
-      glm::vec3 Mn = M;
+      glm::vec3 Mn;
+      float wn[3] = {0.0f, 0.0f, 0.0f};
+      int i0;
 
-      for (int i = 0; i < 3; i++)
+      for (int k = 1; k < 3; k++)
         {
+          int i = (k + I) % 3;
           int j = (i + 1) % 3;
 
           glm::vec3 A2 = glm::vec3 (0.0f, 0.0f, 0.0f);
@@ -247,62 +259,95 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 	      else
 	        B = B2;
 
-	      if (glm::length (B - M) >= glm::length (B - Mn))
-                Mn = B;
 
+              float x = glm::dot (B - P[i], PQ) / (glm::length (PQ) * glm::length (PQ));
 
+              if ((0.0f <= x) && (x <= 1.0f))
+                {
+                  Mn = B;
+                  wn[i] = 1.0f - x; wn[j] = x;
+                  i0 = i;
+                  break;
+                }
 	    }
          }
 
 
        printf (" Mn = %12.5f %12.5f %12.5f\n", Mn.x, Mn.y, Mn.z);
 
-       if (count == 0)
-         iso->push (M.x, M.y, M.z);
+       float d = glm::dot (V, Mn - M);
 
-       iso->push (Mn.x, Mn.y, Mn.z);
 
-#ifdef UNDEF
-      for (int i = 0; i < 3; i++)
-        if ((0.0f <= lPQ[i]) && (lPQ[i] <= 1.0f) && (glm::dot (VM, MNPQ[i]) >= 0.0f))
-          {
+       if (d >= 0.0f)
+         {
+           iso->push (Mn.x, Mn.y, Mn.z);
 
-            int it1 = itri[i];
+           int i = i0;
+           int j = (i + 1) % 3;
+           int itn = itri[i];
+           int In = 3;
 
-            int j = (i + 1) % 3;
+           int jglon[3], itrin[3];
+           triNeigh (geom, itn, jglon, itrin);
 
-            iso->push (NPQ[i].x, NPQ[i].y, NPQ[i].z);
-
-            int jglo1[3], itri1[3];
-            triNeigh (geom, it1, jglo1, itri1);
-
-            for (int k = 0; k < 3; k++)
-              w[k] = 0.0f;
-
-            for (int k = 0; k < 3; k++)
-              {
-                if (jglo1[k] == jglo[i])
-                  w[k] = 1.0f - lPQ[i];
-                else
-                if (jglo1[k] == jglo[j])
-                  w[k] = lPQ[i];
-              }
+           w[0] = 0.0f; w[1] = 0.0f; w[2] = 0.0f;
+           for (int k = 0; k < 3; k++)
+             {
+               if (jglon[k] == jglo[i])
+                 {
+                   w[k] = wn[i];
+                   if (k < In) In = k;
+                 }
+               else
+               if (jglon[k] == jglo[j])
+                 {
+                   w[k] = wn[j];
+                   if (k < In) In = k;
+                 }
+             }
   
+           it = itn; I = In; M = Mn;
+         }
+       else
+         {
+         
+           int i = I;
+           int j = (i + 1) % 3;
+           int itn = itri[i];
+           int In = 3;
 
-            it = it1;
+           int jglon[3], itrin[3];
+           triNeigh (geom, itn, jglon, itrin);
 
-            break;
-          }
+           wn[0] = w[0]; wn[1] = w[1]; wn[2] = w[2];
+           w[0]  = 0.0f; w[1]  = 0.0f; w[2]  = 0.0f;
 
-      std::cout << " it = " << it << std::endl;
-#endif
+           for (int k = 0; k < 3; k++)
+             {
+               if (jglon[k] == jglo[i])
+                 {
+                   w[k] = wn[i];
+                   if (k < In) In = k;
+                 }
+               else
+               if (jglon[k] == jglo[j])
+                 {
+                   w[k] = wn[j];
+                   if (k < In) In = k;
+                 }
+             }
+  
+           it = itn; I = In; 
 
-      count++;
+         }
 
-      if (count == 1)
-        break;
+
+
+       count++;
+
+       if (count == 3)
+         break;
     }
-
 
 
   return;
