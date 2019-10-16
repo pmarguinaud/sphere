@@ -186,7 +186,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 //float w[3] = {0.5f, 0.0f, 0.5f};
   float w[3] = {0.0f, 0.5f, 0.5f};
   int I = 1;
-  int count = 0;
+
   glm::vec3 M;
   
   while (1)
@@ -203,7 +203,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       for (int i = 0; i < 3; i++)
         printf ("P[%d] = %12.5f, %12.5f, %12.5f\n", i, P[i].x, P[i].y, P[i].z);
 
-      if (count == 0)
+      if (iso->size () == 0)
         {
           M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
           iso->push (M.x, M.y, M.z);
@@ -310,7 +310,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
          }
        else
          {
-         
+           // Make a U-turn
            int i = I;
            int j = (i + 1) % 3;
            int itn = itri[i];
@@ -338,14 +338,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
              }
   
            it = itn; I = In; 
-
          }
 
-
-
-       count++;
-
-       if (count == 3)
+       if (iso->size () == 10)
          break;
     }
 
