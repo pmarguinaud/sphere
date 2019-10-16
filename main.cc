@@ -296,7 +296,12 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
            int i = i0;
            int j = (i + 1) % 3;
            int itn = itri[i];
+
+           if (itn < 0)
+             break;
+
            int In = 3;
+           int K[2] = {0, 0}, _k = 0;
 
            int jglon[3], itrin[3];
            triNeigh (geom, itn, jglon, itrin);
@@ -307,25 +312,31 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
                if (jglon[k] == jglo[i])
                  {
                    w[k] = wn[i];
-                   if (k < In) In = k;
+                   K[_k++] = k;
                  }
                else
                if (jglon[k] == jglo[j])
                  {
                    w[k] = wn[j];
-                   if (k < In) In = k;
+                   K[_k++] = k;
                  }
              }
+
+           if ((K[0] + 1) % 3 != K[1]) 
+             std::swap (K[0], K[1]);
+           In = K[0];
   
            it = itn; I = In; M = Mn;
          }
        else
          {
+
            // Make a U-turn
            int i = I;
            int j = (i + 1) % 3;
            int itn = itri[i];
            int In = 3;
+           int K[2] = {0, 0}, _k = 0;
 
 	   if (itn < 0)
              break;
@@ -341,20 +352,24 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
                if (jglon[k] == jglo[i])
                  {
                    w[k] = wn[i];
-                   if (k < In) In = k;
+                   K[_k++] = k;
                  }
                else
                if (jglon[k] == jglo[j])
                  {
                    w[k] = wn[j];
-                   if (k < In) In = k;
+                   K[_k++] = k;
                  }
              }
+  
+           if ((K[0] + 1) % 3 != K[1]) 
+             std::swap (K[0], K[1]);
+           In = K[0];
   
            it = itn; I = In; 
          }
 
-       if (iso->size () == 5)
+       if (iso->size () == 3)
          break;
 
        if (it < 0)
