@@ -187,6 +187,8 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
   float w[3] = {0.0f, 0.5f, 0.5f};
   int I = 1;
 
+  // Choose best edge ???
+
   glm::vec3 M;
   
   while (1)
@@ -200,8 +202,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       for (int i = 0; i < 3; i++)
         P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
 
-      for (int i = 0; i < 3; i++)
-        printf ("P[%d] = %12.5f, %12.5f, %12.5f\n", i, P[i].x, P[i].y, P[i].z);
 
       if (iso->size () == 0)
         {
