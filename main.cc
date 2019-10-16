@@ -184,10 +184,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
   const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
   int it = it0; 
 //float w[3] = {0.5f, 0.0f, 0.5f};
-  float w[3] = {0.0f, 0.5f, 0.5f};
-  int I = 1;
-
-  // Choose best edge ???
+//float w[3] = {0.0f, 0.5f, 0.5f};
+  float w[3] = {0.5f, 0.5f, 0.0f};
+  int I = 0;
 
   glm::vec3 M;
   
@@ -200,12 +199,21 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       glm::vec3 P[3];
 
       for (int i = 0; i < 3; i++)
-        P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
+        P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], 
+                                          xyz[3*jglo[i]+1], 
+                                          xyz[3*jglo[i]+2]));
+
+      for (int i = 0; i < 3; i++)
+        {
+          printf (" %d %4d %12.5f %12.5f %12.5f\n", i, jglo[i], P[i].x, P[i].y, P[i].z);
+	}
+      
 
 
       if (iso->size () == 0)
         {
           M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
+          printf (" M = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
           iso->push (M.x, M.y, M.z);
         }
   
@@ -220,13 +228,15 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       glm::vec3 A1 = M;
       glm::vec3 N1 = Vx * north - Vy * u;
 
+      printf (" V = %12.5f, %12.5f\n", Vx, Vy);
+
 
       printf (" it = %d, I = %d ", it, I);
       printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
 
       glm::vec3 Mn;
       float wn[3] = {0.0f, 0.0f, 0.0f};
-      int i0;
+      int i0 = -1;
 
       for (int k = 1; k < 3; k++)
         {
@@ -272,11 +282,12 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 	    }
          }
 
-
-       printf (" Mn = %12.5f %12.5f %12.5f\n", Mn.x, Mn.y, Mn.z);
+       
+       printf (" Mn = %12.5f %12.5f %12.5f, i0 = %d\n", Mn.x, Mn.y, Mn.z, i0);
 
        float d = glm::dot (V, Mn - M);
 
+       printf (" d = %12.5e\n", d);
 
        if (d >= 0.0f)
          {
@@ -316,6 +327,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
            int itn = itri[i];
            int In = 3;
 
+	   if (itn < 0)
+             break;
+
            int jglon[3], itrin[3];
            triNeigh (geom, itn, jglon, itrin);
 
@@ -340,9 +354,13 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
            it = itn; I = In; 
          }
 
-       if (iso->size () == 10)
+       if (iso->size () == 5)
+         break;
+
+       if (it < 0)
          break;
     }
+
 
 
   return;
