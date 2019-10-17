@@ -140,6 +140,12 @@ bool planeInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3
 {
   V = glm::cross (N1, N2);
 
+  printf (" N1 = %12.5f %12.5f %12.5f\n", N1.x, N1.y, N1.z);
+  printf (" N2 = %12.5f %12.5f %12.5f\n", N2.x, N2.y, N2.z);
+  printf (" N1^N2 = %12.5f %12.5f %12.5f\n", V.x, V.y, V.z);
+
+//printf( " N1.V = %12.5f, N2.V = %12.5f\n", glm::dot (N1, V), glm::dot (N2, V));
+
   if (glm::length (V) == 0.)
     return false;
 
@@ -167,6 +173,10 @@ bool planeInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3
       glm::vec2 R = calcR (N1.y, N2.y, N1.z, N2.z, a1n1, a2n2);
       A = glm::vec3 (0.0f, R.x, R.y);
     }
+
+  printf (" a1n1 = %12.5f, %12.5f\n", a1n1, glm::dot (N1, A));
+  printf (" a2n2 = %12.5f, %12.5f\n", a2n2, glm::dot (N2, A));
+  printf (" A = %12.5f %12.5f %12.5f\n", A.x, A.y, A.z);
 
   return true;
 }
@@ -229,6 +239,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
       glm::vec3 N1 = Vx * north - Vy * u;
 
       printf (" V = %12.5f, %12.5f\n", Vx, Vy);
+      printf (" N1 = %12.5f %12.5f %12.5f\n", N1.x, N1.y, N1.z);
 
 
       printf (" it = %d, I = %d ", it, I);
@@ -247,6 +258,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
           glm::vec3 PQ = P[j] - P[i];
 	  glm::vec3 N2 = glm::normalize (glm::cross (PQ, P[i]));
 
+
+	  printf (" N2 = %12.5f %12.5f %12.5f\n", N2.x, N2.y, N2.z);
+
           glm::vec3 A, V;
           planeInsersect (A1, N1, A2, N2, A, V);
 
@@ -255,6 +269,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 	  float c = glm::dot (A, A) - 1.0f;
           float delta = b * b - 4 * a * c;
 
+	  printf (" delta = %12.5f\n", delta);
 	  if (delta >= 0.0f)
             {
 	      float lam1 = (-b + sqrt (delta)) / (2.0f * a);
@@ -264,6 +279,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 	      glm::vec3 B2 = A + lam2 * V;
 	      glm::vec3 B;
 
+//            printf (" B1 = %12.5f %12.5f %12.5f\n", B1.x, B1.y, B1.z);
+//            printf (" B2 = %12.5f %12.5f %12.5f\n", B2.x, B2.y, B2.z);
+
 	      if (glm::length (B1 - P[i]) < glm::length (B2 - P[i]))
 	        B = B1;
 	      else
@@ -272,6 +290,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
               float x = glm::dot (B - P[i], PQ) / (glm::length (PQ) * glm::length (PQ));
 
+	      printf (" x = %12.5f\n", x);
               if ((0.0f <= x) && (x <= 1.0f))
                 {
                   Mn = B;
@@ -289,7 +308,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
        printf (" d = %12.5e\n", d);
 
-       if (d >= 0.0f)
+       if ((i0 >=0) && (d >= 0.0f))
          {
            iso->push (Mn.x, Mn.y, Mn.z);
 
@@ -369,7 +388,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
            it = itn; I = In; 
          }
 
-       if (iso->size () == 3)
+       if (iso->size () == 2)
          break;
 
        if (it < 0)
