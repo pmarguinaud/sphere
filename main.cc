@@ -19,6 +19,10 @@
 #include "load.h"
 #include "gensphere.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
+
+
 
 class isoline_data_t
 {
@@ -135,16 +139,10 @@ static glm::vec2 calcR (float a1x, float a2x, float a1y, float a2y, float a1n1, 
   return Inv * glm::vec2 (a1n1, a2n2);
 }
 
-bool planeInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, const glm::vec3 & N2, 
-                     glm::vec3 & A, glm::vec3 & V)
+bool planePlaneInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, 
+                          const glm::vec3 & N2, glm::vec3 & A, glm::vec3 & V)
 {
   V = glm::cross (N1, N2);
-
-  printf (" N1 = %12.5f %12.5f %12.5f\n", N1.x, N1.y, N1.z);
-  printf (" N2 = %12.5f %12.5f %12.5f\n", N2.x, N2.y, N2.z);
-  printf (" N1^N2 = %12.5f %12.5f %12.5f\n", V.x, V.y, V.z);
-
-//printf( " N1.V = %12.5f, N2.V = %12.5f\n", glm::dot (N1, V), glm::dot (N2, V));
 
   if (glm::length (V) == 0.)
     return false;
@@ -174,18 +172,55 @@ bool planeInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3
       A = glm::vec3 (0.0f, R.x, R.y);
     }
 
-  printf (" a1n1 = %12.5f, %12.5f\n", a1n1, glm::dot (N1, A));
-  printf (" a2n2 = %12.5f, %12.5f\n", a2n2, glm::dot (N2, A));
-  printf (" A = %12.5f %12.5f %12.5f\n", A.x, A.y, A.z);
+  return true;
+}
+
+bool planeLineIntersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, 
+                         const glm::vec3 & u2, glm::vec3 & M, bool in = false)
+{
+  float N1A1A2 = glm::dot (N1, A1 - A2);
+  float N1u2 = glm::dot (N1, u2);
+
+  if (N1u2 < 1e-6)
+    return false;
+
+  float lambda = N1A1A2 / N1u2;
+
+  printf (" lambda = %12.5f\n", lambda);
+
+  if (in)
+    if ((lambda < 0.0f) || (1.0f < lambda))
+      return false;
+
+  M = A2 + lambda * u2;
 
   return true;
 }
 
-static void getuv (const glm::vec3 & M, glm::vec3 & u, glm::vec3 & v)
+bool planeCircleIntersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & N2, glm::vec3 & MA, glm::vec3 & MB)
 {
-  const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
-  u = glm::normalize (glm::cross (north, M));
-  v = glm::normalize (glm::cross (M, u));
+  glm::vec3 A, V;
+
+  if (! planePlaneInsersect (A1, N1, glm::vec3 (0.0f, 0.0f, 0.0f), N2, A, V))
+    return false;
+
+  V = glm::normalize (V);
+
+  float a = 1.0f;
+  float b = 2.0f * glm::dot (V, A);
+  float c = glm::dot (A, A) - 1.0f; 
+  float d = b * b - 4.0f * a * c;
+
+  if (d < 0)
+    return false;
+
+  float la = (-b + sqrt (d)) / (2.0f * a);
+  float lb = (-b - sqrt (d)) / (2.0f * a);
+
+  MA = A + la * V;
+  MB = A + lb * V;
+
+  return true;
 }
 
 void process (int it0, const float * ru, const float * rv, bool * seen, 
@@ -199,6 +234,8 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
   int I = 0;
 
   glm::vec3 M;
+
+  int count = 0;
   
   while (1)
     {
@@ -214,27 +251,87 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
                                           xyz[3*jglo[i]+2]));
 
       for (int i = 0; i < 3; i++)
-        {
-          printf (" %d %4d %12.5f %12.5f %12.5f\n", i, jglo[i], P[i].x, P[i].y, P[i].z);
-	}
-      
-
+        printf ("P[%d](xy) = %12.5f %12.5f %12.5f\n", i, P[i].x, P[i].y, P[i].z);
 
       if (iso->size () == 0)
         {
           M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
-          printf (" M = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
           iso->push (M.x, M.y, M.z);
         }
+
+      printf (" M(xy) = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
+
+      const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
+      const glm::vec3 u = glm::normalize (glm::vec3 (+M.x, +M.y, 0.0f));
+      const glm::vec3 v = glm::normalize (glm::vec3 (-M.y, +M.x, 0.0f));
+
+      glm::mat2 xy2uv, uv2xy;
+      xy2uv[0] = glm::vec2 (+u.x, +u.y);
+      xy2uv[1] = glm::vec2 (+v.x, +v.y);
+      uv2xy[0] = glm::vec2 (+u.x, +v.x);
+      uv2xy[1] = glm::vec2 (+u.y, +v.y);
+
+      for (int i = 0; i < 3; i++)
+        P[i] = glm::vec3 (xy2uv * glm::vec2 (P[i].x, P[i].y), P[i].z);
+
+      M = glm::vec3 (xy2uv * glm::vec2 (M.x, M.y), M.z);
+
+      for (int i = 0; i < 3; i++)
+        printf ("P[%d](uv) = %12.5f %12.5f %12.5f\n", i, P[i].x, P[i].y, P[i].z);
+
+      printf (" M(uv) = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
+
+      float Ru = (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]]) / sqrt (1.0f - M.z * M.z);
+      float Rv =  w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]];
+
+      float angmax = 0;
+      for (int i = 0; i < 3; i++)
+        angmax = std::max (acos (glm::dot (P[i], P[(i + 1) % 3])), angmax);
+
+      float R = std::max (Ru, Rv);
+
+      Ru = angmax * Ru / R;
+      Rv = angmax * Rv / R;
+
+      printf (" Ru = %12.5f, Rv = %12.5f\n", glm::degrees (Ru), glm::degrees (Rv));
+      printf (" Ru = %12.5f, Rv = %12.5f\n", Ru, Rv);
+
+      glm::vec3 vp;
+
+      if (fabsf (Rv) < 1e-6)
+        vp = north;
+      else
+        vp = glm::vec3 (-sin (Ru) * (cos (Rv) - 1.0f), (cos (Ru) + 1.0f) * (cos (Rv) - 1.0f), -sin (Ru) * sin (Rv));
+
+      vp = glm::normalize (vp);
+
+      printf (" vp = %12.5f %12.5f %12.5f\n", vp.x, vp.y, vp.z);
+
+
+      for (int i = 0; i < 3; i++)
+        {
+          int j = (i + 1) % 3;
+          glm::vec3 ud = glm::cross (P[i], P[j] - P[i]);
+          glm::vec3 IA, IB;
+          printf (" i = %d\n", i);
+          if (planeCircleIntersect (M, vp, ud, IA, IB))
+            {
+              printf ("IA = %12.5f %12.5f %12.5f\n", IA.x, IA.y, IA.z);
+              printf ("IB = %12.5f %12.5f %12.5f\n", IB.x, IB.y, IB.z);
+            }
+          
+        }
+
+
+//    exit (0);
+
   
-      glm::vec3 u, v;
-      getuv (M, u, v);
-
-      float Vx = w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]];
-      float Vy = w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]];
-      glm::vec3 V = Vx * u + Vy * v;
+      count++;
+      if (count == 1)
+        break;
 
 
+#ifdef UNDEF
       glm::vec3 A1 = M;
       glm::vec3 N1 = Vx * north - Vy * u;
 
@@ -262,7 +359,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 	  printf (" N2 = %12.5f %12.5f %12.5f\n", N2.x, N2.y, N2.z);
 
           glm::vec3 A, V;
-          planeInsersect (A1, N1, A2, N2, A, V);
+          planePlaneInsersect (A1, N1, A2, N2, A, V);
 
 	  float a = glm::dot (V, V); 
 	  float b = glm::dot (V, A) * 2.0f;
@@ -393,6 +490,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
        if (it < 0)
          break;
+
+#endif
+
     }
 
 
@@ -469,6 +569,25 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 int main (int argc, char * argv[])
 {
+
+  if(0)
+  {
+  glm::vec3 A1 (0.0f, 0.0f, 0.5f);
+  glm::vec3 N1 (0.0f, 0.0f, 1.0f);
+  glm::vec3 N2 (1.0f, 1.0f, 0.0f);
+  glm::vec3 MA, MB;
+
+  N1 = glm::normalize (N1);
+  N2 = glm::normalize (N2);
+
+  std::cout << planeCircleIntersect (A1, N1, N2, MA, MB) << std::endl;
+
+  printf (" MA = %12.5f %12.5f %12.5f\n", MA.x, MA.y, MA.z);
+  printf (" MB = %12.5f %12.5f %12.5f\n", MB.x, MB.y, MB.z);
+  
+
+  return 0;
+  }
 
   float * xyz;
   int np; 
