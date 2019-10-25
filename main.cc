@@ -9,6 +9,8 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <limits>
+#include <bits/stdc++.h> 
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -31,7 +33,11 @@ public:
   std::vector<float> xyz;
   std::vector<float> drw;
   std::vector<float> dis;
-  void push (const float x, const float y, const float z, const float d = 1.)
+  void push (const glm::vec3 & xyz, const float d = 1.0f)
+  {
+    push (xyz.x, xyz.y, xyz.z, d);
+  }
+  void push (const float x, const float y, const float z, const float d = 1.0f)
   {
 //  printf (" %12.5f %12.5f %12.5f\n", x, y, z);
     float D = 0.0f;
@@ -130,97 +136,33 @@ void triNeigh (const geom_t & geom, int it, int jglo[3], int itri[3])
 }
 
 
-static glm::vec2 calcR (float a1x, float a2x, float a1y, float a2y, float a1n1, float a2n2)
+
+static glm::vec2 xyz2merc (const glm::vec3 & xyz)
 {
-  glm::mat2 Dir; 
-  float * dir = glm::value_ptr (Dir);
-  dir[0] = a1x; dir[1] = a2x; dir[2] = a1y; dir[3] = a2y;
-  glm::mat2 Inv = glm::inverse (Dir);
-  return Inv * glm::vec2 (a1n1, a2n2);
+  float lon = atan2 (xyz.y, xyz.x);
+  float lat = asin (xyz.z);
+  return glm::vec2 (lon, log (tan (M_PI / 4.0f + lat / 2.0f)));
 }
 
-bool planePlaneInsersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, 
-                          const glm::vec3 & N2, glm::vec3 & A, glm::vec3 & V)
+static glm::vec3 merc2xyz (const glm::vec2 & merc)
 {
-  V = glm::cross (N1, N2);
-
-  if (glm::length (V) == 0.)
-    return false;
-
-  float a1n1 = glm::dot (A1, N1);
-  float a2n2 = glm::dot (A2, N2);
-
-  glm::vec3 W = glm::vec3 (fabsf (V.x), fabs (V.y), fabsf (V.z));
-
-  float Wmax = std::max (W.x, std::max (W.y, W.z));
-
-  if (W.z == Wmax)
-    {
-      glm::vec2 R = calcR (N1.x, N2.x, N1.y, N2.y, a1n1, a2n2);
-      A = glm::vec3 (R.x, R.y, 0.0f);
-    }
-  else
-  if (W.y == Wmax)
-    {
-      glm::vec2 R = calcR (N1.x, N2.x, N1.z, N2.z, a1n1, a2n2);
-      A = glm::vec3 (R.x, 0.0f, R.y);
-    }
-  else
-  if (W.x == Wmax)
-    {
-      glm::vec2 R = calcR (N1.y, N2.y, N1.z, N2.z, a1n1, a2n2);
-      A = glm::vec3 (0.0f, R.x, R.y);
-    }
-
-  return true;
+  float lon = merc.x;
+  float lat = 2.0f * atan (exp (merc.y)) - M_PI / 2.0f;
+  float coslon = cos (lon), sinlon = sin (lon);
+  float coslat = cos (lat), sinlat = sin (lat);
+  return glm::vec3 (coslon * coslat, sinlon * coslat, sinlat);
 }
 
-bool planeLineIntersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & A2, 
-                         const glm::vec3 & u2, glm::vec3 & M, bool in = false)
+float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
+                         const glm::vec2 & P,  const glm::vec2 & Q)
 {
-  float N1A1A2 = glm::dot (N1, A1 - A2);
-  float N1u2 = glm::dot (N1, u2);
+  float b = V1.x * (P.y - Q.y ) - V1.y * (P.x - Q.x ); 
+  float a = V1.y * (Q.x - P1.x) - V1.x * (Q.y - P1.y);
 
-  if (N1u2 < 1e-6)
-    return false;
+  if (fabsf (b) < 1e-6)
+    return std::numeric_limits<float>::infinity ();
 
-  float lambda = N1A1A2 / N1u2;
-
-  printf (" lambda = %12.5f\n", lambda);
-
-  if (in)
-    if ((lambda < 0.0f) || (1.0f < lambda))
-      return false;
-
-  M = A2 + lambda * u2;
-
-  return true;
-}
-
-bool planeCircleIntersect (const glm::vec3 & A1, const glm::vec3 & N1, const glm::vec3 & N2, glm::vec3 & MA, glm::vec3 & MB)
-{
-  glm::vec3 A, V;
-
-  if (! planePlaneInsersect (A1, N1, glm::vec3 (0.0f, 0.0f, 0.0f), N2, A, V))
-    return false;
-
-  V = glm::normalize (V);
-
-  float a = 1.0f;
-  float b = 2.0f * glm::dot (V, A);
-  float c = glm::dot (A, A) - 1.0f; 
-  float d = b * b - 4.0f * a * c;
-
-  if (d < 0)
-    return false;
-
-  float la = (-b + sqrt (d)) / (2.0f * a);
-  float lb = (-b - sqrt (d)) / (2.0f * a);
-
-  MA = A + la * V;
-  MB = A + lb * V;
-
-  return true;
+  return a / b;
 }
 
 void process (int it0, const float * ru, const float * rv, bool * seen, 
@@ -228,12 +170,10 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 {
   const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
   int it = it0; 
-//float w[3] = {0.5f, 0.0f, 0.5f};
-//float w[3] = {0.0f, 0.5f, 0.5f};
-  float w[3] = {0.5f, 0.5f, 0.0f};
-  int I = 0;
+//std::valarray<float> w = {0.5f, 0.0f, 0.5f};
+  std::valarray<float> w = {0.5f, 0.5f, 0.0f};
 
-  glm::vec3 M;
+  glm::vec2 M;
 
   int count = 0;
   
@@ -242,256 +182,88 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
       int jglo[3], itri[3];
       triNeigh (geom, it, jglo, itri);
+      glm::vec2 Mn;
 
-      glm::vec3 P[3];
+      glm::vec2 P[3];
+
+//    for (int i = 0; i < 3; i++)
+//      std::cout << " P = " << glm::to_string (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2])) << std::endl;
 
       for (int i = 0; i < 3; i++)
-        P[i] = glm::normalize (glm::vec3 (xyz[3*jglo[i]+0], 
-                                          xyz[3*jglo[i]+1], 
-                                          xyz[3*jglo[i]+2]));
+        P[i] = xyz2merc (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
 
       for (int i = 0; i < 3; i++)
-        printf ("P[%d](xy) = %12.5f %12.5f %12.5f\n", i, P[i].x, P[i].y, P[i].z);
+        {
+          int j = (i + 1) % 3;
+          if (P[j].x - P[i].x > M_PI)
+            P[i].x += 2 * M_PI;
+          else if (P[i].x - P[j].x > M_PI)
+            P[j].x += 2 * M_PI;
+        }
+
+//    for (int i = 0; i < 3; i++)
+//      std::cout << " P = " << glm::to_string (P[i]) << std::endl;
 
       if (iso->size () == 0)
         {
-          M = glm::normalize (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]);
-          iso->push (M.x, M.y, M.z);
+          M = (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]) / w.sum ();
+          iso->push (merc2xyz (M));
         }
 
-      printf (" M(xy) = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
 
-      const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
-      const glm::vec3 u = glm::normalize (glm::vec3 (+M.x, +M.y, 0.0f));
-      const glm::vec3 v = glm::normalize (glm::vec3 (-M.y, +M.x, 0.0f));
+      glm::vec2 V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
+                               w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) 
+                             / w.sum ();
 
-      glm::mat2 xy2uv, uv2xy;
-      xy2uv[0] = glm::vec2 (+u.x, +u.y);
-      xy2uv[1] = glm::vec2 (+v.x, +v.y);
-      uv2xy[0] = glm::vec2 (+u.x, +v.x);
-      uv2xy[1] = glm::vec2 (+u.y, +v.y);
-
-      for (int i = 0; i < 3; i++)
-        P[i] = glm::vec3 (xy2uv * glm::vec2 (P[i].x, P[i].y), P[i].z);
-
-      M = glm::vec3 (xy2uv * glm::vec2 (M.x, M.y), M.z);
-
-      for (int i = 0; i < 3; i++)
-        printf ("P[%d](uv) = %12.5f %12.5f %12.5f\n", i, P[i].x, P[i].y, P[i].z);
-
-      printf (" M(uv) = %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
-
-      float Ru = (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]]) / sqrt (1.0f - M.z * M.z);
-      float Rv =  w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]];
-
-      float angmax = 0;
-      for (int i = 0; i < 3; i++)
-        angmax = std::max (acos (glm::dot (P[i], P[(i + 1) % 3])), angmax);
-
-      float R = std::max (Ru, Rv);
-
-      Ru = angmax * Ru / R;
-      Rv = angmax * Rv / R;
-
-      printf (" Ru = %12.5f, Rv = %12.5f\n", glm::degrees (Ru), glm::degrees (Rv));
-      printf (" Ru = %12.5f, Rv = %12.5f\n", Ru, Rv);
-
-      glm::vec3 vp;
-
-      if (fabsf (Rv) < 1e-6)
-        vp = north;
-      else
-        vp = glm::vec3 (-sin (Ru) * (cos (Rv) - 1.0f), (cos (Ru) + 1.0f) * (cos (Rv) - 1.0f), -sin (Ru) * sin (Rv));
-
-      vp = glm::normalize (vp);
-
-      printf (" vp = %12.5f %12.5f %12.5f\n", vp.x, vp.y, vp.z);
-
+      std::cout << " M = " << glm::to_string (M) << std::endl;
+//    std::cout << " M = " << glm::to_string (merc2xyz (M)) << std::endl;
+      std::cout << " V = " << glm::to_string (V) << std::endl;
 
       for (int i = 0; i < 3; i++)
         {
           int j = (i + 1) % 3;
-          glm::vec3 ud = glm::cross (P[i], P[j] - P[i]);
-          glm::vec3 IA, IB;
-          printf (" i = %d\n", i);
-          if (planeCircleIntersect (M, vp, ud, IA, IB))
+          if ((w[i] == 0.0f) || (w[j] == 0.0f))
             {
-              printf ("IA = %12.5f %12.5f %12.5f\n", IA.x, IA.y, IA.z);
-              printf ("IB = %12.5f %12.5f %12.5f\n", IB.x, IB.y, IB.z);
+              float lambda = lineLineIntersect (M, V, P[i], P[j]);
+              if ((0.0f <= lambda) && (lambda <= 1.0f))
+                {
+                  M = P[i] * lambda + P[j] * (1.0f - lambda);
+                  w[0] = w[1] = w[2] = 0.0f;
+ 
+                  iso->push (merc2xyz (M));
+
+                  int itn = itri[i], jglon[3], itrin[3];
+                  
+                  if (itn < 0)
+                    break;
+                 
+                  triNeigh (geom, itn, jglon, itrin);
+
+                  for (int k = 0; k < 3; k++)
+                    {
+                      if (jglon[k] == jglo[i])
+                        w[k] = lambda;
+                      if (jglon[k] == jglo[j])
+                        w[k] = 1.0f - lambda;
+                    }
+
+                  it = itn;
+
+                  std::cout << " push " << glm::to_string (M) << std::endl;
+
+                  goto found;
+                }
             }
-          
         }
 
+      break;
 
-//    exit (0);
-
+found:
   
       count++;
-      if (count == 1)
+      if (count == 20)
         break;
 
-
-#ifdef UNDEF
-      glm::vec3 A1 = M;
-      glm::vec3 N1 = Vx * north - Vy * u;
-
-      printf (" V = %12.5f, %12.5f\n", Vx, Vy);
-      printf (" N1 = %12.5f %12.5f %12.5f\n", N1.x, N1.y, N1.z);
-
-
-      printf (" it = %d, I = %d ", it, I);
-      printf (" %12.5f %12.5f %12.5f\n", M.x, M.y, M.z);
-
-      glm::vec3 Mn;
-      float wn[3] = {0.0f, 0.0f, 0.0f};
-      int i0 = -1;
-
-      for (int k = 1; k < 3; k++)
-        {
-          int i = (k + I) % 3;
-          int j = (i + 1) % 3;
-
-          glm::vec3 A2 = glm::vec3 (0.0f, 0.0f, 0.0f);
-          glm::vec3 PQ = P[j] - P[i];
-	  glm::vec3 N2 = glm::normalize (glm::cross (PQ, P[i]));
-
-
-	  printf (" N2 = %12.5f %12.5f %12.5f\n", N2.x, N2.y, N2.z);
-
-          glm::vec3 A, V;
-          planePlaneInsersect (A1, N1, A2, N2, A, V);
-
-	  float a = glm::dot (V, V); 
-	  float b = glm::dot (V, A) * 2.0f;
-	  float c = glm::dot (A, A) - 1.0f;
-          float delta = b * b - 4 * a * c;
-
-	  printf (" delta = %12.5f\n", delta);
-	  if (delta >= 0.0f)
-            {
-	      float lam1 = (-b + sqrt (delta)) / (2.0f * a);
-	      float lam2 = (-b - sqrt (delta)) / (2.0f * a);
-
-	      glm::vec3 B1 = A + lam1 * V;
-	      glm::vec3 B2 = A + lam2 * V;
-	      glm::vec3 B;
-
-//            printf (" B1 = %12.5f %12.5f %12.5f\n", B1.x, B1.y, B1.z);
-//            printf (" B2 = %12.5f %12.5f %12.5f\n", B2.x, B2.y, B2.z);
-
-	      if (glm::length (B1 - P[i]) < glm::length (B2 - P[i]))
-	        B = B1;
-	      else
-	        B = B2;
-
-
-              float x = glm::dot (B - P[i], PQ) / (glm::length (PQ) * glm::length (PQ));
-
-	      printf (" x = %12.5f\n", x);
-              if ((0.0f <= x) && (x <= 1.0f))
-                {
-                  Mn = B;
-                  wn[i] = 1.0f - x; wn[j] = x;
-                  i0 = i;
-                  break;
-                }
-	    }
-         }
-
-       
-       printf (" Mn = %12.5f %12.5f %12.5f, i0 = %d\n", Mn.x, Mn.y, Mn.z, i0);
-
-       float d = glm::dot (V, Mn - M);
-
-       printf (" d = %12.5e\n", d);
-
-       if ((i0 >=0) && (d >= 0.0f))
-         {
-           iso->push (Mn.x, Mn.y, Mn.z);
-
-           int i = i0;
-           int j = (i + 1) % 3;
-           int itn = itri[i];
-
-           if (itn < 0)
-             break;
-
-           int In = 3;
-           int K[2] = {0, 0}, _k = 0;
-
-           int jglon[3], itrin[3];
-           triNeigh (geom, itn, jglon, itrin);
-
-           w[0] = 0.0f; w[1] = 0.0f; w[2] = 0.0f;
-           for (int k = 0; k < 3; k++)
-             {
-               if (jglon[k] == jglo[i])
-                 {
-                   w[k] = wn[i];
-                   K[_k++] = k;
-                 }
-               else
-               if (jglon[k] == jglo[j])
-                 {
-                   w[k] = wn[j];
-                   K[_k++] = k;
-                 }
-             }
-
-           if ((K[0] + 1) % 3 != K[1]) 
-             std::swap (K[0], K[1]);
-           In = K[0];
-  
-           it = itn; I = In; M = Mn;
-         }
-       else
-         {
-
-           // Make a U-turn
-           int i = I;
-           int j = (i + 1) % 3;
-           int itn = itri[i];
-           int In = 3;
-           int K[2] = {0, 0}, _k = 0;
-
-	   if (itn < 0)
-             break;
-
-           int jglon[3], itrin[3];
-           triNeigh (geom, itn, jglon, itrin);
-
-           wn[0] = w[0]; wn[1] = w[1]; wn[2] = w[2];
-           w[0]  = 0.0f; w[1]  = 0.0f; w[2]  = 0.0f;
-
-           for (int k = 0; k < 3; k++)
-             {
-               if (jglon[k] == jglo[i])
-                 {
-                   w[k] = wn[i];
-                   K[_k++] = k;
-                 }
-               else
-               if (jglon[k] == jglo[j])
-                 {
-                   w[k] = wn[j];
-                   K[_k++] = k;
-                 }
-             }
-  
-           if ((K[0] + 1) % 3 != K[1]) 
-             std::swap (K[0], K[1]);
-           In = K[0];
-  
-           it = itn; I = In; 
-         }
-
-       if (iso->size () == 2)
-         break;
-
-       if (it < 0)
-         break;
-
-#endif
 
     }
 
@@ -569,25 +341,6 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 int main (int argc, char * argv[])
 {
-
-  if(0)
-  {
-  glm::vec3 A1 (0.0f, 0.0f, 0.5f);
-  glm::vec3 N1 (0.0f, 0.0f, 1.0f);
-  glm::vec3 N2 (1.0f, 1.0f, 0.0f);
-  glm::vec3 MA, MB;
-
-  N1 = glm::normalize (N1);
-  N2 = glm::normalize (N2);
-
-  std::cout << planeCircleIntersect (A1, N1, N2, MA, MB) << std::endl;
-
-  printf (" MA = %12.5f %12.5f %12.5f\n", MA.x, MA.y, MA.z);
-  printf (" MB = %12.5f %12.5f %12.5f\n", MB.x, MB.y, MB.z);
-  
-
-  return 0;
-  }
 
   float * xyz;
   int np; 
@@ -832,7 +585,7 @@ uniform mat4 MVP;
 
 void main()
 {
-  vec3 pos = 0.99 * vertexPos;
+  vec3 pos = vertexPos;
   gl_Position = MVP * vec4 (pos, 1);
 }
 )CODE");
