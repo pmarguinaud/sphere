@@ -153,6 +153,13 @@ static glm::vec3 merc2xyz (const glm::vec2 & merc)
   return glm::vec3 (coslon * coslat, sinlon * coslat, sinlat);
 }
 
+static glm::vec2 merc2lonlat (const glm::vec2 & merc)
+{
+  float lon = merc.x;
+  float lat = 2.0f * atan (exp (merc.y)) - M_PI / 2.0f;
+  return glm::vec2 (glm::degrees (lon), glm::degrees (lat));
+}
+
 float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
                          const glm::vec2 & P,  const glm::vec2 & Q)
 {
@@ -165,118 +172,210 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
   return a / b;
 }
 
+
+
 void process (int it0, const float * ru, const float * rv, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
-  const glm::vec3 north = glm::vec3 (0.0f, 0.0f, 1.0f);
-  int it = it0; 
-//std::valarray<float> w = {0.5f, 0.0f, 0.5f};
-  std::valarray<float> w = {0.5f, 0.5f, 0.0f};
+  std::vector<glm::vec2> listf, listb, * list = &listf;
 
+  int it = it0; 
+  std::valarray<float> w0 (3), w (3);
   glm::vec2 M;
 
   int count = 0;
   
   while (1)
     {
+      bool dbg = count == 67;
 
-      int jglo[3], itri[3];
-      triNeigh (geom, it, jglo, itri);
-      glm::vec2 Mn;
-
-      glm::vec2 P[3];
-
-//    for (int i = 0; i < 3; i++)
-//      std::cout << " P = " << glm::to_string (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2])) << std::endl;
-
-      for (int i = 0; i < 3; i++)
-        P[i] = xyz2merc (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
-
-      for (int i = 0; i < 3; i++)
+      if (seen[it])
         {
-          int j = (i + 1) % 3;
-          if (P[j].x - P[i].x > M_PI)
-            P[i].x += 2 * M_PI;
-          else if (P[i].x - P[j].x > M_PI)
-            P[j].x += 2 * M_PI;
+          goto last;
         }
 
-//    for (int i = 0; i < 3; i++)
-//      std::cout << " P = " << glm::to_string (P[i]) << std::endl;
+      seen[it] = true;
 
-      if (iso->size () == 0)
-        {
-          M = (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]) / w.sum ();
-          iso->push (merc2xyz (M));
-        }
+      //
+      {
+        glm::vec2 V;
+        int jglo[3], itri[3];
+        triNeigh (geom, it, jglo, itri);
+        glm::vec2 Mn;
+        glm::vec2 P[3];
+   
+        // Mercator projection
+        for (int i = 0; i < 3; i++)
+          P[i] = xyz2merc (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
+   
+        // Fix periodicity issue
+        for (int i = 0; i < 3; i++)
+          {
+            int j = (i + 1) % 3;
+            if (P[j].x - P[i].x > M_PI)
+              P[i].x += 2.0f * M_PI;
+            else if (P[i].x - P[j].x > M_PI)
+              P[j].x += 2.0f * M_PI;
+          }
+        if (P[0].x - M.x > M_PI)
+          M.x += 2.0f * M_PI;
+   
+        // First point of the list; see which segment to start with
+        if (listf.size () == 0)
+          {
+            int i0;
+            float s0 = std::numeric_limits<float>::max ();
+            for (int i = 0; i < 3; i++)
+              {
+                int j = (i + 1) % 3;
+                int k = (i + 2) % 3;
+                w[i] = w[j] = 0.5f; w[k] = 0.0f;
+                V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
+                               w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) / w.sum ();
+                V = glm::normalize (V);
+                glm::vec2 U = glm::normalize (P[j] - P[i]);
+                float s = fabsf (glm::dot (U, V));
+                if (s < s0)
+                  {
+                    s0 = s;
+                    i0 = i;
+                  }
+              }
+            
+            int j0 = (i0 + 1) % 3;
+            int k0 = (i0 + 2) % 3;
+     
+            w[i0] = w[j0] = 0.5f; w[k0] = 0.0f;
+   
+            M = (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]) / w.sum ();
+   
+   
+            list->push_back (M);
+            
+            w0 = w;
+          }
+   
+   
+        V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
+                       w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) / w.sum ();
+   
+//      std::cout << " M = " << glm::to_string (M) << std::endl;
+//      std::cout << " M = " << glm::to_string (merc2xyz (M)) << std::endl;
+//      std::cout << " V = " << glm::to_string (V) << std::endl;
 
+        if (dbg)
+          {
+            std::cout << " M " << glm::to_string (merc2lonlat (M)) << std::endl;
+            for (int i = 0; i < 3; i++)
+              std::cout << " P " << glm::to_string (merc2lonlat (P[i])) << std::endl;
+          }
 
-      glm::vec2 V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
-                               w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) 
-                             / w.sum ();
+        // Try all edges : intersection of vector line with triangle edges
+        for (int i = 0; i < 3; i++)
+          {
+            int j = (i + 1) % 3;
+            if ((w[i] == 0.0f) || (w[j] == 0.0f))
+              {
+                float lambda = lineLineIntersect (M, V, P[i], P[j]);
 
-      std::cout << " M = " << glm::to_string (M) << std::endl;
-//    std::cout << " M = " << glm::to_string (merc2xyz (M)) << std::endl;
-      std::cout << " V = " << glm::to_string (V) << std::endl;
+                if (dbg)
+                  std::cout << i << " lambda = " << lambda << std::endl;
 
-      for (int i = 0; i < 3; i++)
-        {
-          int j = (i + 1) % 3;
-          if ((w[i] == 0.0f) || (w[j] == 0.0f))
-            {
-              float lambda = lineLineIntersect (M, V, P[i], P[j]);
-              if ((0.0f <= lambda) && (lambda <= 1.0f))
-                {
-                  M = P[i] * lambda + P[j] * (1.0f - lambda);
-                  w[0] = w[1] = w[2] = 0.0f;
+                if ((0.0f <= lambda) && (lambda <= 1.0f))
+                  {
+                    M = P[i] * lambda + P[j] * (1.0f - lambda);
+                    w[0] = w[1] = w[2] = 0.0f;
  
-                  iso->push (merc2xyz (M));
+                    list->push_back (M);
+//                  std::cout << " push " << glm::to_string (M) << std::endl;
 
-                  int itn = itri[i], jglon[3], itrin[3];
-                  
-                  if (itn < 0)
-                    break;
-                 
-                  triNeigh (geom, itn, jglon, itrin);
+                    int itn = itri[i], jglon[3], itrin[3];
 
-                  for (int k = 0; k < 3; k++)
-                    {
-                      if (jglon[k] == jglo[i])
-                        w[k] = lambda;
-                      if (jglon[k] == jglo[j])
-                        w[k] = 1.0f - lambda;
-                    }
+                    if (dbg)
+                      std::cout << " itn = " << itn << std::endl;
+                    
+                    if (itn < 0)
+                      {
+                        goto last;
+                      }
+                   
+                    triNeigh (geom, itn, jglon, itrin);
 
-                  it = itn;
+                    // Find weights for next triangle
+                    for (int k = 0; k < 3; k++)
+                      {
+                        if (jglon[k] == jglo[i])
+                          w[k] = lambda;
+                        if (jglon[k] == jglo[j])
+                          w[k] = 1.0f - lambda;
+                      }
 
-                  std::cout << " push " << glm::to_string (M) << std::endl;
+                    it = itn;
 
-                  goto found;
-                }
-            }
-        }
+                    goto found;
+                  }
+              }
+          }
 
-      break;
+       }
+
+      goto last;
 
 found:
   
       count++;
-      if (count == 20)
-        break;
 
+      continue;
+
+last:
+
+      if (0)
+      if (list == &listf)
+        {
+          M = listf[0]; w = w0;
+          list = &listb;
+          int jglo[3], itri[3];
+          triNeigh (geom, it0, jglo, itri);
+
+          for (int i = 0; i < 3; i++)
+            {
+              int j = (i + 1) % 3;
+              if ((w[i] > 0.0f) && (w[j] > 0.0f))
+                {
+                  it = itri[i];
+                  break;
+                }
+            }
+
+          continue;
+        }
+
+      break;
 
     }
 
+  for (int i = listb.size () - 1; i >= 0; i--)
+    iso->push (merc2xyz (listb[i]));
+
+  for (int i = 0; i < listf.size (); i++)
+    iso->push (merc2xyz (listf[i]));
+
+  std::cout << "listf = " << listf.size () << std::endl;
+  std::cout << "listb = " << listb.size () << std::endl;
+  std::cout << " count = " << count << std::endl;
 
 
   return;
 }
 
-static bool verbose = false;
-static float lonc = 0.0f;
-static float latc = 89.0f;
+static bool verbose = true;
+static float lonc = -175.0f;
+static float latc = -36.0f;
+static float fov = 3.0f;
+//static float lonc = 0.0f;
+//static float latc = 89.0f;
+//static float fov = 10.0f;
 static float R = 6.0f;
-static float fov = 10.0f;
 static bool wireframe = true;
 static bool rotate = false;
 
@@ -390,6 +489,7 @@ int main (int argc, char * argv[])
   const int N = 10;
   isoline_data_t iso_data[N];
 
+  std::cout << " nt = " << nt << std::endl;
   for (int i = 0; i < N; i++)
     {
 
@@ -585,7 +685,7 @@ uniform mat4 MVP;
 
 void main()
 {
-  vec3 pos = vertexPos;
+  vec3 pos = 0.99 * vertexPos;
   gl_Position = MVP * vec4 (pos, 1);
 }
 )CODE");
@@ -603,9 +703,18 @@ in float dist;
 
 void main()
 {
-  color.r = 1.;
-  color.g = 0.;
-  color.b = 0.;
+  if (mod (instid, 2) < 1)
+    {
+      color.r = 1.0;
+      color.g = 0.0;
+      color.b = 0.0;
+    }
+  else
+    {
+      color.r = 0.3;
+      color.g = 0.3;
+      color.b = 1.0;
+    }
   color.a = 1.;
   if (norm < 1.)
     discard;
@@ -664,7 +773,7 @@ void main()
 
   gl_Position =  MVP * vec4 (vertexPos, 1);
 
-  if (gl_VertexID == 4 && false)
+  if (gl_VertexID == 4)
     {
       col.r = 1.;
       col.g = 0.;
