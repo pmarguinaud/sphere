@@ -187,7 +187,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
   
   while (1)
     {
-      bool dbg = count == 67;
+      bool dbg = count >= 3;
 
       if (seen[it])
         {
@@ -287,6 +287,8 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 //                  std::cout << " push " << glm::to_string (M) << std::endl;
 
                     int itn = itri[i], jglon[3], itrin[3];
+                    if (seen[itn])
+                      continue;
 
                     if (dbg)
                       std::cout << " itn = " << itn << std::endl;
@@ -365,9 +367,12 @@ last:
 }
 
 static bool verbose = true;
-static float lonc = -175.0f;
-static float latc = -36.0f;
-static float fov = 3.0f;
+static float lonc = 10.0f;
+static float latc = 83.0f;
+static float fov = 1.0f;
+//static float lonc = -175.0f;
+//static float latc = -36.0f;
+//static float fov = 3.0f;
 //static float lonc = 0.0f;
 //static float latc = 89.0f;
 //static float fov = 10.0f;
