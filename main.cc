@@ -208,18 +208,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
         for (int i = 0; i < 3; i++)
           P[i] = xyz2merc (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
    
-        // Fix periodicity issue
-        for (int i = 0; i < 3; i++)
-          {
-            int j = (i + 1) % 3;
-            if (P[j].x - P[i].x > M_PI)
-              P[i].x += 2.0f * M_PI;
-            else if (P[i].x - P[j].x > M_PI)
-              P[j].x += 2.0f * M_PI;
-          }
-        if (P[0].x - M.x > M_PI)
-          M.x += 2.0f * M_PI;
-   
         // First point of the list; see which segment to start with
         if (listf.size () == 0)
           {
@@ -253,6 +241,15 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
             list->push_back (M);
             
             w0 = w;
+          }
+   
+        // Fix periodicity issue
+        for (int i = 0; i < 3; i++)
+          {
+            if (M.x - P[i].x > M_PI)
+              P[i].x += 2.0f * M_PI;
+            else if (P[i].x - M.x > M_PI)
+              P[i].x -= 2.0f * M_PI;
           }
    
    
@@ -329,7 +326,6 @@ found:
 
 last:
 
-      if (0)
       if (list == &listf)
         {
           M = listf[0]; w = w0;
