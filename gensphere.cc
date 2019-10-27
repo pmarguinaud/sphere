@@ -6,6 +6,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <iostream>
+
 
 #include "gensphere.h"
 
@@ -244,39 +246,11 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
               (*Fx)[jglo] = 1.;
               (*Fy)[jglo] = 1.;
             }
-	  else if (type == "gradx")
+	  else if (type == "xy")
             {
-              (*Fx)[jglo] = (1 + coslon) * coslat / 2.0;
+              (*Fx)[jglo] = X;
+              (*Fy)[jglo] = Y;
             }
-	  else if (type == "lon")
-            {
-              (*Fx)[jglo] = lon / (2 * M_PI);
-            }
-	  else if (type == "lat")
-            {
-              (*Fx)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
-            }
-	  else if (type == "coslatxcos2lon")
-            {
-              (*Fx)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
-            }
-	  else if (type == "coslatxcos3lon")
-            {
-              (*Fx)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
-            }
-	  else if (type == "lat2xcos2lon")
-            {
-              (*Fx)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
-            }
-	  else if (type == "XxYxZ")
-            {
-              (*Fx)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
-            }
-	  else if (type == "saddle0")
-            {
-              float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
-              (*Fx)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
-	    }
 	  else
             abort ();
 
@@ -324,28 +298,35 @@ static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3)
 
 
 void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
-                     unsigned int * nt, float ** F,
-                     const std::string & file)
+                     unsigned int * nt, float ** Fx, float ** Fy,
+                     const std::string & file_u, const std::string & file_v)
 {
   const int nstripe = 8;
   int indoff[nstripe];
 
   *xyz = NULL;
 
-  FILE * in = fopen (file.c_str (), "r");
+
+  std::cout << file_u << std::endl;
+  std::cout << file_v << std::endl;
+
+  FILE * in_u = fopen (file_u.c_str (), "r");
+  FILE * in_v = fopen (file_v.c_str (), "r");
 
   int err = 0;
   size_t v_len = 0;
-  codes_handle * h = codes_handle_new_from_file (0, in, PRODUCT_GRIB, &err);
+  codes_handle * h_u = codes_handle_new_from_file (0, in_u, PRODUCT_GRIB, &err);
+  codes_handle * h_v = codes_handle_new_from_file (0, in_v, PRODUCT_GRIB, &err);
 
   size_t pl_len;
-  codes_get_long (h, "Nj", &geom->Nj);
-  codes_get_size (h, "pl", &pl_len);
+  codes_get_long (h_u, "Nj", &geom->Nj);
+  codes_get_size (h_u, "pl", &pl_len);
 
   geom->pl = (long int *)malloc (sizeof (long int) * pl_len);
-  codes_get_long_array (h, "pl", geom->pl, &pl_len);
+  codes_get_long_array (h_u, "pl", geom->pl, &pl_len);
 
-  fclose (in);
+  fclose (in_u);
+  fclose (in_v);
 
 
 
@@ -406,17 +387,27 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
         }
     }
   
-  *F = (float *)malloc (sizeof (float) * v_len);
+  *Fx = (float *)malloc (sizeof (float) * v_len);
+  *Fy = (float *)malloc (sizeof (float) * v_len);
+  double * u = (double *)malloc (sizeof (double) * v_len);
   double * v = (double *)malloc (sizeof (double) * v_len);
-  codes_get_size (h, "values", &v_len);
-  codes_get_double_array (h, "values", v, &v_len);
-  double vmis;
-  codes_get_double (h, "missingValue", &vmis);
+
+  codes_get_size (h_u, "values", &v_len);
+  codes_get_double_array (h_u, "values", u, &v_len);
+  codes_get_size (h_v, "values", &v_len);
+  codes_get_double_array (h_v, "values", v, &v_len);
 
   for (int i = 0; i < *np; i++)
-    (*F)[i] = v[i] == vmis ? 0. : v[i];
+    {
+      (*Fx)[i] = u[i];
+      (*Fy)[i] = v[i];
+    }
 
-  codes_handle_delete (h);
+  free (u);
+  free (v);
+
+  codes_handle_delete (h_u);
+  codes_handle_delete (h_v);
   
 }
 

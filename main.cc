@@ -29,6 +29,7 @@
 class isoline_data_t
 {
 public:
+  int rank = -1;
   std::vector<unsigned int> ind;
   std::vector<float> xyz;
   std::vector<float> drw;
@@ -174,8 +175,8 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
 
 
 
-void process (int it0, const float * ru, const float * rv, bool * seen, 
-              const geom_t & geom, const float * xyz, isoline_data_t * iso)
+void process (int it0, const float * ru, const float * rv, int * seen, 
+              const geom_t & geom, const float * xyz, isoline_data_t * iso, bool dbg = false)
 {
   std::vector<glm::vec2> listf, listb, * list = &listf;
 
@@ -187,14 +188,17 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
   
   while (1)
     {
-      bool dbg = count >= 3;
+ 
 
-      if (seen[it])
+      if (seen[it] != -1)
         {
           goto last;
         }
 
-      seen[it] = true;
+      if (dbg)
+      std::cout << " it = " << it << std::endl;
+
+      seen[it] = iso->rank;
 
       //
       {
@@ -239,6 +243,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
    
    
             list->push_back (M);
+
+            if (dbg)
+            std::cout << " push0 " << glm::to_string (merc2lonlat (M)) << std::endl;
             
             w0 = w;
           }
@@ -284,19 +291,22 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
                     w[0] = w[1] = w[2] = 0.0f;
  
                     list->push_back (M);
-//                  std::cout << " push " << glm::to_string (M) << std::endl;
+                    if (dbg)
+                    std::cout << " push1 " << glm::to_string (merc2lonlat (M)) << std::endl;
 
                     int itn = itri[i], jglon[3], itrin[3];
-                    if (seen[itn])
-                      continue;
 
                     if (dbg)
                       std::cout << " itn = " << itn << std::endl;
                     
                     if (itn < 0)
-                      {
-                        goto last;
-                      }
+                      goto last;
+
+                    if (dbg)
+                      std::cout << " seen = " << seen[itn] << std::endl;
+
+                    if (seen[itn] != -1)
+                      continue;
                    
                     triNeigh (geom, itn, jglon, itrin);
 
@@ -330,6 +340,7 @@ last:
 
       if (list == &listf)
         {
+          if (dbg) std::cout << " back " << std::endl;
           M = listf[0]; w = w0;
           list = &listb;
           int jglo[3], itri[3];
@@ -358,24 +369,33 @@ last:
   for (int i = 0; i < listf.size (); i++)
     iso->push (merc2xyz (listf[i]));
 
-  std::cout << "listf = " << listf.size () << std::endl;
-  std::cout << "listb = " << listb.size () << std::endl;
-  std::cout << " count = " << count << std::endl;
+  if (dbg)
+    {
+      std::cout << " listf = " << listf.size () << std::endl;
+      std::cout << " listb = " << listb.size () << std::endl;
+      std::cout << " count = " << count << std::endl;
+    }
 
 
   return;
 }
 
 static bool verbose = true;
-static float lonc = 10.0f;
-static float latc = 83.0f;
-static float fov = 1.0f;
+//static float lonc = 10.0f;
+//static float latc = 83.0f;
+//static float fov = 1.0f;
 //static float lonc = -175.0f;
 //static float latc = -36.0f;
 //static float fov = 3.0f;
 //static float lonc = 0.0f;
 //static float latc = 89.0f;
 //static float fov = 10.0f;
+static float lonc = 0.0f;
+static float latc = 0.0f;
+static float fov = 20.0f;
+//static float lonc = -30.0f;
+//static float latc = 85.0f;
+//static float fov = 2.0f;
 static float R = 6.0f;
 static bool wireframe = true;
 static bool rotate = false;
@@ -453,20 +473,18 @@ int main (int argc, char * argv[])
   unsigned char * rx = NULL, * ry = NULL;
   float * Fx = NULL, * Fy = NULL;
 
-//if (endsWith (argv[1], std::string (".grb")))
-//  {
-//    gensphere_grib (&geom, &np, &xyz, &nt, &Fx, argv[1]);
-//    if (argc > 2)
-//      gensphere (&geom, &np, &xyz, &nt, &Fx, argv[2]);
-//  }
-//else
-//  {
+  if (endsWith (argv[1], std::string (".grb")))
+    {
+      gensphere_grib (&geom, &np, &xyz, &nt, &Fx, &Fy, argv[1], argv[2]);
+    }
+  else
+    {
       geom.Nj = atoi (argv[1]);
       std::string type = "gradx";
       if (argc > 2)
         type = argv[2];
       gensphere (&geom, &np, &xyz, &nt, &Fx, &Fy, type);
-//  }
+    }
 
 
   int size = 0;
@@ -488,31 +506,76 @@ int main (int argc, char * argv[])
 
 
   const int N = 10;
-  isoline_data_t iso_data[N];
+  std::list<isoline_data_t *> iso_data;
+  std::list<isoline_data_t *> iso_data_q;
 
-  std::cout << " nt = " << nt << std::endl;
-  for (int i = 0; i < N; i++)
-    {
+  {
+    int * seen = (int *)malloc (sizeof (int) * nt);
+    for (int i = 0; i < nt; i++)
+      seen[i] = -1;
 
-      bool * seen = (bool *)malloc (sizeof (bool) * (nt + 1));
-      float F0 = minval + (i + 1) * (maxval - minval) / (N + 1);
+    for (int it = 0; it < nt; it++)
+      {
+        if (seen[it] == -1)
+          {
+            isoline_data_t * diso = new isoline_data_t ();
+            diso->rank = iso_data.size ();
+            iso_data.push_back (diso);
+            iso_data_q.push_back (diso);
+            process (it, Fx, Fy, seen, geom, xyz, diso);
+            break;
+          }
+      }
 
-      for (int i = 0; i < nt+1; i++)
-        seen[i] = false;
+    for (int i = 1; i < N; i++)
+      {
 
-      seen[0] = true;
-     
-      for (int it = 0; it < nt; it++)
-        {
-          process (it, Fx, Fy, seen+1, geom, xyz, &iso_data[i]);
-          break;
-        }
+        while (iso_data_q.size () > 0)
+          {
 
-      free (seen);
-      break;
-    }
+            isoline_data_t * diso_h = iso_data_q.front ();
 
+            for (int it = 0; it < nt; it++)
+              {
+                if (seen[it] != -1)
+                  continue;
+                int jglo[3], itri[3];
+                triNeigh (geom, it, jglo, itri);
+
+
+                bool ok = false;
+                for (int i = 0; i < 3; i++)
+                  if (itri[i] >= 0)
+                    ok = ok || (seen[itri[i]] == diso_h->rank);
+
+                if (ok)
+                  {
+//printf (" it = %d | itri = %d %d %d\n", it, itri[0], itri[1], itri[2]);
+//printf (" it = %d | %d %d %d\n", it, seen[itri[0]], seen[itri[1]], seen[itri[2]]);
+                    isoline_data_t * diso = new isoline_data_t ();
+                    diso->rank = iso_data.size ();
+//std::cout << " rank = " << diso->rank << std::endl;
+                    iso_data.push_back (diso);
+                    iso_data_q.push_back (diso);
+                    process (it, Fx, Fy, seen, geom, xyz, diso);
+                    goto done;
+                  }
+              }
+
+            iso_data_q.pop_front ();
+
+          }
+        
+done:
+
+        continue;
+      }
+
+    free (seen);
+  }
   
+  std::cout << " size = " << iso_data.size () << std::endl;
+
   if (! glfwInit ()) 
     {   
       fprintf (stderr, "Failed to initialize GLFW\n");
@@ -592,20 +655,25 @@ int main (int argc, char * argv[])
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
 
 
-  isoline_t iso[N];
-  for (int i = 0; i < N; i++)
+  std::vector<isoline_t> iso;
+
+  for (std::list<isoline_data_t*>::const_iterator it = iso_data.begin (); 
+       it != iso_data.end (); it++)
     {
-      iso[i].size = iso_data[i].ind.size ();
+      isoline_data_t * diso = *it;
+      isoline_t iiso;
 
-      iso[i].size_inst = iso_data[i].size () - 1;
+      iiso.size = diso->ind.size ();
 
-      glGenVertexArrays (1, &iso[i].VertexArrayID);
-      glBindVertexArray (iso[i].VertexArrayID);
+      iiso.size_inst = diso->size () - 1;
+
+      glGenVertexArrays (1, &iiso.VertexArrayID);
+      glBindVertexArray (iiso.VertexArrayID);
      
-      glGenBuffers (1, &iso[i].vertexbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iso[i].vertexbuffer);
-      glBufferData (GL_ARRAY_BUFFER, iso_data[i].xyz.size () * sizeof (float), 
-                    iso_data[i].xyz.data (), GL_STATIC_DRAW);
+      glGenBuffers (1, &iiso.vertexbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iiso.vertexbuffer);
+      glBufferData (GL_ARRAY_BUFFER, diso->xyz.size () * sizeof (float), 
+                    diso->xyz.data (), GL_STATIC_DRAW);
 
       glEnableVertexAttribArray (0); 
       glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -620,10 +688,10 @@ int main (int argc, char * argv[])
       glVertexAttribDivisor (2, 1);
 
 
-      glGenBuffers (1, &iso[i].normalbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iso[i].normalbuffer);
-      glBufferData (GL_ARRAY_BUFFER, iso_data[i].drw.size () * sizeof (float), 
-                    iso_data[i].drw.data (), GL_STATIC_DRAW);
+      glGenBuffers (1, &iiso.normalbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iiso.normalbuffer);
+      glBufferData (GL_ARRAY_BUFFER, diso->drw.size () * sizeof (float), 
+                    diso->drw.data (), GL_STATIC_DRAW);
 
       glEnableVertexAttribArray (3); 
       glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -633,10 +701,10 @@ int main (int argc, char * argv[])
       glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
       glVertexAttribDivisor (4, 1);
 
-      glGenBuffers (1, &iso[i].distbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iso[i].distbuffer);
-      glBufferData (GL_ARRAY_BUFFER, iso_data[i].dis.size () * sizeof (float), 
-                    iso_data[i].dis.data (), GL_STATIC_DRAW);
+      glGenBuffers (1, &iiso.distbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iiso.distbuffer);
+      glBufferData (GL_ARRAY_BUFFER, diso->dis.size () * sizeof (float), 
+                    diso->dis.data (), GL_STATIC_DRAW);
 
       glEnableVertexAttribArray (5); 
       glVertexAttribPointer (5, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -647,12 +715,13 @@ int main (int argc, char * argv[])
       glVertexAttribDivisor (6, 1);
 
 
+      iso.push_back (iiso);
 
-      iso_data[i].xyz.clear ();
-      iso_data[i].ind.clear ();
-      
+      delete diso;
 
     }
+  
+  iso_data.clear ();
 
   GLuint programID = shader 
 (
@@ -702,8 +771,12 @@ in float instid;
 in float norm;
 in float dist;
 
+uniform vec3 color1;
+
 void main()
 {
+  color.rgb = color1;
+if(false){
   if (mod (instid, 2) < 1)
     {
       color.r = 1.0;
@@ -716,6 +789,7 @@ void main()
       color.g = 0.3;
       color.b = 1.0;
     }
+}
   color.a = 1.;
   if (norm < 1.)
     discard;
@@ -812,6 +886,17 @@ void main()
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
   }
 
+
+  float color1[N][3];
+
+  for (int i = 0; i < N;i++)
+    {
+      float a = (float)i / (float)N;
+      color1[i][0] = a;
+      color1[i][1] = 0.0f;
+      color1[i][2] = 1.0f - a;
+    }
+
   while (1) 
     {   
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
@@ -843,9 +928,12 @@ void main()
       glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
 			  1, GL_FALSE, &MVP[0][0]);
 
+   
+
       bool wide = false;
-      for (int i = 0; i < N; i++)
+      for (int i = 0; i < iso.size (); i++)
         {
+          glUniform3fv (glGetUniformLocation (programID_l_inst, "color1"), 1, &color1[i][0]);
           glBindVertexArray (iso[i].VertexArrayID);
           if (! wide)
             {
