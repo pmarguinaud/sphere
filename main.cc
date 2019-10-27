@@ -34,11 +34,12 @@ public:
   std::vector<float> xyz;
   std::vector<float> drw;
   std::vector<float> dis;
-  void push (const glm::vec3 & xyz, const float d = 1.0f)
+  std::vector<float> val;
+  void push (const glm::vec3 & xyz, const float v, const float d = 1.0f)
   {
-    push (xyz.x, xyz.y, xyz.z, d);
+    push (xyz.x, xyz.y, xyz.z, v, d);
   }
-  void push (const float x, const float y, const float z, const float d = 1.0f)
+  void push (const float x, const float y, const float z, const float v, const float d = 1.0f)
   {
 //  printf (" %12.5f %12.5f %12.5f\n", x, y, z);
     float D = 0.0f;
@@ -56,6 +57,7 @@ public:
     xyz.push_back (x);
     xyz.push_back (y);
     xyz.push_back (z);
+    val.push_back (v);
     drw.push_back (d);
     dis.push_back (D);
   }
@@ -64,6 +66,7 @@ public:
     xyz.pop_back ();
     xyz.pop_back ();
     xyz.pop_back ();
+    val.pop_back ();
     drw.pop_back ();
     dis.pop_back ();
   }
@@ -71,6 +74,7 @@ public:
   {
     xyz.clear ();
     ind.clear ();
+    val.clear ();
     drw.clear ();
     dis.clear ();
   }
@@ -83,7 +87,7 @@ public:
 typedef struct
 {
   GLuint VertexArrayID;
-  GLuint vertexbuffer, elementbuffer, normalbuffer, distbuffer;
+  GLuint vertexbuffer, elementbuffer, normalbuffer, distbuffer, valbuffer;
   GLuint size;    // Number of indices
   GLuint size_inst;
 } isoline_t;
@@ -364,10 +368,10 @@ last:
     }
 
   for (int i = listb.size () - 1; i >= 0; i--)
-    iso->push (merc2xyz (listb[i]));
+    iso->push (merc2xyz (listb[i]), 0.0f);
 
   for (int i = 0; i < listf.size (); i++)
-    iso->push (merc2xyz (listf[i]));
+    iso->push (merc2xyz (listf[i]), 0.0f);
 
   if (dbg)
     {
@@ -397,7 +401,7 @@ static float fov = 20.0f;
 //static float latc = 85.0f;
 //static float fov = 2.0f;
 static float R = 6.0f;
-static bool wireframe = true;
+static bool wireframe = false;
 static bool rotate = false;
 
 static 
@@ -509,72 +513,41 @@ int main (int argc, char * argv[])
   std::list<isoline_data_t *> iso_data;
   std::list<isoline_data_t *> iso_data_q;
 
+
+  std::cout << " np = " << np << " nt = " << nt << std::endl;
+
   {
     int * seen = (int *)malloc (sizeof (int) * nt);
     for (int i = 0; i < nt; i++)
       seen[i] = -1;
 
-    for (int it = 0; it < nt; it++)
+    int N = 8000;
+    int dit = nt / N;
+//  int dit = 1;
+    for (int it = 0; it < nt; it += dit)
       {
         if (seen[it] == -1)
           {
             isoline_data_t * diso = new isoline_data_t ();
             diso->rank = iso_data.size ();
             iso_data.push_back (diso);
-            iso_data_q.push_back (diso);
             process (it, Fx, Fy, seen, geom, xyz, diso);
-            break;
           }
-      }
-
-    for (int i = 1; i < N; i++)
-      {
-
-        while (iso_data_q.size () > 0)
-          {
-
-            isoline_data_t * diso_h = iso_data_q.front ();
-
-            for (int it = 0; it < nt; it++)
-              {
-                if (seen[it] != -1)
-                  continue;
-                int jglo[3], itri[3];
-                triNeigh (geom, it, jglo, itri);
-
-
-                bool ok = false;
-                for (int i = 0; i < 3; i++)
-                  if (itri[i] >= 0)
-                    ok = ok || (seen[itri[i]] == diso_h->rank);
-
-                if (ok)
-                  {
-//printf (" it = %d | itri = %d %d %d\n", it, itri[0], itri[1], itri[2]);
-//printf (" it = %d | %d %d %d\n", it, seen[itri[0]], seen[itri[1]], seen[itri[2]]);
-                    isoline_data_t * diso = new isoline_data_t ();
-                    diso->rank = iso_data.size ();
-//std::cout << " rank = " << diso->rank << std::endl;
-                    iso_data.push_back (diso);
-                    iso_data_q.push_back (diso);
-                    process (it, Fx, Fy, seen, geom, xyz, diso);
-                    goto done;
-                  }
-              }
-
-            iso_data_q.pop_front ();
-
-          }
-        
-done:
-
-        continue;
       }
 
     free (seen);
   }
   
+  
   std::cout << " size = " << iso_data.size () << std::endl;
+  {
+  int p = 0;
+  for (std::list<isoline_data_t*>::iterator it = iso_data.begin (); it != iso_data.end (); it++)
+    p += (*it)->size ();
+  std::cout << " p = " << p << std::endl;
+  }
+
+
 
   if (! glfwInit ()) 
     {   
@@ -715,6 +688,16 @@ done:
       glVertexAttribDivisor (6, 1);
 
 
+      glGenBuffers (1, &iiso.valbuffer);
+      glBindBuffer (GL_ARRAY_BUFFER, iiso.valbuffer);
+      glBufferData (GL_ARRAY_BUFFER, diso->dis.size () * sizeof (float), 
+                    diso->val.data (), GL_STATIC_DRAW);
+
+      glEnableVertexAttribArray (7); 
+      glVertexAttribPointer (7, 1, GL_FLOAT, GL_FALSE, 0, NULL);
+      glVertexAttribDivisor (7, 1);
+
+
       iso.push_back (iiso);
 
       delete diso;
@@ -775,7 +758,9 @@ uniform vec3 color1;
 
 void main()
 {
-  color.rgb = color1;
+  color.r = 1.0;
+  color.g = 0.0;
+  color.b = 0.0;
 if(false){
   if (mod (instid, 2) < 1)
     {
@@ -805,6 +790,7 @@ layout(location = 3) in float norm0;
 layout(location = 4) in float norm1;
 layout(location = 5) in float dist0;
 layout(location = 6) in float dist1;
+layout(location = 7) in float val;
 
 out vec3 col;
 out float instid;

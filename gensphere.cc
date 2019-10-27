@@ -307,9 +307,6 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
   *xyz = NULL;
 
 
-  std::cout << file_u << std::endl;
-  std::cout << file_v << std::endl;
-
   FILE * in_u = fopen (file_u.c_str (), "r");
   FILE * in_v = fopen (file_v.c_str (), "r");
 
