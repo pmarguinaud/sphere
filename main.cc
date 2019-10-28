@@ -735,7 +735,7 @@ void main()
   vec3 n0 = cross (t0, p);
   vec3 n1 = cross (t1, p);
 
-  float c = 0.010;
+  float c = max (0.002, 0.015 * norm0);
 
   if ((gl_VertexID >= 4) && (dot (cross (n0, n1), vertexPos) < 0.))
     c = 0.0;
@@ -824,7 +824,7 @@ void main()
 
    
 
-      bool wide = false;
+      bool wide = true;
 
       glBindVertexArray (iso.VertexArrayID);
       if (! wide)
