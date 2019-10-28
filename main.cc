@@ -34,7 +34,6 @@ public:
   std::vector<float> xyz;
   std::vector<float> drw;
   std::vector<float> dis;
-  std::vector<float> val;
   void push (const glm::vec3 & xyz, const float v, const float d = 1.0f)
   {
     push (xyz.x, xyz.y, xyz.z, v, d);
@@ -57,7 +56,6 @@ public:
     xyz.push_back (x);
     xyz.push_back (y);
     xyz.push_back (z);
-    val.push_back (v);
     drw.push_back (d);
     dis.push_back (D);
   }
@@ -66,7 +64,6 @@ public:
     xyz.pop_back ();
     xyz.pop_back ();
     xyz.pop_back ();
-    val.pop_back ();
     drw.pop_back ();
     dis.pop_back ();
   }
@@ -74,7 +71,6 @@ public:
   {
     xyz.clear ();
     ind.clear ();
-    val.clear ();
     drw.clear ();
     dis.clear ();
   }
@@ -384,22 +380,10 @@ last:
   return;
 }
 
-static bool verbose = true;
-//static float lonc = 10.0f;
-//static float latc = 83.0f;
-//static float fov = 1.0f;
-//static float lonc = -175.0f;
-//static float latc = -36.0f;
-//static float fov = 3.0f;
-//static float lonc = 0.0f;
-//static float latc = 89.0f;
-//static float fov = 10.0f;
+static bool verbose = false;
 static float lonc = 0.0f;
 static float latc = 0.0f;
 static float fov = 20.0f;
-//static float lonc = -30.0f;
-//static float latc = 85.0f;
-//static float fov = 2.0f;
 static float R = 6.0f;
 static bool wireframe = false;
 static bool rotate = false;
@@ -509,7 +493,6 @@ int main (int argc, char * argv[])
 
 
 
-  const int N = 10;
   std::list<isoline_data_t *> iso_data;
   std::list<isoline_data_t *> iso_data_q;
 
@@ -688,16 +671,6 @@ int main (int argc, char * argv[])
       glVertexAttribDivisor (6, 1);
 
 
-      glGenBuffers (1, &iiso.valbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iiso.valbuffer);
-      glBufferData (GL_ARRAY_BUFFER, diso->dis.size () * sizeof (float), 
-                    diso->val.data (), GL_STATIC_DRAW);
-
-      glEnableVertexAttribArray (7); 
-      glVertexAttribPointer (7, 1, GL_FLOAT, GL_FALSE, 0, NULL);
-      glVertexAttribDivisor (7, 1);
-
-
       iso.push_back (iiso);
 
       delete diso;
@@ -754,8 +727,6 @@ in float instid;
 in float norm;
 in float dist;
 
-uniform vec3 color1;
-
 void main()
 {
   color.r = 1.0;
@@ -790,7 +761,6 @@ layout(location = 3) in float norm0;
 layout(location = 4) in float norm1;
 layout(location = 5) in float dist0;
 layout(location = 6) in float dist1;
-layout(location = 7) in float val;
 
 out vec3 col;
 out float instid;
@@ -873,16 +843,6 @@ void main()
   }
 
 
-  float color1[N][3];
-
-  for (int i = 0; i < N;i++)
-    {
-      float a = (float)i / (float)N;
-      color1[i][0] = a;
-      color1[i][1] = 0.0f;
-      color1[i][2] = 1.0f - a;
-    }
-
   while (1) 
     {   
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
@@ -919,7 +879,6 @@ void main()
       bool wide = false;
       for (int i = 0; i < iso.size (); i++)
         {
-          glUniform3fv (glGetUniformLocation (programID_l_inst, "color1"), 1, &color1[i][0]);
           glBindVertexArray (iso[i].VertexArrayID);
           if (! wide)
             {
