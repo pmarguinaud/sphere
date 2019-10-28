@@ -493,7 +493,7 @@ int main (int argc, char * argv[])
   std::cout << " np = " << np << " nt = " << nt << std::endl;
 
   {
-    bool * seen = (int *)malloc (sizeof (bool) * nt);
+    bool * seen = (bool *)malloc (sizeof (bool) * nt);
     for (int i = 0; i < nt; i++)
       seen[i] = false;
 
