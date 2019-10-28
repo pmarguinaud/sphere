@@ -637,7 +637,7 @@ out vec4 color;
 void main()
 {
   color.r = 0.;
-  color.g = 1.;
+  color.g = 0.;
   color.b = 0.;
   color.a = 1.;
 //color.r = fragmentColor.r;
@@ -677,11 +677,11 @@ in float dist;
 
 void main()
 {
+  vec3 grey = vec3 (0.3f, 0.3f, 0.3f);
+  vec3 green= vec3 (0.0f, 1.0f, 0.0f);
   if (norm == 0.)
     discard;
-  color.r = norm;
-  color.g = 0.0f;
-  color.b = 1.0f - norm;
+  color.rgb = norm * green + (1.0f - norm) * grey;
 if(false){
   if (mod (instid, 2) < 1)
     {
