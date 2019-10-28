@@ -174,7 +174,7 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
 
 
 
-void process (int it0, const float * ru, const float * rv, int * seen, 
+void process (int it0, const float * ru, const float * rv, bool * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso, bool dbg = false)
 {
   std::vector<glm::vec3> listf, listb, * list = &listf;
@@ -189,15 +189,13 @@ void process (int it0, const float * ru, const float * rv, int * seen,
     {
  
 
-      if (seen[it] != -1)
-        {
-          goto last;
-        }
+      if (seen[it])
+        goto last;
 
       if (dbg)
       std::cout << " it = " << it << std::endl;
 
-      seen[it] = iso->rank;
+      seen[it] = true;
 
       //
       {
@@ -300,7 +298,7 @@ void process (int it0, const float * ru, const float * rv, int * seen,
                     if (dbg)
                       std::cout << " seen = " << seen[itn] << std::endl;
 
-                    if (seen[itn] != -1)
+                    if (seen[itn])
                       continue;
                    
                     triNeigh (geom, itn, jglon, itrin);
@@ -495,16 +493,16 @@ int main (int argc, char * argv[])
   std::cout << " np = " << np << " nt = " << nt << std::endl;
 
   {
-    int * seen = (int *)malloc (sizeof (int) * nt);
+    bool * seen = (int *)malloc (sizeof (bool) * nt);
     for (int i = 0; i < nt; i++)
-      seen[i] = -1;
+      seen[i] = false;
 
     int N = 8000;
     int dit = nt / N;
 //  int dit = 1;
     for (int it = 0; it < nt; it += dit)
       {
-        if (seen[it] == -1)
+        if (! seen[it])
           {
             isoline_data_t * diso = new isoline_data_t ();
             diso->rank = iso_data.size ();
