@@ -34,13 +34,12 @@ public:
   std::vector<float> xyz;
   std::vector<float> drw;
   std::vector<float> dis;
-  void push (const glm::vec3 & xyz, const float v, const float d = 1.0f)
+  void push (const glm::vec3 & xyz, const float d = 1.0f)
   {
-    push (xyz.x, xyz.y, xyz.z, v, d);
+    push (xyz.x, xyz.y, xyz.z, d);
   }
-  void push (const float x, const float y, const float z, const float v, const float d = 1.0f)
+  void push (const float x, const float y, const float z, const float d = 1.0f)
   {
-//  printf (" %12.5f %12.5f %12.5f\n", x, y, z);
     float D = 0.0f;
     if (d > 0)
       {
@@ -364,10 +363,10 @@ last:
     }
 
   for (int i = listb.size () - 1; i >= 0; i--)
-    iso->push (merc2xyz (listb[i]), 0.0f);
+    iso->push (merc2xyz (listb[i]));
 
   for (int i = 0; i < listf.size (); i++)
-    iso->push (merc2xyz (listf[i]), 0.0f);
+    iso->push (merc2xyz (listf[i]));
 
   if (dbg)
     {
