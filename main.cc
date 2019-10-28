@@ -177,7 +177,7 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
 void process (int it0, const float * ru, const float * rv, int * seen, 
               const geom_t & geom, const float * xyz, isoline_data_t * iso, bool dbg = false)
 {
-  std::vector<glm::vec2> listf, listb, * list = &listf;
+  std::vector<glm::vec3> listf, listb, * list = &listf;
 
   int it = it0; 
   std::valarray<float> w0 (3), w (3);
@@ -241,12 +241,15 @@ void process (int it0, const float * ru, const float * rv, int * seen,
             M = (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]) / w.sum ();
    
    
-            list->push_back (M);
+            w0 = w;
+
+            V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
+                           w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) / w.sum ();
+   
+            list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
 
             if (dbg)
             std::cout << " push0 " << glm::to_string (merc2lonlat (M)) << std::endl;
-            
-            w0 = w;
           }
    
         // Fix periodicity issue
@@ -258,20 +261,9 @@ void process (int it0, const float * ru, const float * rv, int * seen,
               P[i].x -= 2.0f * M_PI;
           }
    
-   
         V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
                        w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) / w.sum ();
    
-//      std::cout << " M = " << glm::to_string (M) << std::endl;
-//      std::cout << " M = " << glm::to_string (merc2xyz (M)) << std::endl;
-//      std::cout << " V = " << glm::to_string (V) << std::endl;
-
-        if (dbg)
-          {
-            std::cout << " M " << glm::to_string (merc2lonlat (M)) << std::endl;
-            for (int i = 0; i < 3; i++)
-              std::cout << " P " << glm::to_string (merc2lonlat (P[i])) << std::endl;
-          }
 
         // Try all edges : intersection of vector line with triangle edges
         for (int i = 0; i < 3; i++)
@@ -287,9 +279,13 @@ void process (int it0, const float * ru, const float * rv, int * seen,
                 if ((0.0f <= lambda) && (lambda <= 1.0f))
                   {
                     M = P[i] * lambda + P[j] * (1.0f - lambda);
+
+                    V = glm::vec2 (lambda * ru[jglo[i]] + (1.0f - lambda) * ru[jglo[j]],
+                                   lambda * rv[jglo[i]] + (1.0f - lambda) * rv[jglo[j]]);
+
                     w[0] = w[1] = w[2] = 0.0f;
  
-                    list->push_back (M);
+                    list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
                     if (dbg)
                     std::cout << " push1 " << glm::to_string (merc2lonlat (M)) << std::endl;
 
@@ -363,10 +359,10 @@ last:
     }
 
   for (int i = listb.size () - 1; i >= 0; i--)
-    iso->push (merc2xyz (listb[i]));
+    iso->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
 
   for (int i = 0; i < listf.size (); i++)
-    iso->push (merc2xyz (listf[i]));
+    iso->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
 
   if (dbg)
     {
