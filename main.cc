@@ -29,7 +29,6 @@
 class isoline_data_t
 {
 public:
-  int rank = -1;
   std::vector<unsigned int> ind;
   std::vector<float> xyz;
   std::vector<float> drw;
@@ -486,8 +485,7 @@ int main (int argc, char * argv[])
 
 
 
-  std::list<isoline_data_t *> iso_data;
-  std::list<isoline_data_t *> iso_data_q;
+  isoline_data_t iso_data;
 
 
   std::cout << " np = " << np << " nt = " << nt << std::endl;
@@ -499,16 +497,11 @@ int main (int argc, char * argv[])
 
     int N = 8000;
     int dit = nt / N;
-//  int dit = 1;
     for (int it = 0; it < nt; it += dit)
       {
         if (! seen[it])
-          {
-            isoline_data_t * diso = new isoline_data_t ();
-            diso->rank = iso_data.size ();
-            iso_data.push_back (diso);
-            process (it, Fx, Fy, seen, geom, xyz, diso);
-          }
+          process (it, Fx, Fy, seen, geom, xyz, &iso_data);
+        iso_data.push (0.0f, 0.0f, 0.0f, 0.0f);
       }
 
     free (seen);
@@ -516,14 +509,6 @@ int main (int argc, char * argv[])
   
   
   std::cout << " size = " << iso_data.size () << std::endl;
-  {
-  int p = 0;
-  for (std::list<isoline_data_t*>::iterator it = iso_data.begin (); it != iso_data.end (); it++)
-    p += (*it)->size ();
-  std::cout << " p = " << p << std::endl;
-  }
-
-
 
   if (! glfwInit ()) 
     {   
@@ -604,72 +589,60 @@ int main (int argc, char * argv[])
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
 
 
-  std::vector<isoline_t> iso;
+  isoline_t iso;
 
-  for (std::list<isoline_data_t*>::const_iterator it = iso_data.begin (); 
-       it != iso_data.end (); it++)
-    {
-      isoline_data_t * diso = *it;
-      isoline_t iiso;
+  iso.size = iso_data.ind.size ();
 
-      iiso.size = diso->ind.size ();
+  iso.size_inst = iso_data.size () - 1;
 
-      iiso.size_inst = diso->size () - 1;
-
-      glGenVertexArrays (1, &iiso.VertexArrayID);
-      glBindVertexArray (iiso.VertexArrayID);
-     
-      glGenBuffers (1, &iiso.vertexbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iiso.vertexbuffer);
-      glBufferData (GL_ARRAY_BUFFER, diso->xyz.size () * sizeof (float), 
-                    diso->xyz.data (), GL_STATIC_DRAW);
-
-      glEnableVertexAttribArray (0); 
-      glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-      glVertexAttribDivisor (0, 1);
-
-      glEnableVertexAttribArray (1); 
-      glVertexAttribPointer (1, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(3 * sizeof (float))); 
-      glVertexAttribDivisor (1, 1);
-
-      glEnableVertexAttribArray (2); 
-      glVertexAttribPointer (2, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(6 * sizeof (float))); 
-      glVertexAttribDivisor (2, 1);
-
-
-      glGenBuffers (1, &iiso.normalbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iiso.normalbuffer);
-      glBufferData (GL_ARRAY_BUFFER, diso->drw.size () * sizeof (float), 
-                    diso->drw.data (), GL_STATIC_DRAW);
-
-      glEnableVertexAttribArray (3); 
-      glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
-      glVertexAttribDivisor (3, 1);
-
-      glEnableVertexAttribArray (4); 
-      glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
-      glVertexAttribDivisor (4, 1);
-
-      glGenBuffers (1, &iiso.distbuffer);
-      glBindBuffer (GL_ARRAY_BUFFER, iiso.distbuffer);
-      glBufferData (GL_ARRAY_BUFFER, diso->dis.size () * sizeof (float), 
-                    diso->dis.data (), GL_STATIC_DRAW);
-
-      glEnableVertexAttribArray (5); 
-      glVertexAttribPointer (5, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
-      glVertexAttribDivisor (5, 1);
-
-      glEnableVertexAttribArray (6); 
-      glVertexAttribPointer (6, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
-      glVertexAttribDivisor (6, 1);
-
-
-      iso.push_back (iiso);
-
-      delete diso;
-
-    }
+  glGenVertexArrays (1, &iso.VertexArrayID);
+  glBindVertexArray (iso.VertexArrayID);
   
+  glGenBuffers (1, &iso.vertexbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, iso.vertexbuffer);
+  glBufferData (GL_ARRAY_BUFFER, iso_data.xyz.size () * sizeof (float), 
+                iso_data.xyz.data (), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray (0); 
+  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribDivisor (0, 1);
+
+  glEnableVertexAttribArray (1); 
+  glVertexAttribPointer (1, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(3 * sizeof (float))); 
+  glVertexAttribDivisor (1, 1);
+
+  glEnableVertexAttribArray (2); 
+  glVertexAttribPointer (2, 3, GL_FLOAT, GL_FALSE, 0, (const void *)(6 * sizeof (float))); 
+  glVertexAttribDivisor (2, 1);
+
+
+  glGenBuffers (1, &iso.normalbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, iso.normalbuffer);
+  glBufferData (GL_ARRAY_BUFFER, iso_data.drw.size () * sizeof (float), 
+                iso_data.drw.data (), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray (3); 
+  glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribDivisor (3, 1);
+
+  glEnableVertexAttribArray (4); 
+  glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+  glVertexAttribDivisor (4, 1);
+
+  glGenBuffers (1, &iso.distbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, iso.distbuffer);
+  glBufferData (GL_ARRAY_BUFFER, iso_data.dis.size () * sizeof (float), 
+                iso_data.dis.data (), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray (5); 
+  glVertexAttribPointer (5, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribDivisor (5, 1);
+
+  glEnableVertexAttribArray (6); 
+  glVertexAttribPointer (6, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
+  glVertexAttribDivisor (6, 1);
+
+
   iso_data.clear ();
 
   GLuint programID = shader 
@@ -870,20 +843,18 @@ void main()
    
 
       bool wide = false;
-      for (int i = 0; i < iso.size (); i++)
+
+      glBindVertexArray (iso.VertexArrayID);
+      if (! wide)
         {
-          glBindVertexArray (iso[i].VertexArrayID);
-          if (! wide)
-            {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
-            }
-          else
-            {
-              unsigned int ind[12] = {1, 0, 2, 3, 1, 2, 1, 3, 4, 1, 4, 5};
-              glDrawElementsInstanced (GL_TRIANGLES, 12, GL_UNSIGNED_INT, ind, iso[i].size_inst);
-            }
-          glBindVertexArray (0);
+          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso.size_inst);
         }
+      else
+        {
+          unsigned int ind[12] = {1, 0, 2, 3, 1, 2, 1, 3, 4, 1, 4, 5};
+          glDrawElementsInstanced (GL_TRIANGLES, 12, GL_UNSIGNED_INT, ind, iso.size_inst);
+        }
+      glBindVertexArray (0);
 
 
       glfwSwapBuffers (window);
