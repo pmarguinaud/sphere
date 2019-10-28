@@ -174,7 +174,7 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
 
 
 void process (int it0, const float * ru, const float * rv, bool * seen, 
-              const geom_t & geom, const float * xyz, isoline_data_t * iso, bool dbg = false)
+              const geom_t & geom, const float * xyz, isoline_data_t * iso)
 {
   std::vector<glm::vec3> listf, listb, * list = &listf;
 
@@ -190,9 +190,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
       if (seen[it])
         goto last;
-
-      if (dbg)
-      std::cout << " it = " << it << std::endl;
 
       seen[it] = true;
 
@@ -245,8 +242,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
    
             list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
 
-            if (dbg)
-            std::cout << " push0 " << glm::to_string (merc2lonlat (M)) << std::endl;
           }
    
         // Fix periodicity issue
@@ -270,9 +265,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
               {
                 float lambda = lineLineIntersect (M, V, P[i], P[j]);
 
-                if (dbg)
-                  std::cout << i << " lambda = " << lambda << std::endl;
-
                 if ((0.0f <= lambda) && (lambda <= 1.0f))
                   {
                     M = P[i] * lambda + P[j] * (1.0f - lambda);
@@ -283,19 +275,11 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
                     w[0] = w[1] = w[2] = 0.0f;
  
                     list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
-                    if (dbg)
-                    std::cout << " push1 " << glm::to_string (merc2lonlat (M)) << std::endl;
 
                     int itn = itri[i], jglon[3], itrin[3];
-
-                    if (dbg)
-                      std::cout << " itn = " << itn << std::endl;
                     
                     if (itn < 0)
                       goto last;
-
-                    if (dbg)
-                      std::cout << " seen = " << seen[itn] << std::endl;
 
                     if (seen[itn])
                       continue;
@@ -332,7 +316,6 @@ last:
 
       if (list == &listf)
         {
-          if (dbg) std::cout << " back " << std::endl;
           M = listf[0]; w = w0;
           list = &listb;
           int jglo[3], itri[3];
@@ -348,6 +331,9 @@ last:
                 }
             }
 
+          if (it == -1)
+            break;
+
           continue;
         }
 
@@ -360,14 +346,6 @@ last:
 
   for (int i = 0; i < listf.size (); i++)
     iso->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
-
-  if (dbg)
-    {
-      std::cout << " listf = " << listf.size () << std::endl;
-      std::cout << " listb = " << listb.size () << std::endl;
-      std::cout << " count = " << count << std::endl;
-    }
-
 
   return;
 }
@@ -471,22 +449,26 @@ int main (int argc, char * argv[])
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
     size += geom.pl[jlat-1];
 
+  std::cout << " size = " << size << std::endl;
+
   float maxval = *std::max_element (Fx, Fx + size);
   float minval = *std::min_element (Fx, Fx + size);
 
-  rx = (unsigned char *)malloc (sizeof (unsigned char) * size);
-  ry = (unsigned char *)malloc (sizeof (unsigned char) * size);
+  float normmax = 0.0f;
+  for (int i = 0; i < size; i++) 
+    normmax = std::max (normmax, Fx[i] * Fx[i] + Fy[i] * Fy[i]);
+
+  normmax = sqrt (normmax);
+
+  std::cout << " normmax = " << normmax << std::endl;
+
   for (int i = 0; i < size; i++)
     {
-      rx[i] = Fx[i];
-      ry[i] = Fy[i];
+       Fx[i] = Fx[i] / normmax;
+       Fy[i] = Fy[i] / normmax;
     }
-//  rx[i] = 255 * (Fx[i] - minval) / (maxval - minval);
-
-
 
   isoline_data_t iso_data;
-
 
   std::cout << " np = " << np << " nt = " << nt << std::endl;
 
@@ -695,9 +677,11 @@ in float dist;
 
 void main()
 {
-  color.r = 1.0;
-  color.g = 0.0;
-  color.b = 0.0;
+  if (norm == 0.)
+    discard;
+  color.r = norm;
+  color.g = 0.0f;
+  color.b = 1.0f - norm;
 if(false){
   if (mod (instid, 2) < 1)
     {
@@ -713,8 +697,6 @@ if(false){
     }
 }
   color.a = 1.;
-  if (norm < 1.)
-    discard;
 }
 )CODE",
 R"CODE(
