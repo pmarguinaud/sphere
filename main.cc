@@ -205,7 +205,7 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
         for (int i = 0; i < 3; i++)
           P[i] = xyz2merc (glm::vec3 (xyz[3*jglo[i]+0], xyz[3*jglo[i]+1], xyz[3*jglo[i]+2]));
    
-        // First point of the list; see which segment to start with
+        // First point of the list; see which segment to start with, initialize weights, V and M
         if (listf.size () == 0)
           {
             int i0;
@@ -253,10 +253,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
               P[i].x -= 2.0f * M_PI;
           }
    
-        V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
-                       w[0] * rv[jglo[0]] + w[1] * rv[jglo[1]] + w[2] * rv[jglo[2]]) / w.sum ();
-   
-
         // Try all edges : intersection of vector line with triangle edges
         for (int i = 0; i < 3; i++)
           {
