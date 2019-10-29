@@ -26,7 +26,7 @@
 
 
 
-class isoline_data_t
+class streamline_data_t
 {
 public:
   std::vector<unsigned int> ind;
@@ -84,7 +84,7 @@ typedef struct
   GLuint vertexbuffer, elementbuffer, normalbuffer, distbuffer, valbuffer;
   GLuint size;    // Number of indices
   GLuint size_inst;
-} isoline_t;
+} streamline_t;
 
 void triNeigh (const geom_t & geom, int it, int jglo[3], int itri[3])
 {
@@ -174,7 +174,7 @@ float lineLineIntersect (const glm::vec2 & P1, const glm::vec2 & V1,
 
 
 void process (int it0, const float * ru, const float * rv, bool * seen, 
-              const geom_t & geom, const float * xyz, isoline_data_t * iso)
+              const geom_t & geom, const float * xyz, streamline_data_t * stream)
 {
   std::vector<glm::vec3> listf, listb, * list = &listf;
 
@@ -342,10 +342,10 @@ last:
     }
 
   for (int i = listb.size () - 1; i >= 0; i--)
-    iso->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
+    stream->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
 
   for (int i = 0; i < listf.size (); i++)
-    iso->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
+    stream->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
 
   return;
 }
@@ -468,7 +468,7 @@ int main (int argc, char * argv[])
        Fy[i] = Fy[i] / normmax;
     }
 
-  isoline_data_t iso_data;
+  streamline_data_t stream_data;
 
   std::cout << " np = " << np << " nt = " << nt << std::endl;
 
@@ -482,15 +482,15 @@ int main (int argc, char * argv[])
     for (int it = 0; it < nt; it += dit)
       {
         if (! seen[it])
-          process (it, Fx, Fy, seen, geom, xyz, &iso_data);
-        iso_data.push (0.0f, 0.0f, 0.0f, 0.0f);
+          process (it, Fx, Fy, seen, geom, xyz, &stream_data);
+        stream_data.push (0.0f, 0.0f, 0.0f, 0.0f);
       }
 
     free (seen);
   }
   
   
-  std::cout << " size = " << iso_data.size () << std::endl;
+  std::cout << " size = " << stream_data.size () << std::endl;
 
   if (! glfwInit ()) 
     {   
@@ -571,19 +571,19 @@ int main (int argc, char * argv[])
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
 
 
-  isoline_t iso;
+  streamline_t stream;
 
-  iso.size = iso_data.ind.size ();
+  stream.size = stream_data.ind.size ();
 
-  iso.size_inst = iso_data.size () - 1;
+  stream.size_inst = stream_data.size () - 1;
 
-  glGenVertexArrays (1, &iso.VertexArrayID);
-  glBindVertexArray (iso.VertexArrayID);
+  glGenVertexArrays (1, &stream.VertexArrayID);
+  glBindVertexArray (stream.VertexArrayID);
   
-  glGenBuffers (1, &iso.vertexbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, iso.vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, iso_data.xyz.size () * sizeof (float), 
-                iso_data.xyz.data (), GL_STATIC_DRAW);
+  glGenBuffers (1, &stream.vertexbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, stream.vertexbuffer);
+  glBufferData (GL_ARRAY_BUFFER, stream_data.xyz.size () * sizeof (float), 
+                stream_data.xyz.data (), GL_STATIC_DRAW);
 
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -598,10 +598,10 @@ int main (int argc, char * argv[])
   glVertexAttribDivisor (2, 1);
 
 
-  glGenBuffers (1, &iso.normalbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, iso.normalbuffer);
-  glBufferData (GL_ARRAY_BUFFER, iso_data.drw.size () * sizeof (float), 
-                iso_data.drw.data (), GL_STATIC_DRAW);
+  glGenBuffers (1, &stream.normalbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, stream.normalbuffer);
+  glBufferData (GL_ARRAY_BUFFER, stream_data.drw.size () * sizeof (float), 
+                stream_data.drw.data (), GL_STATIC_DRAW);
 
   glEnableVertexAttribArray (3); 
   glVertexAttribPointer (3, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -611,10 +611,10 @@ int main (int argc, char * argv[])
   glVertexAttribPointer (4, 1, GL_FLOAT, GL_FALSE, 0, (const void *)(sizeof (float))); 
   glVertexAttribDivisor (4, 1);
 
-  glGenBuffers (1, &iso.distbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, iso.distbuffer);
-  glBufferData (GL_ARRAY_BUFFER, iso_data.dis.size () * sizeof (float), 
-                iso_data.dis.data (), GL_STATIC_DRAW);
+  glGenBuffers (1, &stream.distbuffer);
+  glBindBuffer (GL_ARRAY_BUFFER, stream.distbuffer);
+  glBufferData (GL_ARRAY_BUFFER, stream_data.dis.size () * sizeof (float), 
+                stream_data.dis.data (), GL_STATIC_DRAW);
 
   glEnableVertexAttribArray (5); 
   glVertexAttribPointer (5, 1, GL_FLOAT, GL_FALSE, 0, NULL); 
@@ -625,7 +625,7 @@ int main (int argc, char * argv[])
   glVertexAttribDivisor (6, 1);
 
 
-  iso_data.clear ();
+  stream_data.clear ();
 
   GLuint programID = shader 
 (
@@ -826,15 +826,15 @@ void main()
 
       bool wide = true;
 
-      glBindVertexArray (iso.VertexArrayID);
+      glBindVertexArray (stream.VertexArrayID);
       if (! wide)
         {
-          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso.size_inst);
+          glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, stream.size_inst);
         }
       else
         {
           unsigned int ind[12] = {1, 0, 2, 3, 1, 2, 1, 3, 4, 1, 4, 5};
-          glDrawElementsInstanced (GL_TRIANGLES, 12, GL_UNSIGNED_INT, ind, iso.size_inst);
+          glDrawElementsInstanced (GL_TRIANGLES, 12, GL_UNSIGNED_INT, ind, stream.size_inst);
         }
       glBindVertexArray (0);
 
