@@ -45,10 +45,16 @@ public:
         int sz = size (), last = sz - 1;
         if (sz > 0)
           {
-            float dx = x - xyz[3*last+0];
-            float dy = y - xyz[3*last+1];
-            float dz = z - xyz[3*last+2];
-            D = dis[last] + sqrt (dx * dx + dy * dy + dz * dz);
+            float x0 = xyz[3*last+0];
+            float y0 = xyz[3*last+1];
+            float z0 = xyz[3*last+2];
+            if (fabsf (x0) + fabsf (y0) + fabsf (z0) > 0.0f)
+              {
+                float dx = x - x0;
+                float dy = y - y0;
+                float dz = z - z0;
+                D = dis[last] + sqrt (dx * dx + dy * dy + dz * dz);
+              }
           }
       }
     xyz.push_back (x);
@@ -180,7 +186,9 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
   int it = it0; 
   std::valarray<float> w0 (3), w (3);
-  glm::vec2 M;
+  glm::vec2 M, V;   // Current values
+  glm::vec2 M0, V0; // Previous values
+  float V0MM00;
 
   int count = 0;
   
@@ -195,7 +203,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
 
       //
       {
-        glm::vec2 V;
         int jglo[3], itri[3];
         triNeigh (geom, it, jglo, itri);
         glm::vec2 Mn;
@@ -234,7 +241,6 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
    
             M = (w[0] * P[0] + w[1] * P[1] + w[2] * P[2]) / w.sum ();
    
-   
             w0 = w;
 
             V = glm::vec2 (w[0] * ru[jglo[0]] + w[1] * ru[jglo[1]] + w[2] * ru[jglo[2]],
@@ -242,6 +248,26 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
    
             list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
 
+          }
+
+
+        if (list->size () >= 2)
+          {
+            float V0MM0 = glm::dot (V0, M-M0);
+            if ((list == &listf) && (list->size () == 2))
+              {
+                V0MM00 = V0MM0;
+              }
+            else if (list == &listf)
+              {
+                if (V0MM00 * V0MM0 < 0.0f)
+                  goto last;
+              }
+            else if (list == &listb)
+              {
+                if (V0MM00 * V0MM0 > 0.0f)
+                  goto last;
+              }
           }
    
         // Fix periodicity issue
@@ -252,50 +278,60 @@ void process (int it0, const float * ru, const float * rv, bool * seen,
             else if (P[i].x - M.x > M_PI)
               P[i].x -= 2.0f * M_PI;
           }
-   
+
+        M0 = M; V0 = V;
+
         // Try all edges : intersection of vector line with triangle edges
         for (int i = 0; i < 3; i++)
           {
             int j = (i + 1) % 3;
-            if ((w[i] == 0.0f) || (w[j] == 0.0f))
-              {
-                float lambda = lineLineIntersect (M, V, P[i], P[j]);
+            int k = (i + 2) % 3;
 
-                if ((0.0f <= lambda) && (lambda <= 1.0f))
-                  {
-                    M = P[i] * lambda + P[j] * (1.0f - lambda);
+            if ((w[i] != 0.0f) && (w[j] != 0.0f)) // Exit triangle through other edge
+              continue;
 
-                    V = glm::vec2 (lambda * ru[jglo[i]] + (1.0f - lambda) * ru[jglo[j]],
-                                   lambda * rv[jglo[i]] + (1.0f - lambda) * rv[jglo[j]]);
+            float lambda = lineLineIntersect (M, V, P[i], P[j]);
 
-                    w[0] = w[1] = w[2] = 0.0f;
+            if ((lambda < 0.0f) || (1.0f < lambda)) // Cross edge line between P[i] and P[j]
+              continue;
+
+            M = P[i] * lambda + P[j] * (1.0f - lambda);
+
+            V = glm::vec2 (lambda * ru[jglo[i]] + (1.0f - lambda) * ru[jglo[j]],
+                           lambda * rv[jglo[i]] + (1.0f - lambda) * rv[jglo[j]]);
+
+            w[0] = w[1] = w[2] = 0.0f;
  
-                    list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
+            list->push_back (glm::vec3 (M.x, M.y, glm::length (V)));
 
-                    int itn = itri[i], jglon[3], itrin[3];
-                    
-                    if (itn < 0)
-                      goto last;
-
-                    if (seen[itn])
-                      continue;
-                   
-                    triNeigh (geom, itn, jglon, itrin);
-
-                    // Find weights for next triangle
-                    for (int k = 0; k < 3; k++)
-                      {
-                        if (jglon[k] == jglo[i])
-                          w[k] = lambda;
-                        if (jglon[k] == jglo[j])
-                          w[k] = 1.0f - lambda;
-                      }
-
-                    it = itn;
-
-                    goto found;
-                  }
+            int itn = itri[i], jglon[3], itrin[3];
+            
+            if (itn < 0)
+              {
+                list->pop_back ();
+                continue;
               }
+
+            if (seen[itn])
+              {
+                list->pop_back ();
+                continue;
+              }
+            
+            triNeigh (geom, itn, jglon, itrin);
+
+            // Find weights for next triangle
+            for (int k = 0; k < 3; k++)
+              {
+                if (jglon[k] == jglo[i])
+                  w[k] = lambda;
+                if (jglon[k] == jglo[j])
+                  w[k] = 1.0f - lambda;
+              }
+
+            it = itn;
+
+            goto found;
           }
 
        }
@@ -310,7 +346,7 @@ found:
 
 last:
 
-      if (list == &listf)
+      if ((list == &listf) && (listf.size () > 0))
         {
           M = listf[0]; w = w0;
           list = &listb;
@@ -337,13 +373,33 @@ last:
 
     }
 
-  for (int i = listb.size () - 1; i >= 0; i--)
-    stream->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
+  if (V0MM00 > 0.0f)
+    {
+      for (int i = listb.size () - 1; i >= 0; i--)
+        stream->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
+      for (int i = 0; i < listf.size (); i++)
+        stream->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
+    }
+  else
+    {
+      for (int i = listf.size () - 1; i >= 0; i--)
+        stream->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
+      for (int i = 0; i < listb.size (); i++)
+        stream->push (merc2xyz (glm::vec2 (listb[i].x, listb[i].y)), listb[i].z);
+    }
 
-  for (int i = 0; i < listf.size (); i++)
-    stream->push (merc2xyz (glm::vec2 (listf[i].x, listf[i].y)), listf[i].z);
+  if (stream->dis[stream->size ()-1] < 0.1000f) // About 5 degrees
+    {
+      for (int i = 0; i < listf.size () + listb.size (); i++)
+        stream->pop ();
+    }
+  else
+    {
+      if (listf.size () + listb.size () > 0)
+        stream->push (0.0f, 0.0f, 0.0f, 0.0f);
+    }
+  
 
-  return;
 }
 
 static bool verbose = false;
@@ -473,14 +529,34 @@ int main (int argc, char * argv[])
     for (int i = 0; i < nt; i++)
       seen[i] = false;
 
-    int N = 8000;
-    int dit = nt / N;
+    
+if(0)
+{
+    int dit = std::max (1, (int)(nt / 8000));
     for (int it = 0; it < nt; it += dit)
+      process (it, Fx, Fy, seen, geom, xyz, &stream_data);
+}
+else
+{
+
+    int dit = std::max (1, (int)sqrt (nt / 40000.0f));
+std::cout << " dit = " << dit << std::endl;
+    int itoff = 0;
+    for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
       {
-        if (! seen[it])
-          process (it, Fx, Fy, seen, geom, xyz, &stream_data);
-        stream_data.push (0.0f, 0.0f, 0.0f, 0.0f);
+        if ((jlat - 1) % dit == 0)
+          {
+            for (int i = 0; i < 2 * geom.pl[jlat-1]; i += dit)
+              {
+                int it = itoff + i;
+                if (it >= nt)
+                  abort ();
+                process (it, Fx, Fy, seen, geom, xyz, &stream_data);
+              }
+          }
+        itoff += 2 * geom.pl[jlat-1];
       }
+}
 
     free (seen);
   }
