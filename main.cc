@@ -542,14 +542,10 @@ out vec4 color;
 
 void main()
 {
-  color.r = 0.;
-  color.g = 0.;
-  color.b = 0.;
+  color.r = fragmentColor.r;
+  color.g = fragmentColor.g;
+  color.b = fragmentColor.b;
   color.a = 1.;
-//color.r = fragmentColor.r;
-//color.g = fragmentColor.g;
-//color.b = fragmentColor.b;
-//color.a = fragmentColor.a;
 }
 )CODE",
 R"CODE(
@@ -574,124 +570,6 @@ void main()
 
 }
 )CODE");
-
-  GLuint programID_l_inst = shader 
-(
-R"CODE(
-#version 330 core
-
-out vec4 color;
-in vec3 col;
-in float instid;
-in float norm;
-in float dist;
-
-uniform sampler2D texture;
-
-void main()
-{
-  float val = 2 * mod (dist, 0.5);
-  vec4 colt = texture2D (texture, vec2 (0.5, val));
-  color.r = colt.r;
-  color.g = colt.g;
-  color.b = colt.b;
-//color.r = mod (dist, 1);
-//color.g = 0.;
-//color.b = 0.;
-  if (norm < 1.)
-    {
-      color.a = 0.;
-    }
-  else
-    {
-      color.a = 1.;
-    }
-}
-)CODE",
-R"CODE(
-#version 330 core
-
-layout(location = 0) in vec3 vertexPos0;
-layout(location = 1) in vec3 vertexPos1;
-layout(location = 2) in vec3 vertexPos2;
-layout(location = 3) in float norm0;
-layout(location = 4) in float norm1;
-layout(location = 5) in float dist0;
-layout(location = 6) in float dist1;
-
-out vec3 col;
-out float instid;
-out float norm;
-out float dist;
-
-
-uniform mat4 MVP;
-
-void main()
-{
-  vec3 vertexPos;
-  vec3 t0, t1;
-
-  t0 = normalize (vertexPos1 - vertexPos0);
-  t1 = normalize (vertexPos2 - vertexPos1);
-
-  if ((gl_VertexID == 0) || (gl_VertexID == 2))
-    vertexPos = vertexPos0;
-  else if ((gl_VertexID == 1) || (gl_VertexID == 3) || (gl_VertexID >= 4))
-    vertexPos = vertexPos1;  
-
-  vec3 p = normalize (vertexPos);
-  vec3 n0 = cross (t0, p);
-  vec3 n1 = cross (t1, p);
-
-  float c = 0.010;
-
-  if ((gl_VertexID >= 4) && (dot (cross (n0, n1), vertexPos) < 0.))
-    c = 0.0;
-
-  if (gl_VertexID == 2)
-    vertexPos = vertexPos + c * n0;
-  if (gl_VertexID == 3)
-    vertexPos = vertexPos + c * n0;
-  if (gl_VertexID == 4)
-    vertexPos = vertexPos + c * normalize (n0 + n1);
-  if (gl_VertexID == 5)
-    vertexPos = vertexPos + c * n1;
-
-
-  gl_Position =  MVP * vec4 (vertexPos, 1);
-
-  if (gl_VertexID == 4 && false)
-    {
-      col.r = 1.;
-      col.g = 0.;
-      col.b = 0.;
-    }
-  else
-    {
-      col.r = 0.;
-      col.g = 1.;
-      col.b = 0.;
-    }
-
-
-  instid = gl_InstanceID;
-  norm = min (norm0, norm1);
-
-  if ((gl_VertexID == 0) && (gl_VertexID == 2))
-    {
-      dist = dist0;
-    }
-  else
-    {
-      dist = dist1;
-    }
-
-
-
-}
-)CODE");
-
 
   if(0){
   GLfloat lineWidthRange[2] = {0.0f, 0.0f};
@@ -721,7 +599,6 @@ void main()
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      if(0){
       // Sphere
       glUseProgram (programID);
       glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
@@ -732,30 +609,6 @@ void main()
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-      }
-
-      // Line 
-      //
-      glUseProgram (programID_l_inst);
-      glUniform1i (glGetUniformLocation (programID, "texture"), 0);
-      glUniformMatrix4fv (glGetUniformLocation (programID_l_inst, "MVP"), 
-			  1, GL_FALSE, &MVP[0][0]);
-
-      bool wide = true;
-      for (int i = 0; i < N; i++)
-        {
-          glBindVertexArray (iso[i].VertexArrayID);
-          if (! wide)
-            {
-              glDrawArraysInstanced (GL_LINE_STRIP, 0, 2, iso[i].size_inst);
-            }
-          else
-            {
-              unsigned int ind[12] = {1, 0, 2, 3, 1, 2, 1, 3, 4, 1, 4, 5};
-              glDrawElementsInstanced (GL_TRIANGLES, 12, GL_UNSIGNED_INT, ind, iso[i].size_inst);
-            }
-          glBindVertexArray (0);
-        }
 
 
       glfwSwapBuffers (window);
