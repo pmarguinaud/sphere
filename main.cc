@@ -20,9 +20,9 @@
 
 static bool verbose = false;
 static float lonc = 0.0f;
-static float latc = 0.0f;
+static float latc = 90.0f;
 static float R = 6.0f;
-static float fov = 20.0f;
+static float fov = 2.0f;
 static bool wireframe = false;
 static bool rotate = false;
 
@@ -209,10 +209,18 @@ int main (int argc, char * argv[])
   free (r);
   r = NULL;
 
-  
+  bool do_ind = false;
+  if(do_ind)
+  {
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
+  }else{
+  glGenBuffers (1, &elementbuffer);
+  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+  glBufferData (GL_ELEMENT_ARRAY_BUFFER, (nt + 3 * (geom.Nj-1)) * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
+  }
+
   free (geom.ind);
   geom.ind = NULL;
 
@@ -294,12 +302,23 @@ void main()
         glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
       else
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-//    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
-//
-//
+
+      if(do_ind)
+      {
+      if(1){
+      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      }else{
       int it0 = 1 * nt / 4;
       int it1 = 3 * nt / 4;
       glDrawElements (GL_TRIANGLES, 3 * (it1 - it0), GL_UNSIGNED_INT, (void*)(3 * 4 * it0));
+      }
+      }else{
+      glEnable (GL_PRIMITIVE_RESTART);
+      glPrimitiveRestartIndex (0xffffffff);
+//    glDrawElements (GL_TRIANGLE_STRIP, nt + 3 * (geom.Nj-1), GL_UNSIGNED_INT, NULL);
+      glDrawElements (GL_TRIANGLE_STRIP, 100, GL_UNSIGNED_INT, NULL);
+      glDisable (GL_PRIMITIVE_RESTART);
+      }
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
 
