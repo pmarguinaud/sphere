@@ -87,7 +87,7 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 int main (int argc, char * argv[])
 {
-  float * xyz;
+  float * lonlat;
   int np; 
   unsigned int nt;
   bool remove_open;
@@ -105,9 +105,9 @@ int main (int argc, char * argv[])
 
   if (endsWith (argv[1], std::string (".grb")))
     {
-      gensphere_grib (&geom, &np, &xyz, &nt, &F, argv[1]);
+      gensphere_grib (&geom, &np, &lonlat, &nt, &F, argv[1]);
       if (argc > 2)
-        gensphere (&geom, &np, &xyz, &nt, &F, argv[2]);
+        gensphere (&geom, &np, &lonlat, &nt, &F, argv[2]);
     }
   else
     {
@@ -115,7 +115,7 @@ int main (int argc, char * argv[])
       std::string type = "gradx";
       if (argc > 2)
         type = argv[2];
-      gensphere (&geom, &np, &xyz, &nt, &F, type);
+      gensphere (&geom, &np, &lonlat, &nt, &F, type);
     }
 
 
@@ -128,10 +128,12 @@ int main (int argc, char * argv[])
 
   std::cout << minval << " " << maxval << std::endl;
 
+  minval = 253.15;
+  maxval = 293.15;
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
-    r[i] = F[i];
-//  r[i] = 255 * (F[i] - minval) / (maxval - minval);
+//  r[i] = F[i];
+    r[i] = 255 * (std::min (maxval, std::max (minval, F[i])) - minval) / (maxval - minval);
 
 
 
@@ -191,9 +193,9 @@ int main (int argc, char * argv[])
 
   glGenBuffers (1, &vertexbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (float), lonlat, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, NULL); 
 
   const int ncol = 1;
   glGenBuffers (1, &colorbuffer);
@@ -220,17 +222,14 @@ out vec4 color;
 
 void main()
 {
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = 1.;
+  color = fragmentColor;
 }
 )CODE",
 R"CODE(
 #version 330 core
 
-layout(location = 0) in vec3 vertexPos;
-layout(location = 1) in vec3 vertexCol;
+layout(location = 0) in vec2 vertexPos;
+layout(location = 1) in float vertexVal;
 
 out vec4 fragmentColor;
 
@@ -238,12 +237,19 @@ uniform mat4 MVP;
 
 void main()
 {
-  vec3 pos = 0.99 * vertexPos;
+  float coslon = cos (vertexPos.x), sinlon = sin (vertexPos.x);
+  float coslat = cos (vertexPos.y), sinlat = sin (vertexPos.y);
+
+  float X = coslon * coslat;
+  float Y = sinlon * coslat;
+  float Z =          sinlat;
+
+  vec3 pos = 0.99 * vec3 (X, Y, Z);
   gl_Position = MVP * vec4 (pos, 1);
 
-  fragmentColor.r = vertexCol.r;
+  fragmentColor.r = vertexVal;
   fragmentColor.g = 0.;
-  fragmentColor.b = 1. - vertexCol.r;
+  fragmentColor.b = 1. - vertexVal;
   fragmentColor.a = 1.;
 
 }
@@ -254,14 +260,6 @@ void main()
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
   std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
   }
-
-  GLuint texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   while (1) 
     {   

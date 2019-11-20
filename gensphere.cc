@@ -151,7 +151,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 }
 #undef MODULO
 
-void gensphere (geom_t * geom, int * np, float ** xyz, 
+void gensphere (geom_t * geom, int * np, float ** lonlat, 
                 unsigned int * nt, float ** F, const std::string & type)
 {
   const int nstripe = 8;
@@ -160,7 +160,7 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
 
   if (init)
     {
-      *xyz = NULL;
+      *lonlat = NULL;
      
       geom->pl = (long int *)malloc (sizeof (long int) * geom->Nj);
      
@@ -202,7 +202,7 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
       for (int jlat = 2; jlat <= geom->Nj + 1; jlat++)
          geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
      
-      *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+      *lonlat = (float *)malloc (2 * sizeof (float) * v_len);
       *F = (float *)malloc (sizeof (float) * v_len);
     }
 
@@ -215,17 +215,17 @@ void gensphere (geom_t * geom, int * np, float ** xyz,
         {
           float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
           float coslon = cos (lon); float sinlon = sin (lon);
-          float radius = 1.0;
+
+          float X = coslon * coslat;
+          float Y = sinlon * coslat;
+          float Z =          sinlat;
+
           int jglo = geom->jglooff[jlat-1] + jlon - 1;
-          float X = coslon * coslat * radius;
-          float Y = sinlon * coslat * radius;
-          float Z =          sinlat * radius;
 
 	  if (init)
             {
-              (*xyz)[3*jglo+0] = X;
-              (*xyz)[3*jglo+1] = Y;
-              (*xyz)[3*jglo+2] = Z;
+              (*lonlat)[2*jglo+0] = lon;
+              (*lonlat)[2*jglo+1] = lat;
 	    }
 
           (*F)[jglo] = 0;
@@ -294,14 +294,14 @@ static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3)
 }
 
 
-void gensphere_grib (geom_t * geom, int * np, float ** xyz, 
+void gensphere_grib (geom_t * geom, int * np, float ** lonlat, 
                      unsigned int * nt, float ** F,
                      const std::string & file)
 {
   const int nstripe = 8;
   int indoff[nstripe];
 
-  *xyz = NULL;
+  *lonlat = NULL;
 
   FILE * in = fopen (file.c_str (), "r");
 
@@ -351,29 +351,19 @@ void gensphere_grib (geom_t * geom, int * np, float ** xyz,
   for (int jlat = 2; jlat <= geom->Nj+1; jlat++)
      geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
-  *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+  *lonlat = (float *)malloc (2 * sizeof (float) * v_len);
 
 
 #pragma omp parallel for
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
       float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
-      float coslat = cos (lat); float sinlat = sin (lat);
       for (int jlon = 1; jlon <= geom->pl[jlat-1]; jlon++)
         {
           float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
-          float coslon = cos (lon); float sinlon = sin (lon);
-          float radius = 1.0;
           int jglo = geom->jglooff[jlat-1] + jlon - 1;
-          float X = coslon * coslat * radius;
-          float Y = sinlon * coslat * radius;
-          float Z =          sinlat * radius;
-
-          (*xyz)[3*jglo+2] = Z;
-          (*xyz)[3*jglo+1] = Y;
-          (*xyz)[3*jglo+0] = X;
-
-
+	  (*lonlat)[2*jglo+0] = lon;
+	  (*lonlat)[2*jglo+1] = lat;
         }
     }
   
