@@ -87,7 +87,7 @@ bool endsWith (std::string const & fullString, std::string const & ending)
 
 int main (int argc, char * argv[])
 {
-  float * lonlat;
+  unsigned short * lonlat;
   int np; 
   unsigned int nt;
   bool remove_open;
@@ -193,9 +193,12 @@ int main (int argc, char * argv[])
 
   glGenBuffers (1, &vertexbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (float), lonlat, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (unsigned short), lonlat, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 2, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribPointer (0, 2, GL_UNSIGNED_SHORT, GL_TRUE, 0, NULL); 
+  free (lonlat);
+  lonlat = NULL;
+
 
   const int ncol = 1;
   glGenBuffers (1, &colorbuffer);
@@ -203,11 +206,15 @@ int main (int argc, char * argv[])
   glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), r, GL_STATIC_DRAW);
   glEnableVertexAttribArray (1); 
   glVertexAttribPointer (1, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
+  free (r);
+  r = NULL;
 
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
+  free (geom.ind);
+  geom.ind = NULL;
 
   std::cout << " nt = " << nt << " np = " << np << std::endl;
 
@@ -235,10 +242,16 @@ out vec4 fragmentColor;
 
 uniform mat4 MVP;
 
+
 void main()
 {
-  float coslon = cos (vertexPos.x), sinlon = sin (vertexPos.x);
-  float coslat = cos (vertexPos.y), sinlat = sin (vertexPos.y);
+  const float pi =  3.14159265358979323846;
+
+  float lon = 2 * pi * vertexPos.x;
+  float lat = 1 * pi * vertexPos.y - pi / 2.;
+
+  float coslon = cos (lon), sinlon = sin (lon);
+  float coslat = cos (lat), sinlat = sin (lat);
 
   float X = coslon * coslat;
   float Y = sinlon * coslat;
@@ -281,7 +294,12 @@ void main()
         glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
       else
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+//    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+//
+//
+      int it0 = 1 * nt / 4;
+      int it1 = 3 * nt / 4;
+      glDrawElements (GL_TRIANGLES, 3 * (it1 - it0), GL_UNSIGNED_INT, (void*)(3 * 4 * it0));
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
 

@@ -43,7 +43,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     for (int jlon = 1; jlon <= pl[Nj-1]; jlon++)
       trid[iglooff[Nj-1]+jlon-1] = -1;
 
-//#pragma omp parallel for 
+#pragma omp parallel for 
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
@@ -151,7 +151,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 }
 #undef MODULO
 
-void gensphere (geom_t * geom, int * np, float ** lonlat, 
+void gensphere (geom_t * geom, int * np, unsigned short ** lonlat, 
                 unsigned int * nt, float ** F, const std::string & type)
 {
   const int nstripe = 8;
@@ -202,7 +202,7 @@ void gensphere (geom_t * geom, int * np, float ** lonlat,
       for (int jlat = 2; jlat <= geom->Nj + 1; jlat++)
          geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
      
-      *lonlat = (float *)malloc (2 * sizeof (float) * v_len);
+      *lonlat = (unsigned short *)malloc (2 * sizeof (unsigned short) * v_len);
       *F = (float *)malloc (sizeof (float) * v_len);
     }
 
@@ -224,8 +224,8 @@ void gensphere (geom_t * geom, int * np, float ** lonlat,
 
 	  if (init)
             {
-              (*lonlat)[2*jglo+0] = lon;
-              (*lonlat)[2*jglo+1] = lat;
+              (*lonlat)[2*jglo+0] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lon + 0.0f       ) / (2.0f * M_PI));
+              (*lonlat)[2*jglo+1] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lat + M_PI / 2.0f) / (2.0f * M_PI));
 	    }
 
           (*F)[jglo] = 0;
@@ -294,7 +294,7 @@ static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3)
 }
 
 
-void gensphere_grib (geom_t * geom, int * np, float ** lonlat, 
+void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat, 
                      unsigned int * nt, float ** F,
                      const std::string & file)
 {
@@ -351,7 +351,7 @@ void gensphere_grib (geom_t * geom, int * np, float ** lonlat,
   for (int jlat = 2; jlat <= geom->Nj+1; jlat++)
      geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
-  *lonlat = (float *)malloc (2 * sizeof (float) * v_len);
+  *lonlat = (unsigned short *)malloc (2 * sizeof (unsigned short) * v_len);
 
 
 #pragma omp parallel for
@@ -362,8 +362,8 @@ void gensphere_grib (geom_t * geom, int * np, float ** lonlat,
         {
           float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
           int jglo = geom->jglooff[jlat-1] + jlon - 1;
-	  (*lonlat)[2*jglo+0] = lon;
-	  (*lonlat)[2*jglo+1] = lat;
+          (*lonlat)[2*jglo+0] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lon + 0.0f       ) / (2.0f * M_PI));
+          (*lonlat)[2*jglo+1] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lat + M_PI / 2.0f) / (1.0f * M_PI));
         }
     }
   
