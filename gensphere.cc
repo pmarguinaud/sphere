@@ -141,43 +141,41 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
                   PRINT (ica, icb, icc);
 
+#define RS1 \
+  do { \
+    irestart++;                     \
+    *(inds_strip++) = 0xffffffff;   \
+    *(inds_strip++) = icb-1;        \
+    *(inds_strip++) = icb-1;        \
+    *(inds_strip++) = ica-1;        \
+    *(inds_strip++) = icc-1;        \
+  } while (0)
+
+#define RS2 \
+  do { \
+    irestart++;                     \
+    *(inds_strip++) = 0xffffffff;   \
+    *(inds_strip++) = ica-1;        \
+    *(inds_strip++) = ica-1;        \
+    *(inds_strip++) = icb-1;        \
+    *(inds_strip++) = icc-1;        \
+  } while (0)
+
+
                   if (idlonc == 0)
                     {
-                      irestart++;
 		      if (iloen1 < iloen2)
-                        {
-                          *(inds_strip++) = 0xffffffff;
-                          *(inds_strip++) = icb-1;
-                          *(inds_strip++) = icb-1;
-                          *(inds_strip++) = ica-1;
-                          *(inds_strip++) = icc-1;
-		        }
+                        RS1;
 		      else
-                        {
-                          *(inds_strip++) = 0xffffffff;
-                          *(inds_strip++) = ica-1;
-                          *(inds_strip++) = ica-1;
-                          *(inds_strip++) = icb-1;
-                          *(inds_strip++) = icc-1;
-		        }
+                        RS2;
 		    }
 		  else if (av2 > 1)
 		    {
-                      irestart++;
-                      *(inds_strip++) = 0xffffffff;
-                      *(inds_strip++) = icb-1;
-                      *(inds_strip++) = icb-1;
-                      *(inds_strip++) = ica-1;
-                      *(inds_strip++) = icc-1;
+                      RS1;
 		    }
 		  else if (av1 > 1)
 		    {
-                      irestart++;
-                      *(inds_strip++) = 0xffffffff;
-                      *(inds_strip++) = ica-1;
-                      *(inds_strip++) = ica-1;
-                      *(inds_strip++) = icb-1;
-                      *(inds_strip++) = icc-1;
+                      RS2;
 		    }
 		  else
 		    {
@@ -192,7 +190,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
                             int jlon2n = JNEXT (jlon2, iloen2);
                             AV2;
                             PRINT (ica, icb, icc);
-//                          *(inds_strip++) = icc;
+			    RS1;
                           }
                       else if (jlon2 == 1)
                         while (jlon1 != 1)
@@ -200,7 +198,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
                             int jlon1n = JNEXT (jlon1, iloen1);
                             AV1;
                             PRINT (ica, icb, icc);
-//                          *(inds_strip++) = icc;
+			    RS2;
                           }
                       break;
                     }
@@ -465,18 +463,6 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
 
   codes_handle_delete (h);
 
-  for (int i = 0; i < geom->pl[0]; i++)
-    {
-      printf ("%8d %8d %8d\n", geom->ind[3*i+0], geom->ind[3*i+1], geom->ind[3*i+2]);
-    }
-
-  printf ("------\n");
-  for (int i = 1; i < 21; i++)
-    {
-      printf ("%8d %8d %8d\n", geom->ind_strip[i], geom->ind_strip[i+1], geom->ind_strip[i+2]);
-    }
-  
-//exit (0);
 }
 
 
