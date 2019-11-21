@@ -58,14 +58,16 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
       unsigned int * inds_strip = ind_strip + ind_stripcntoff[istripe];
 
 
+
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
         {
+          int irestart = 0;
+
           int iloen1 = pl[jlat - 1];
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
 
-     
           if (iloen1 == iloen2) 
             {
               *(inds_strip++) = jglooff1;
@@ -88,14 +90,12 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
             }
           else 
             {
-              *(inds_strip++) = jglooff1;
-              *(inds_strip++) = jglooff2;
    
-if (jlat == 1) printf (" iloen1 = %d, iloen2 = %d\n", iloen1, iloen2);
-
               int jlon1 = 1;
               int jlon2 = 1;
               bool turn = false;
+	      int av1 = 0, av2 = 0;
+
               for (;;)
                 {
                   int ica = 0, icb = 0, icc = 0;
@@ -111,6 +111,7 @@ if (jlat == 1) printf (" iloen1 = %d, iloen2 = %d\n", iloen1, iloen2);
     if (trid) trid[ica-1] = (inds - ind) / 3;                                 \
     jlon1 = jlon1n;                                                           \
     turn = turn || jlon1 == 1;                                                \
+    av1++; av2 = 0;                                                           \
   } while (0)
 
 #define AV2 \
@@ -119,6 +120,7 @@ if (jlat == 1) printf (" iloen1 = %d, iloen2 = %d\n", iloen1, iloen2);
     if (triu) triu[icb-1] = (inds - ind) / 3;                                 \
     jlon2 = jlon2n;                                                           \
     turn = turn || jlon2 == 1;                                                \
+    av2++; av1 = 0;                                                           \
   } while (0)
 
                   int idlonc = JDLON (jlon1, jlon2);
@@ -136,11 +138,51 @@ if (jlat == 1) printf (" iloen1 = %d, iloen2 = %d\n", iloen1, iloen2);
                     AV1;
                   else
                     abort ();
-             
-if (jlat == 1) printf (" ica = %d, icb = %d, icc = %d\n", ica, icb, icc);
 
                   PRINT (ica, icb, icc);
-                  *(inds_strip++) = icc-1;
+
+                  if (idlonc == 0)
+                    {
+                      irestart++;
+		      if (iloen1 < iloen2)
+                        {
+                          *(inds_strip++) = 0xffffffff;
+                          *(inds_strip++) = icb-1;
+                          *(inds_strip++) = icb-1;
+                          *(inds_strip++) = ica-1;
+                          *(inds_strip++) = icc-1;
+		        }
+		      else
+                        {
+                          *(inds_strip++) = 0xffffffff;
+                          *(inds_strip++) = ica-1;
+                          *(inds_strip++) = ica-1;
+                          *(inds_strip++) = icb-1;
+                          *(inds_strip++) = icc-1;
+		        }
+		    }
+		  else if (av2 > 1)
+		    {
+                      irestart++;
+                      *(inds_strip++) = 0xffffffff;
+                      *(inds_strip++) = icb-1;
+                      *(inds_strip++) = icb-1;
+                      *(inds_strip++) = ica-1;
+                      *(inds_strip++) = icc-1;
+		    }
+		  else if (av1 > 1)
+		    {
+                      irestart++;
+                      *(inds_strip++) = 0xffffffff;
+                      *(inds_strip++) = ica-1;
+                      *(inds_strip++) = ica-1;
+                      *(inds_strip++) = icb-1;
+                      *(inds_strip++) = icc-1;
+		    }
+		  else
+		    {
+                      *(inds_strip++) = icc-1;
+		    }
                  
                   if (turn)
                     {
@@ -170,6 +212,7 @@ if (jlat == 1) printf (" ica = %d, icb = %d, icc = %d\n", ica, icb, icc);
 
           *(inds_strip++) = 0xffffffff;
 
+printf ("%8d %8d %8d\n", jlat, pl[jlat-1], irestart);
         }
 
     }
@@ -358,6 +401,8 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int jlat = 1; jlat < geom->Nj; jlat++)
     *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
+  const int iguard = 40;
+
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
@@ -367,7 +412,7 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
         indcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
       ind_stripcnt[istripe] = 0;
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat] + 3;
+        ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat] + iguard;
     }
   
   v_len = 0;
@@ -380,9 +425,9 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int i = 0; i < *np; i++) geom->triu[i] = -2;
   for (int i = 0; i < *np; i++) geom->trid[i] = -2;
   geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  geom->ind_strip = (unsigned int *)malloc ((*nt + 3 * (geom->Nj-1)) * sizeof (unsigned int));
+  geom->ind_strip = (unsigned int *)malloc ((*nt + iguard * (geom->Nj-1)) * sizeof (unsigned int));
 
-  memset (geom->ind_strip, 0, (*nt + 3 * (geom->Nj-1)) * sizeof (unsigned int));
+  memset (geom->ind_strip, 0xff, (*nt + iguard * (geom->Nj-1)) * sizeof (unsigned int));
   glgauss (geom->Nj, geom->pl, geom->ind, geom->ind_strip, nstripe, 
            indcnt, ind_stripcnt, geom->triu, geom->trid);
 
@@ -426,7 +471,7 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
     }
 
   printf ("------\n");
-  for (int i = 0; i < 20; i++)
+  for (int i = 1; i < 21; i++)
     {
       printf ("%8d %8d %8d\n", geom->ind_strip[i], geom->ind_strip[i+1], geom->ind_strip[i+2]);
     }

@@ -177,9 +177,13 @@ int main (int argc, char * argv[])
   glEnable (GL_DEPTH_TEST);
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+if(0){
   glCullFace (GL_BACK);
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
+}
+
   glDepthFunc (GL_LESS); 
 
 
@@ -315,8 +319,8 @@ void main()
       }else{
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
-//    glDrawElements (GL_TRIANGLE_STRIP, nt + 3 * (geom.Nj-1), GL_UNSIGNED_INT, NULL);
-      glDrawElements (GL_TRIANGLE_STRIP, 100, GL_UNSIGNED_INT, NULL);
+      glDrawElements (GL_TRIANGLE_STRIP, nt + 3 * (geom.Nj-1), GL_UNSIGNED_INT, NULL);
+//    glDrawElements (GL_TRIANGLE_STRIP, 8000, GL_UNSIGNED_INT, NULL);
       glDisable (GL_PRIMITIVE_RESTART);
       }
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
