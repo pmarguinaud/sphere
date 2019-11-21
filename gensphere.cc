@@ -61,12 +61,11 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
         {
-          int irestart = 0;
-
           int iloen1 = pl[jlat - 1];
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
+
 
           if (iloen1 == iloen2) 
             {
@@ -141,9 +140,9 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
                   PRINT (ica, icb, icc);
 
+
 #define RS1 \
   do { \
-    irestart++;                     \
     *(inds_strip++) = 0xffffffff;   \
     *(inds_strip++) = icb-1;        \
     *(inds_strip++) = icb-1;        \
@@ -153,9 +152,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
 #define RS2 \
   do { \
-    irestart++;                     \
     *(inds_strip++) = 0xffffffff;   \
-    *(inds_strip++) = ica-1;        \
     *(inds_strip++) = ica-1;        \
     *(inds_strip++) = icb-1;        \
     *(inds_strip++) = icc-1;        \
@@ -164,10 +161,14 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
                   if (idlonc == 0)
                     {
-		      if (iloen1 < iloen2)
-                        RS1;
-		      else
-                        RS2;
+		      if (av2)
+                        {
+                          RS1;
+			}
+		      else if (av1)
+                        {
+                          RS2;
+			}
 		    }
 		  else if (av2 > 1)
 		    {
@@ -208,9 +209,13 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
          
             }
 
-          *(inds_strip++) = 0xffffffff;
+	  if (iloen1 > iloen2)
+          *(inds_strip++) = inds_strip[0];
 
-printf ("%8d %8d %8d\n", jlat, pl[jlat-1], irestart);
+          unsigned int * inds_strip_max = ind_strip + ind_stripcntoff[istripe] 
+	                + iloen1 + iloen2 + 4 * (2 + abs (iloen1 - iloen2));
+          for (; inds_strip < inds_strip_max; inds_strip++)
+            *inds_strip = 0xffffffff;
         }
 
     }
@@ -372,7 +377,7 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
                      unsigned int * nt, float ** F,
                      const std::string & file)
 {
-  const int nstripe = 8;
+  const int nstripe = 1;
   int indcnt[nstripe];
   int ind_stripcnt[nstripe];
 
@@ -399,8 +404,7 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int jlat = 1; jlat < geom->Nj; jlat++)
     *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
-  const int iguard = 40;
-
+  geom->ind_strip_size = 0;
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
@@ -410,7 +414,9 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
         indcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
       ind_stripcnt[istripe] = 0;
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat] + iguard;
+        ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat]
+		               + 4 * (2 + abs (geom->pl[jlat-1] - geom->pl[jlat]));
+      geom->ind_strip_size += ind_stripcnt[istripe];
     }
   
   v_len = 0;
@@ -423,9 +429,9 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int i = 0; i < *np; i++) geom->triu[i] = -2;
   for (int i = 0; i < *np; i++) geom->trid[i] = -2;
   geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  geom->ind_strip = (unsigned int *)malloc ((*nt + iguard * (geom->Nj-1)) * sizeof (unsigned int));
+  geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
 
-  memset (geom->ind_strip, 0xff, (*nt + iguard * (geom->Nj-1)) * sizeof (unsigned int));
+  memset (geom->ind_strip, 0xff, geom->ind_strip_size * sizeof (unsigned int));
   glgauss (geom->Nj, geom->pl, geom->ind, geom->ind_strip, nstripe, 
            indcnt, ind_stripcnt, geom->triu, geom->trid);
 

@@ -20,9 +20,9 @@
 
 static bool verbose = false;
 static float lonc = 0.0f;
-static float latc = 90.0f;
+static float latc = 0.0f;
 static float R = 6.0f;
-static float fov = 2.0f;
+static float fov = 20.0f;
 static bool wireframe = false;
 static bool rotate = false;
 
@@ -178,7 +178,7 @@ int main (int argc, char * argv[])
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-if(0){
+if(1){
   glCullFace (GL_BACK);
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
@@ -222,7 +222,7 @@ if(0){
   }else{
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, (nt + 3 * (geom.Nj-1)) * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
+  glBufferData (GL_ELEMENT_ARRAY_BUFFER, geom.ind_strip_size * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
   }
 
   free (geom.ind);
@@ -319,8 +319,7 @@ void main()
       }else{
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
-      glDrawElements (GL_TRIANGLE_STRIP, nt + 3 * (geom.Nj-1), GL_UNSIGNED_INT, NULL);
-//    glDrawElements (GL_TRIANGLE_STRIP, 8000, GL_UNSIGNED_INT, NULL);
+      glDrawElements (GL_TRIANGLE_STRIP, geom.ind_strip_size, GL_UNSIGNED_INT, NULL);
       glDisable (GL_PRIMITIVE_RESTART);
       }
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);

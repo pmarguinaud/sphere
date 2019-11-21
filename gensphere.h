@@ -31,6 +31,7 @@ public:
   int * jglooff = NULL;
   unsigned int * ind = NULL;
   unsigned int * ind_strip = NULL;
+  int ind_strip_size = 0;
   int * triu = NULL;
   int * trid = NULL;
   int jglo (const class jlonlat_t & jlonlat) const 
