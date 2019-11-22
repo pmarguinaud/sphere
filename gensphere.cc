@@ -16,7 +16,9 @@
 
 #define PRINT(a,b,c) \
   do {                                                            \
+      if (inds != NULL) {                                         \
       *(inds++) = (a)-1; *(inds++) = (b)-1; *(inds++) = (c)-1;    \
+      }                                                           \
   } while (0)
 
 static 
@@ -54,7 +56,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     {
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
       int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
-      unsigned int * inds = ind + 3 * indcntoff[istripe];
+      unsigned int * inds = ind == NULL ? NULL  : ind + 3 * indcntoff[istripe];
       unsigned int * inds_strip = ind_strip + ind_stripcntoff[istripe];
 
 
@@ -274,11 +276,16 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
     v_len += geom->pl[jlat-1];
   *np  = v_len;
   
+  bool do_ind = false;
+
+  if (do_ind) {
   geom->triu = (int *)malloc ((*np) * sizeof (int));
   geom->trid = (int *)malloc ((*np) * sizeof (int));
   for (int i = 0; i < *np; i++) geom->triu[i] = -2;
   for (int i = 0; i < *np; i++) geom->trid[i] = -2;
   geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+  }
+
   geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
 
   memset (geom->ind_strip, 0xff, geom->ind_strip_size * sizeof (unsigned int));

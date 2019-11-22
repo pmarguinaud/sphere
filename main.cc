@@ -104,15 +104,11 @@ int main (int argc, char * argv[])
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
     size += geom.pl[jlat-1];
 
-  float maxval = *std::max_element (F, F + size);
-  float minval = *std::min_element (F, F + size);
 
-
-  minval = 233.15;
-  maxval = 313.15;
+  float minval = 233.15;
+  float maxval = 313.15;
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
-//  r[i] = F[i];
     r[i] = 255 * (std::min (maxval, std::max (minval, F[i])) - minval) / (maxval - minval);
 
 
@@ -199,14 +195,14 @@ if(1){
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
+  free (geom.ind);
+  geom.ind = NULL;
   }else{
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, geom.ind_strip_size * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
   }
 
-  free (geom.ind);
-  geom.ind = NULL;
 
 
   GLuint programID = shader 
@@ -272,12 +268,6 @@ void main()
 
 }
 )CODE");
-
-  if(0){
-  GLfloat lineWidthRange[2] = {0.0f, 0.0f};
-  glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
-  std::cout << lineWidthRange[0] << " " << lineWidthRange[1] << std::endl;
-  }
 
   while (1) 
     {   

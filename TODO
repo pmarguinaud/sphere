@@ -1,3 +1,0 @@
-Either :
-- remove lines which do not close and do not end on field limits
-- or remove lines which do not close and are too close to another line
