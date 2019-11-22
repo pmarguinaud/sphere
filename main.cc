@@ -90,12 +90,7 @@ int main (int argc, char * argv[])
   unsigned short * lonlat;
   int np; 
   unsigned int nt;
-  bool remove_open;
  
-  const char * REMOVE_OPEN = getenv ("REMOVE_OPEN");
-
-  remove_open = (REMOVE_OPEN && atoi (REMOVE_OPEN));
-
   geom_t geom;
 
   const int width = 1024, height = 1024;
@@ -103,21 +98,7 @@ int main (int argc, char * argv[])
   unsigned char * r = NULL;
   float * F = NULL;
 
-  if (endsWith (argv[1], std::string (".grb")))
-    {
-      gensphere_grib (&geom, &np, &lonlat, &nt, &F, argv[1]);
-      if (argc > 2)
-        gensphere (&geom, &np, &lonlat, &nt, &F, argv[2]);
-    }
-  else
-    {
-      geom.Nj = atoi (argv[1]);
-      std::string type = "gradx";
-      if (argc > 2)
-        type = argv[2];
-      gensphere (&geom, &np, &lonlat, &nt, &F, type);
-    }
-
+  gensphere (&geom, &np, &lonlat, &nt, &F, argv[1]);
 
   int size = 0;
   for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
@@ -126,10 +107,9 @@ int main (int argc, char * argv[])
   float maxval = *std::max_element (F, F + size);
   float minval = *std::min_element (F, F + size);
 
-  std::cout << minval << " " << maxval << std::endl;
 
-  minval = 253.15;
-  maxval = 293.15;
+  minval = 233.15;
+  maxval = 313.15;
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
 //  r[i] = F[i];
@@ -228,7 +208,6 @@ if(1){
   free (geom.ind);
   geom.ind = NULL;
 
-  std::cout << " nt = " << nt << " np = " << np << std::endl;
 
   GLuint programID = shader 
 (
@@ -272,10 +251,24 @@ void main()
   vec3 pos = 0.99 * vec3 (X, Y, Z);
   gl_Position = MVP * vec4 (pos, 1);
 
+  vec4 b = vec4 (0.0f, 0.0f, 1.0f, 1.0);
+  vec4 w = vec4 (1.0f, 1.0f, 1.0f, 1.0);
+  vec4 r = vec4 (1.0f, 0.0f, 0.0f, 1.0);
+
+  float x1 = vertexVal / 0.5f;
+  float x2 = (vertexVal - 0.5f) / 0.5f;
+  bool bb = vertexVal > 0.5f;
+  float wb = bb ? 0.0f : 1.0f - x1;
+  float ww = bb ? 1.0f - x2 : x1;
+  float wr = bb ? x2 : 0.0f;
+
+  fragmentColor = wb * b + ww * w + wr * r;
+  if(false){
   fragmentColor.r = vertexVal;
   fragmentColor.g = 0.;
   fragmentColor.b = 1. - vertexVal;
   fragmentColor.a = 1.;
+  }
 
 }
 )CODE");

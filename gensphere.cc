@@ -49,7 +49,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     for (int jlon = 1; jlon <= pl[Nj-1]; jlon++)
       trid[iglooff[Nj-1]+jlon-1] = -1;
 
-//#pragma omp parallel for 
+#pragma omp parallel for 
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
@@ -224,160 +224,10 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 #undef MODULO
 
 void gensphere (geom_t * geom, int * np, unsigned short ** lonlat, 
-                unsigned int * nt, float ** F, const std::string & type)
+                unsigned int * nt, float ** F,
+                const std::string & file)
 {
-  const int nstripe = 8;
-  int indcnt[nstripe];
-  int ind_stripcnt[nstripe];
-  bool init = geom->pl == NULL;
-
-  if (init)
-    {
-      *lonlat = NULL;
-     
-      geom->pl = (long int *)malloc (sizeof (long int) * geom->Nj);
-     
-      for (int jlat = 1; jlat <= geom->Nj; jlat++)
-        {
-          float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
-          float coslat = cos (lat);
-          geom->pl[jlat-1] = (2. * geom->Nj * coslat);
-        }
-     
-      *nt = 0;
-      for (int jlat = 1; jlat < geom->Nj; jlat++)
-        *nt += geom->pl[jlat-1] + geom->pl[jlat];
-     
-      for (int istripe = 0; istripe < nstripe; istripe++)
-        {
-          int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
-          int jlat2 = 0 + ((istripe + 1) * (geom->Nj-1)) / nstripe;
-          indcnt[istripe] = 0;
-          for (int jlat = jlat1; jlat <= jlat2; jlat++)
-            indcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
-          ind_stripcnt[istripe] = 0;
-          for (int jlat = jlat1; jlat <= jlat2; jlat++)
-            ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat] + 3;
-        }
-      
-      int v_len = 0;
-      for (int jlat = 1; jlat <= geom->Nj; jlat++)
-        v_len += geom->pl[jlat-1];
-      *np  = v_len;
-      
-      geom->triu = (int *)malloc ((*np) * sizeof (int));
-      geom->trid = (int *)malloc ((*np) * sizeof (int));
-      for (int i = 0; i < *np; i++) geom->triu[i] = -2;
-      for (int i = 0; i < *np; i++) geom->trid[i] = -2;
-
-      geom->ind_strip = (unsigned int *)malloc ((*nt + 3 * (geom->Nj-1)) * sizeof (unsigned int));
-      geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-      glgauss (geom->Nj, geom->pl, geom->ind, geom->ind_strip, nstripe, 
-               indcnt, ind_stripcnt, geom->triu, geom->trid);
-     
-     
-      geom->jglooff = (int *)malloc ((1 + geom->Nj) * sizeof (int));
-      geom->jglooff[0] = 0;
-      for (int jlat = 2; jlat <= geom->Nj + 1; jlat++)
-         geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
-     
-      *lonlat = (unsigned short *)malloc (2 * sizeof (unsigned short) * v_len);
-      *F = (float *)malloc (sizeof (float) * v_len);
-    }
-
-#pragma omp parallel for
-  for (int jlat = 1; jlat <= geom->Nj; jlat++)
-    {
-      float lat = M_PI * (0.5 - (float)jlat / (float)(geom->Nj + 1));
-      float coslat = cos (lat); float sinlat = sin (lat);
-      for (int jlon = 1; jlon <= geom->pl[jlat-1]; jlon++)
-        {
-          float lon = 2. * M_PI * (float)(jlon-1) / (float)geom->pl[jlat-1];
-          float coslon = cos (lon); float sinlon = sin (lon);
-
-          float X = coslon * coslat;
-          float Y = sinlon * coslat;
-          float Z =          sinlat;
-
-          int jglo = geom->jglooff[jlat-1] + jlon - 1;
-
-	  if (init)
-            {
-              (*lonlat)[2*jglo+0] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lon + 0.0f       ) / (2.0f * M_PI));
-              (*lonlat)[2*jglo+1] = (unsigned short int)(std::numeric_limits<unsigned short int>::max() * (lat + M_PI / 2.0f) / (2.0f * M_PI));
-	    }
-
-          (*F)[jglo] = 0;
-	  if (type == "gradx")
-            (*F)[jglo] = (1 + coslon) * coslat / 2.0;
-	  else if (type == "lon")
-            (*F)[jglo] = lon / (2 * M_PI);
-	  else if (type == "lat")
-            (*F)[jglo] = (1 + lat / (M_PI / 2)) / 2.0;
-	  else if (type == "coslatxcos2lon")
-            (*F)[jglo] = (1 + coslat * cos (2 * lon)) / 2.0;
-	  else if (type == "coslatxcos3lon")
-            (*F)[jglo] = (1 + coslat * cos (3 * lon)) / 2.0;
-	  else if (type == "lat2xcos2lon")
-            (*F)[jglo] = (1 - lat / (M_PI / 2)) * (1 + lat / (M_PI / 2)) * (1 + cos (2 * lon)) / 2.0;
-	  else if (type == "XxYxZ")
-            (*F)[jglo] = ((1 + X*X*X*X*X*X) / 2.0 * (1 + Y*Y*Y*Y*Y*Y) / 2.0 * (1 + Z*Z*Z*Z*Z*Z) / 2.0);
-	  else if (type == "saddle0")
-            {
-              float lon1 = lon > M_PI ? lon - 2 * M_PI : lon; 
-              (*F)[jglo] = lon1 * cos (lon1 / 2) * lat * cos (lat);
-	    }
-	  else
-            abort ();
-
-        }
-    }
-  
-}
-
-static inline int MODULO (int A, int B) 
-{
-  return (((A) % (B) < 0) ? (((A) % (B)) + (B)) : ((A) % (B)));
-}
-
-static inline int INORM (int KLO, int KLOEN) 
-{
-  return (1 + MODULO (KLO-1, KLOEN));
-}
-
-static inline void IQR (int & iq, int & ir, 
-                        int iloen1, int iloen2, int jlon1)
-{
-  int inum = iloen1 - iloen2 + jlon1 * iloen2, iden = iloen1;
-  iq   = inum / iden; ir = (iq - 1) * iloen1 - (jlon1 - 1) * iloen2;
-}
-
-static inline bool GT (int p1, int q1, int p2, int q2, int p3, int q3) 
-{
-  p1--; p2--; p3--;
-  if (p2 * q1 < p1 * q2)
-    p2 += q2;
-  if (p3 * q1 < p1 * q3)
-    p3 += q3;
-  return p2 * q3 - p3 * q2 > 0;
-}
-
-static inline bool LT (int p1, int q1, int p2, int q2, int p3, int q3) 
-{
-  p1--; p2--; p3--;
-  if (p2 * q1 < p1 * q2)
-    p2 += q2;
-  if (p3 * q1 < p1 * q3)
-    p3 += q3;
-  return p2 * q3 - p3 * q2 < 0;
-}
-
-
-void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat, 
-                     unsigned int * nt, float ** F,
-                     const std::string & file)
-{
-  const int nstripe = 1;
+  const int nstripe = 16;
   int indcnt[nstripe];
   int ind_stripcnt[nstripe];
 
@@ -435,6 +285,7 @@ void gensphere_grib (geom_t * geom, int * np, unsigned short ** lonlat,
   glgauss (geom->Nj, geom->pl, geom->ind, geom->ind_strip, nstripe, 
            indcnt, ind_stripcnt, geom->triu, geom->trid);
 
+//printf (" ind_strip_size = %d, ind_size = %d, %12.5f\n", geom->ind_strip_size, 3 * (*nt), (float)(3 * (*nt))/(float)(geom->ind_strip_size));
 
   geom->jglooff = (int *)malloc ((1 + geom->Nj) * sizeof (int));
   geom->jglooff[0] = 0;

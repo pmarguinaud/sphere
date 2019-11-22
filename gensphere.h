@@ -59,9 +59,5 @@ public:
 void gensphere (geom_t *, int *, unsigned short **, 
                 unsigned int *, float **, const std::string &);
 
-void gensphere_grib 
-               (geom_t *, int *, unsigned short **, 
-                unsigned int *, float **, const std::string &);
-
 
 #endif
