@@ -292,13 +292,7 @@ void main()
 
       if(do_ind)
       {
-      if(1){
       glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
-      }else{
-      int it0 = 1 * nt / 4;
-      int it1 = 3 * nt / 4;
-      glDrawElements (GL_TRIANGLES, 3 * (it1 - it0), GL_UNSIGNED_INT, (void*)(3 * 4 * it0));
-      }
       }else{
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
