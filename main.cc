@@ -300,14 +300,9 @@ if(1){
   free (r);
   r = NULL;
 
-  bool do_ind = false;
-  if(do_ind)
-  {
-  }else{
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, geom.ind_strip_size * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
-  }
 
   GLuint programID = shader 
 (
@@ -388,40 +383,16 @@ void main()
       else
         glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
-      if(do_ind)
-      {
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
-      }else{
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
-//    glDrawElements (GL_TRIANGLE_STRIP, geom.ind_strip_size, GL_UNSIGNED_INT, NULL);
-//
-if(0){
-      int nstripe = 8;
-      static int pr = 1;
-      for (int istripe = 1; istripe < nstripe-1; istripe++)
-        {
-          int jlat1 = 0 + ((geom.Nj-1) * (istripe + 0)) / nstripe;
-          int jlat2 = 1 + ((geom.Nj-1) * (istripe + 1)) / nstripe;
-	  if (pr)
-	  printf (" %8d %8d\n", jlat1, jlat2);
-          glDrawElements 
-            (GL_TRIANGLE_STRIP, 
-             geom.ind_stripoff_per_lat[jlat2] - geom.ind_stripoff_per_lat[jlat1], 
-             GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * geom.ind_stripoff_per_lat[jlat1]));
-        }
-      pr = 0;
-      glDisable (GL_PRIMITIVE_RESTART);
-}else{
-     int jlat1 = 0;
-     int jlat2 = geom.Nj;
-   
-     int k1 = geom.ind_stripoff_per_lat[jlat1];
-     int k2 = geom.ind_stripoff_per_lat[jlat2];
 
-     glDrawElements (GL_TRIANGLE_STRIP, k2 - k1, GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * k1));
-}
-      }
+      int jlat1 = 0;
+      int jlat2 = geom.Nj;
+   
+      int k1 = geom.ind_stripoff_per_lat[jlat1];
+      int k2 = geom.ind_stripoff_per_lat[jlat2];
+
+      glDrawElements (GL_TRIANGLE_STRIP, k2 - k1, GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * k1));
 
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
