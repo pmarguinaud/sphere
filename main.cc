@@ -285,8 +285,6 @@ if(1){
   glGenBuffers (1, &vertexbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
   glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (unsigned short), lonlat, GL_STATIC_DRAW);
-  std::cout << " 2 * np * sizeof (unsigned short) = " <<
-    2 * np * sizeof (unsigned short) << std::endl;
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 2, GL_UNSIGNED_SHORT, GL_TRUE, 0, NULL); 
   free (lonlat);
@@ -297,8 +295,6 @@ if(1){
   glGenBuffers (1, &colorbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, colorbuffer);
   glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), r, GL_STATIC_DRAW);
-  std::cout << " ncol * np * sizeof (unsigned char) = " << 
-  ncol * np * sizeof (unsigned char) << std::endl;
   glEnableVertexAttribArray (1); 
   glVertexAttribPointer (1, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
   free (r);
@@ -307,24 +303,11 @@ if(1){
   bool do_ind = false;
   if(do_ind)
   {
-  glGenBuffers (1, &elementbuffer);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  size_t sz = 3 * (size_t)nt * sizeof (unsigned int);
-  std::cout << " sizeof (GLsizeiptr) = " << sizeof (GLsizeiptr) << std::endl;
-  std::cout << " sz = " << sz << std::endl;
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, sz, geom.ind , GL_STATIC_DRAW);
-  exit (0);
-  free (geom.ind);
-  geom.ind = NULL;
   }else{
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, geom.ind_strip_size * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
-  std::cout << " geom.ind_strip_size * sizeof (unsigned int) = " <<
-	  geom.ind_strip_size * sizeof (unsigned int) << std::endl;
   }
-
-
 
   GLuint programID = shader 
 (
