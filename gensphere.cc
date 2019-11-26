@@ -24,8 +24,9 @@
 static 
 void glgauss (const long int Nj, const long int pl[], unsigned int * ind, 
               unsigned int * ind_strip,
-              const int nstripe, int indcnt[], int ind_stripcnt[], int * triu = NULL, 
-	      int * trid = NULL)
+              const int nstripe, int indcnt[], int ind_stripcnt[], int * triu, 
+	      int * trid, int ind_stripcnt_per_lat[], int ind_stripoff_per_lat[], 
+	      bool doopenmp = false)
 {
   int iglooff[Nj];
   int indcntoff[nstripe];
@@ -51,13 +52,12 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
     for (int jlon = 1; jlon <= pl[Nj-1]; jlon++)
       trid[iglooff[Nj-1]+jlon-1] = -1;
 
-#pragma omp parallel for 
+#pragma omp parallel for if (doopenmp)
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (Nj-1)) / nstripe;
       int jlat2 = 0 + ((istripe + 1) * (Nj-1)) / nstripe;
       unsigned int * inds = ind == NULL ? NULL  : ind + 3 * indcntoff[istripe];
-      unsigned int * inds_strip = ind_strip + ind_stripcntoff[istripe];
 
 
 
@@ -67,12 +67,15 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
           int iloen2 = pl[jlat + 0];
           int jglooff1 = iglooff[jlat-1] + 0;
           int jglooff2 = iglooff[jlat-1] + iloen1;
+          unsigned int * inds_strip = ind_strip ? ind_strip + ind_stripoff_per_lat[jlat-1] : NULL;
 
 
           if (iloen1 == iloen2) 
             {
+              if(inds_strip) {
               *(inds_strip++) = jglooff1;
               *(inds_strip++) = jglooff2;
+	      }
    
               for (int jlon1 = 1; jlon1 <= iloen1; jlon1++)
                 {
@@ -83,9 +86,11 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
                   int icd = jglooff1 + JNEXT (jlon1, iloen1);
 		  if (triu) triu[icb-1] = (inds - ind) / 3;
                   PRINT (ica, icb, icc);
+		  if (inds_strip)
                   *(inds_strip++) = icd-1;
 		  if (trid) trid[ica-1] = (inds - ind) / 3;
                   PRINT (ica, icc, icd);
+		  if (inds_strip)
                   *(inds_strip++) = icc-1;
                 }
             }
@@ -145,19 +150,23 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
 #define RS1 \
   do { \
+    if (inds_strip) { \
     *(inds_strip++) = 0xffffffff;   \
     *(inds_strip++) = icb-1;        \
     *(inds_strip++) = icb-1;        \
     *(inds_strip++) = ica-1;        \
     *(inds_strip++) = icc-1;        \
+    } \
   } while (0)
 
 #define RS2 \
   do { \
+    if (inds_strip) { \
     *(inds_strip++) = 0xffffffff;   \
     *(inds_strip++) = ica-1;        \
     *(inds_strip++) = icb-1;        \
     *(inds_strip++) = icc-1;        \
+    } \
   } while (0)
 
 
@@ -182,6 +191,7 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 		    }
 		  else
 		    {
+                      if (inds_strip)
                       *(inds_strip++) = icc-1;
 		    }
                  
@@ -208,16 +218,19 @@ void glgauss (const long int Nj, const long int pl[], unsigned int * ind,
 
                 }
          
-         
             }
 
-	  if (iloen1 > iloen2)
-          *(inds_strip++) = inds_strip[0];
+          if (inds_strip){
+          unsigned int * inds_strip_max = ind_strip 
+		                        + ind_stripoff_per_lat[jlat-1] 
+		                        + ind_stripcnt_per_lat[jlat-1];
 
-          unsigned int * inds_strip_max = ind_strip + ind_stripcntoff[istripe] 
-	                + iloen1 + iloen2 + 4 * (2 + abs (iloen1 - iloen2));
+          if (inds_strip >= inds_strip_max)
+            abort ();
+
           for (; inds_strip < inds_strip_max; inds_strip++)
             *inds_strip = 0xffffffff;
+	  }
         }
 
     }
@@ -256,7 +269,24 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int jlat = 1; jlat < geom->Nj; jlat++)
     *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
-  geom->ind_strip_size = 0;
+  geom->ind_stripcnt_per_lat = (int *)malloc ((geom->Nj + 1) * sizeof (int));
+  geom->ind_stripoff_per_lat = (int *)malloc ((geom->Nj + 1) * sizeof (int));
+
+  geom->ind_stripoff_per_lat[0] = 0;
+  for (int jlat = 1; jlat <= geom->Nj+1; jlat++)
+    {
+      if (jlat <= geom->Nj)
+        {
+          int len = geom->pl[jlat-1] + geom->pl[jlat] + 4 * (2 + abs (geom->pl[jlat-1] - geom->pl[jlat]));
+          geom->ind_stripcnt_per_lat[jlat-1] = len;
+        }
+      if (jlat > 1)
+        geom->ind_stripoff_per_lat[jlat-1] = geom->ind_stripcnt_per_lat[jlat-2] + geom->ind_stripoff_per_lat[jlat-2];
+//    printf (" %8d -> %8d, %8d\n",
+//            jlat-1, geom->ind_stripoff_per_lat[jlat-1], geom->ind_stripcnt_per_lat[jlat-1]);
+    }
+    
+
   for (int istripe = 0; istripe < nstripe; istripe++)
     {
       int jlat1 = 1 + ((istripe + 0) * (geom->Nj-1)) / nstripe;
@@ -266,10 +296,11 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
         indcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat];
       ind_stripcnt[istripe] = 0;
       for (int jlat = jlat1; jlat <= jlat2; jlat++)
-        ind_stripcnt[istripe] += geom->pl[jlat-1] + geom->pl[jlat]
-		               + 4 * (2 + abs (geom->pl[jlat-1] - geom->pl[jlat]));
-      geom->ind_strip_size += ind_stripcnt[istripe];
+        ind_stripcnt[istripe] += geom->ind_stripcnt_per_lat[jlat-1];
     }
+  geom->ind_strip_size = 0;
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+    geom->ind_strip_size += geom->ind_stripcnt_per_lat[jlat-1];
   
   v_len = 0;
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
@@ -284,14 +315,30 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int i = 0; i < *np; i++) geom->triu[i] = -2;
   for (int i = 0; i < *np; i++) geom->trid[i] = -2;
   geom->ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
+  }else{
+  geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
+  memset (geom->ind_strip, 0xff, geom->ind_strip_size * sizeof (unsigned int));
   }
 
-  geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
-
-  memset (geom->ind_strip, 0xff, geom->ind_strip_size * sizeof (unsigned int));
   glgauss (geom->Nj, geom->pl, geom->ind, geom->ind_strip, nstripe, 
-           indcnt, ind_stripcnt, geom->triu, geom->trid);
+           indcnt, ind_stripcnt, geom->triu, geom->trid, geom->ind_stripcnt_per_lat, geom->ind_stripoff_per_lat,
+	   true);
 
+  if (!do_ind)
+  for (int i = 0; i < geom->ind_strip_size; i++)
+    {
+      unsigned int j = geom->ind_strip[i];
+      unsigned int k = 0xffffffff;
+      if ((i < 10) || (i > geom->ind_strip_size-10))
+        printf (" %10d -> %u\n", i, j);
+      if ((j != k) && (j >= *np))
+        {
+          printf (" i = %d, j = %d, k = %d\n", i, j, k);
+          abort ();
+	}
+    }
+
+  
 //printf (" ind_strip_size = %d, ind_size = %d, %12.5f\n", geom->ind_strip_size, 3 * (*nt), (float)(3 * (*nt))/(float)(geom->ind_strip_size));
 
   geom->jglooff = (int *)malloc ((1 + geom->Nj) * sizeof (int));
@@ -326,6 +373,7 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
     (*F)[i] = v[i] == vmis ? 0. : v[i];
 
   codes_handle_delete (h);
+
 
 }
 

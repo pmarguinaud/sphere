@@ -13,9 +13,121 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <unistd.h>
+#include <png.h>
 #include <sys/time.h>
 #include "load.h"
 #include "gensphere.h"
+
+
+void write_png (const std::string & filename, int width, int height, unsigned char * pixels) 
+{
+  png_byte * png_bytes = NULL;
+  png_byte ** png_rows = NULL;
+  const size_t format_nchannels = 3;
+  size_t nvals = format_nchannels * width * height;
+  FILE * fp = fopen (filename.c_str (), "w");
+
+  png_bytes = (png_byte *)malloc (nvals * sizeof (png_byte));
+  png_rows = (png_byte **)malloc (height * sizeof (png_byte *));
+
+  for (int i = 0; i < nvals; i++)
+    png_bytes[i] = pixels[i];
+
+  for (int i = 0; i < height; i++)
+     png_rows[height-i-1] = &png_bytes[i*width*format_nchannels];
+
+  png_structp png = png_create_write_struct (PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+
+  if (! png)  
+    abort (); 
+
+  png_infop info = png_create_info_struct (png);
+
+  if (! info) 
+    abort (); 
+
+  if (setjmp (png_jmpbuf (png))) 
+    abort (); 
+
+  png_init_io (png, fp);
+
+  png_set_IHDR (png, info, width, height, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+                PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+
+  png_write_info (png, info);
+  png_write_image (png, png_rows);
+  png_write_end (png, NULL);
+  png_destroy_write_struct (&png, &info);
+
+  fclose (fp);
+
+  free (png_bytes);
+  free (png_rows);
+}
+
+
+unsigned int framebuffer;
+unsigned int renderbuffer;
+unsigned int texturebuffer;
+
+void framebuffer_part1 (int width, int height)
+{
+  glGenFramebuffers (1, &framebuffer);
+  glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
+  
+  glGenTextures (1, &texturebuffer);
+  glBindTexture (GL_TEXTURE_2D, texturebuffer);
+  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width,
+                height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                          GL_TEXTURE_2D, texturebuffer, 0);
+  
+  glGenRenderbuffers (1, &renderbuffer);
+  glBindRenderbuffer (GL_RENDERBUFFER, renderbuffer);
+  
+  glRenderbufferStorage (GL_RENDERBUFFER, GL_DEPTH32F_STENCIL8,
+                         width, height);
+  glFramebufferRenderbuffer (GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                             GL_RENDERBUFFER, renderbuffer);
+  
+  if (glCheckFramebufferStatus (GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    throw std::runtime_error (std::string ("Framebuffer is not complete"));
+
+}
+
+void snapshot (int width, int height)  
+{
+  unsigned char * rgb = new unsigned char[width * height * 4];
+
+  glReadPixels (0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgb);
+
+  for (int i = 0; i < width * height; i++)
+    for (int j = 0; j < 3; j++)
+      rgb[3*i+j] = rgb[4*i+j];
+
+  static int count = 0;
+  char tmp[64];
+
+  sprintf (tmp, "%10.10d.png", count++);
+    
+  std::string filename (tmp);
+  write_png (filename, width, height, rgb);
+
+  delete [] rgb;
+}
+
+void framebuffer_part2 (int width, int height)
+{
+  glDeleteRenderbuffers (1, &renderbuffer);
+  glDeleteTextures (1, &texturebuffer);
+  glDeleteFramebuffers (1, &framebuffer);
+  glBindFramebuffer (GL_FRAMEBUFFER, 0);
+
+}
+
 
 
 static bool verbose = false;
@@ -101,7 +213,7 @@ int main (int argc, char * argv[])
   gensphere (&geom, &np, &lonlat, &nt, &F, argv[1]);
 
   int size = 0;
-  for (int jlat = 1; jlat <= geom.Nj-1; jlat++)
+  for (int jlat = 1; jlat <= geom.Nj; jlat++)
     size += geom.pl[jlat-1];
 
 
@@ -110,7 +222,6 @@ int main (int argc, char * argv[])
   r = (unsigned char *)malloc (sizeof (unsigned char) * size);
   for (int i = 0; i < size; i++)
     r[i] = 255 * (std::min (maxval, std::max (minval, F[i])) - minval) / (maxval - minval);
-
 
 
   if (! glfwInit ()) 
@@ -174,6 +285,8 @@ if(1){
   glGenBuffers (1, &vertexbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
   glBufferData (GL_ARRAY_BUFFER, 2 * np * sizeof (unsigned short), lonlat, GL_STATIC_DRAW);
+  std::cout << " 2 * np * sizeof (unsigned short) = " <<
+    2 * np * sizeof (unsigned short) << std::endl;
   glEnableVertexAttribArray (0); 
   glVertexAttribPointer (0, 2, GL_UNSIGNED_SHORT, GL_TRUE, 0, NULL); 
   free (lonlat);
@@ -184,6 +297,8 @@ if(1){
   glGenBuffers (1, &colorbuffer);
   glBindBuffer (GL_ARRAY_BUFFER, colorbuffer);
   glBufferData (GL_ARRAY_BUFFER, ncol * np * sizeof (unsigned char), r, GL_STATIC_DRAW);
+  std::cout << " ncol * np * sizeof (unsigned char) = " << 
+  ncol * np * sizeof (unsigned char) << std::endl;
   glEnableVertexAttribArray (1); 
   glVertexAttribPointer (1, ncol, GL_UNSIGNED_BYTE, GL_TRUE, ncol * sizeof (unsigned char), NULL); 
   free (r);
@@ -194,13 +309,19 @@ if(1){
   {
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), geom.ind , GL_STATIC_DRAW);
+  size_t sz = 3 * (size_t)nt * sizeof (unsigned int);
+  std::cout << " sizeof (GLsizeiptr) = " << sizeof (GLsizeiptr) << std::endl;
+  std::cout << " sz = " << sz << std::endl;
+  glBufferData (GL_ELEMENT_ARRAY_BUFFER, sz, geom.ind , GL_STATIC_DRAW);
+  exit (0);
   free (geom.ind);
   geom.ind = NULL;
   }else{
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, geom.ind_strip_size * sizeof (unsigned int), geom.ind_strip , GL_STATIC_DRAW);
+  std::cout << " geom.ind_strip_size * sizeof (unsigned int) = " <<
+	  geom.ind_strip_size * sizeof (unsigned int) << std::endl;
   }
 
 
@@ -210,13 +331,24 @@ if(1){
 R"CODE(
 #version 330 core
 
-in vec4 fragmentColor;
+in float fragmentVal;
 
-out vec4 color;
+out vec4 fragmentColor;
 
 void main()
 {
-  color = fragmentColor;
+  vec4 b = vec4 (0.0f, 0.0f, 1.0f, 1.0);
+  vec4 w = vec4 (1.0f, 1.0f, 1.0f, 1.0);
+  vec4 r = vec4 (1.0f, 0.0f, 0.0f, 1.0);
+
+  float x1 = fragmentVal / 0.5f;
+  float x2 = (fragmentVal - 0.5f) / 0.5f;
+  bool bb = fragmentVal > 0.5f;
+  float wb = bb ? 0.0f : 1.0f - x1;
+  float ww = bb ? 1.0f - x2 : x1;
+  float wr = bb ? x2 : 0.0f;
+
+  fragmentColor = wb * b + ww * w + wr * r;
 }
 )CODE",
 R"CODE(
@@ -225,7 +357,7 @@ R"CODE(
 layout(location = 0) in vec2 vertexPos;
 layout(location = 1) in float vertexVal;
 
-out vec4 fragmentColor;
+out float fragmentVal;
 
 uniform mat4 MVP;
 
@@ -247,28 +379,11 @@ void main()
   vec3 pos = 0.99 * vec3 (X, Y, Z);
   gl_Position = MVP * vec4 (pos, 1);
 
-  vec4 b = vec4 (0.0f, 0.0f, 1.0f, 1.0);
-  vec4 w = vec4 (1.0f, 1.0f, 1.0f, 1.0);
-  vec4 r = vec4 (1.0f, 0.0f, 0.0f, 1.0);
-
-  float x1 = vertexVal / 0.5f;
-  float x2 = (vertexVal - 0.5f) / 0.5f;
-  bool bb = vertexVal > 0.5f;
-  float wb = bb ? 0.0f : 1.0f - x1;
-  float ww = bb ? 1.0f - x2 : x1;
-  float wr = bb ? x2 : 0.0f;
-
-  fragmentColor = wb * b + ww * w + wr * r;
-  if(false){
-  fragmentColor.r = vertexVal;
-  fragmentColor.g = 0.;
-  fragmentColor.b = 1. - vertexVal;
-  fragmentColor.a = 1.;
-  }
-
+  fragmentVal = vertexVal;
 }
 )CODE");
 
+  int count = 0;
   while (1) 
     {   
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
@@ -296,14 +411,48 @@ void main()
       }else{
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
-      glDrawElements (GL_TRIANGLE_STRIP, geom.ind_strip_size, GL_UNSIGNED_INT, NULL);
+//    glDrawElements (GL_TRIANGLE_STRIP, geom.ind_strip_size, GL_UNSIGNED_INT, NULL);
+//
+if(0){
+      int nstripe = 8;
+      static int pr = 1;
+      for (int istripe = 1; istripe < nstripe-1; istripe++)
+        {
+          int jlat1 = 0 + ((geom.Nj-1) * (istripe + 0)) / nstripe;
+          int jlat2 = 1 + ((geom.Nj-1) * (istripe + 1)) / nstripe;
+	  if (pr)
+	  printf (" %8d %8d\n", jlat1, jlat2);
+          glDrawElements 
+            (GL_TRIANGLE_STRIP, 
+             geom.ind_stripoff_per_lat[jlat2] - geom.ind_stripoff_per_lat[jlat1], 
+             GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * geom.ind_stripoff_per_lat[jlat1]));
+        }
+      pr = 0;
       glDisable (GL_PRIMITIVE_RESTART);
+}else{
+     int jlat1 = 0;
+     int jlat2 = geom.Nj;
+   
+     int k1 = geom.ind_stripoff_per_lat[jlat1];
+     int k2 = geom.ind_stripoff_per_lat[jlat2];
+
+     glDrawElements (GL_TRIANGLE_STRIP, k2 - k1, GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * k1));
+}
       }
+
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
 
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
+
+      if(0)
+      if (count > 2)
+      snapshot (width, height);
+
+      if(0)
+      if (count++ > 300)
+	break;
   
       if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         break;
