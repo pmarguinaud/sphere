@@ -66,38 +66,6 @@ void write_png (const std::string & filename, int width, int height, unsigned ch
 }
 
 
-unsigned int framebuffer;
-unsigned int renderbuffer;
-unsigned int texturebuffer;
-
-void framebuffer_part1 (int width, int height)
-{
-  glGenFramebuffers (1, &framebuffer);
-  glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-  
-  glGenTextures (1, &texturebuffer);
-  glBindTexture (GL_TEXTURE_2D, texturebuffer);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width,
-                height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-  
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                          GL_TEXTURE_2D, texturebuffer, 0);
-  
-  glGenRenderbuffers (1, &renderbuffer);
-  glBindRenderbuffer (GL_RENDERBUFFER, renderbuffer);
-  
-  glRenderbufferStorage (GL_RENDERBUFFER, GL_DEPTH32F_STENCIL8,
-                         width, height);
-  glFramebufferRenderbuffer (GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                             GL_RENDERBUFFER, renderbuffer);
-  
-  if (glCheckFramebufferStatus (GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    throw std::runtime_error (std::string ("Framebuffer is not complete"));
-
-}
-
 void snapshot (int width, int height)  
 {
   unsigned char * rgb = new unsigned char[width * height * 4];
@@ -118,16 +86,6 @@ void snapshot (int width, int height)
 
   delete [] rgb;
 }
-
-void framebuffer_part2 (int width, int height)
-{
-  glDeleteRenderbuffers (1, &renderbuffer);
-  glDeleteTextures (1, &texturebuffer);
-  glDeleteFramebuffers (1, &framebuffer);
-  glBindFramebuffer (GL_FRAMEBUFFER, 0);
-
-}
-
 
 
 static bool verbose = false;
@@ -187,15 +145,6 @@ std::cout << fov << std::endl;
 	}
     }
 }
-
-bool endsWith (std::string const & fullString, std::string const & ending) 
-{
-  if (fullString.length () >= ending.length ()) 
-    return (0 == fullString.compare (fullString.length () 
-            - ending.length (), ending.length (), ending));
-  return false;
-}
-
 
 int main (int argc, char * argv[])
 {
@@ -265,11 +214,9 @@ int main (int argc, char * argv[])
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-if(1){
   glCullFace (GL_BACK);
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
-}
 
   glDepthFunc (GL_LESS); 
 
@@ -361,7 +308,6 @@ void main()
 }
 )CODE");
 
-  int count = 0;
   while (1) 
     {   
       glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f, 0.1f, 100.0f);
@@ -386,28 +332,13 @@ void main()
       glEnable (GL_PRIMITIVE_RESTART);
       glPrimitiveRestartIndex (0xffffffff);
 
-      int jlat1 = 0;
-      int jlat2 = geom.Nj;
-   
-      int k1 = geom.ind_stripoff_per_lat[jlat1];
-      int k2 = geom.ind_stripoff_per_lat[jlat2];
-
-      glDrawElements (GL_TRIANGLE_STRIP, k2 - k1, GL_UNSIGNED_INT, (void *)(sizeof (unsigned int) * k1));
+      glDrawElements (GL_TRIANGLE_STRIP, geom.ind_strip_size, GL_UNSIGNED_INT, NULL);
 
       glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
 
-      if(0)
-      if (count > 2)
-      snapshot (width, height);
-
-      if(0)
-      if (count++ > 300)
-	break;
-  
       if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         break;
       if (glfwWindowShouldClose (window) != 0)  
