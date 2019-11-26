@@ -177,14 +177,14 @@ void glgauss (const long int Nj, const long int pl[],
           process_lat (jlat, iloen2, iloen1, jglooff2, jglooff1, &inds_strip, -1);
         }
   
-      unsigned int * inds_strip_max = ind_strip 
+      unsigned int * inds_strip_last = ind_strip 
     	                        + ind_stripoff_per_lat[jlat-1] 
     	                        + ind_stripcnt_per_lat[jlat-1];
   
-      if (inds_strip >= inds_strip_max)
+      if (inds_strip >= inds_strip_last)
         abort ();
   
-      for (; inds_strip < inds_strip_max; inds_strip++)
+      for (; inds_strip < inds_strip_last; inds_strip++)
         *inds_strip = 0xffffffff;
   
     }
@@ -192,6 +192,7 @@ void glgauss (const long int Nj, const long int pl[],
 
 }
 #undef MODULO
+
 
 void gensphere (geom_t * geom, int * np, unsigned short ** lonlat, 
                 unsigned int * nt, float ** F,
@@ -218,27 +219,27 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int jlat = 1; jlat < geom->Nj; jlat++)
     *nt += geom->pl[jlat-1] + geom->pl[jlat];
 
+  v_len = 0;
+  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+    v_len += geom->pl[jlat-1];
+  *np  = v_len;
+  
+
   geom->ind_stripcnt_per_lat = (int *)malloc ((geom->Nj + 1) * sizeof (int));
   geom->ind_stripoff_per_lat = (int *)malloc ((geom->Nj + 1) * sizeof (int));
 
   geom->ind_stripoff_per_lat[0] = 0;
   for (int jlat = 1; jlat <= geom->Nj+1; jlat++)
     {
-      if (jlat <= geom->Nj)
+      if (jlat <= geom->Nj) // k1^k2 < (k1 - k2); k1^k2 is the number of possible restarts
         geom->ind_stripcnt_per_lat[jlat-1] = geom->pl[jlat-1] + geom->pl[jlat] + 4 * (2 + abs (geom->pl[jlat-1] - geom->pl[jlat]));
       if (jlat > 1)
         geom->ind_stripoff_per_lat[jlat-1] = geom->ind_stripcnt_per_lat[jlat-2] + geom->ind_stripoff_per_lat[jlat-2];
     }
-    
 
   geom->ind_strip_size = 0;
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     geom->ind_strip_size += geom->ind_stripcnt_per_lat[jlat-1];
-  
-  v_len = 0;
-  for (int jlat = 1; jlat <= geom->Nj; jlat++)
-    v_len += geom->pl[jlat-1];
-  *np  = v_len;
   
   geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
 
