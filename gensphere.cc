@@ -372,6 +372,62 @@ int get_triu (const geom_t * geom, int jlat, int jlon)
   return itriu;
 }
 
+void get_ind (const geom_t * geom, int itri, int jglo[3])
+{
+  jglo[0] = jglo[1] = jglo[2] = 0;
+
+  int jlat1 = 1, jlat2 = geom->Nj, jlat;
+  while (1)
+    {
+      jlat = (jlat1 + jlat2) / 2;
+
+      if (jlat2 - jlat1 <= 1)
+        break;
+
+      if ((geom->indoff_per_lat[jlat1-1] <= itri) && (itri <= geom->indoff_per_lat[jlat-1]))
+        {
+          jlat2 = jlat;
+	}
+      else
+      if ((geom->indoff_per_lat[jlat-1] <= itri) && (itri <= geom->indoff_per_lat[jlat2-1]))
+        {
+          jlat1 = jlat;
+	}
+      else
+        {
+          abort ();
+        }
+
+    }
+
+  jlat1 = jlat + 0;
+  jlat2 = jlat + 1;
+
+  int iloen1 = geom->pl[jlat1-1];
+  int iloen2 = geom->pl[jlat2-1];
+
+  int jtri = itri - geom->indoff_per_lat[jlat1-1];
+
+  int jlon1 = 1 + (jtri * iloen1) / (iloen1 + iloen2);
+  int jlon2 = 1 + (jtri * iloen2) / (iloen1 + iloen2);
+
+  int itriu2 = get_triu (geom, jlat2, jlon2);
+
+  int dtri = abs (itriu2 - itri);
+
+  if (dtri > 1)
+  {
+  {
+  static int pr = 1;
+  if (pr)
+  printf (" %8s | %8s | %8s | %8s | %8s | %8s \n", "itri", "itriu2", "jlat1", "jlon1", "jlon2", "dtri");
+  pr = 0;
+  }
+  printf (" %8d | %8d | %8d | %8d | %8d | %8d \n", itri, itriu2, jlat1, jlon1, jlon2, dtri);
+  }
+
+}
+
 void check_tri (const geom_t * geom, int np, int nt)
 {
 
@@ -379,7 +435,7 @@ void check_tri (const geom_t * geom, int np, int nt)
   for (int i = 0; i < geom->Nj; i++)
     printf (" %8d %8d\n", i+1, geom->pl[i]);
 
-  printf ("-------------\n");
+  printf ("----ITRID----\n");
 
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
@@ -405,7 +461,7 @@ void check_tri (const geom_t * geom, int np, int nt)
 
     }
 
-  printf ("-------------\n");
+  printf ("----ITRIU----\n");
 
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
@@ -429,6 +485,22 @@ void check_tri (const geom_t * geom, int np, int nt)
      
         }
 
+    }
+
+  printf ("-----IND-----\n");
+
+//for (int it = 0; it < geom->indoff_per_lat[2]; it++)
+  for (int it = 0; it < nt; it++)
+    {
+      int jglo0[3];
+      int jglo1[3];
+      for (int i = 0; i < 3; i++)
+        jglo0[i] = geom->ind[3*it+i];
+      get_ind (geom, it, jglo1);
+      if(0)
+      printf (" %8d %8d %8d | %8d %8d %8d\n", 
+              jglo0[0], jglo0[1], jglo0[2],
+              jglo1[0], jglo1[1], jglo1[2]);
     }
 
 end:
@@ -471,7 +543,7 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   geom->indoff_per_lat[0] = 0;
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      if (jlat < geom->Nj)
+      if (jlat <= geom->Nj)
         geom->indcnt_per_lat[jlat-1] = geom->pl[jlat-1] + geom->pl[jlat];
       if (jlat > 1)
         geom->indoff_per_lat[jlat-1] = geom->indoff_per_lat[jlat-2] + geom->indcnt_per_lat[jlat-2];
