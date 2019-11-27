@@ -29,13 +29,18 @@ public:
   long int Nj = 0;
   long int * pl = NULL;
   int * jglooff = NULL;
+
   unsigned int * ind = NULL;
+  int * indcnt_per_lat = NULL;
+  int * indoff_per_lat = NULL;
+
   unsigned int * ind_strip = NULL;
+  int * ind_stripcnt_per_lat = NULL;
+  int * ind_stripoff_per_lat = NULL;
+
   int ind_strip_size = 0;
   int * triu = NULL;
   int * trid = NULL;
-  int * ind_stripcnt_per_lat = NULL;
-  int * ind_stripoff_per_lat = NULL;
   int jglo (const class jlonlat_t & jlonlat) const 
   { 
     return jlonlat.ok () ? jglooff[jlonlat.jlat-1] + (jlonlat.jlon-1) : - 1; 
