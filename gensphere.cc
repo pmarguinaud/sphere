@@ -411,16 +411,14 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
   int jtri = itri - geom->indoff_per_lat[jlat1-1];
 
   int jlon2 = 1 + (jtri * iloen2) / (iloen1 + iloen2);
-
   int jlon1 = jtri + 2 - jlon2;
-
+  if (jlon1 == iloen1+1) jlon1 = 1;
+  if (jlon2 == iloen2+1) jlon2 = 1;
+  
   int itriu2 = get_triu (geom, jlat2, jlon2);
-
+  
   int dtri = itriu2 - itri;
-
-  if (jlon1  == iloen1+1) jlon1 = 1;
-  if (jlon2  == iloen2+1) jlon2 = 1;
-
+  
   switch (dtri)
     {
       case +1:
@@ -430,23 +428,23 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
           jglo[0] = geom->jglooff[jlat1-1]+jlon1 -1; 
           jglo[1] = geom->jglooff[jlat1-1]+jlon1n-1; 
           jglo[2] = geom->jglooff[jlat2-1]+jlon2n-1; 
-	}
-	break;
+        }
+        break;
       case -1:
         {
           int jlon1p = JPREV (jlon1, iloen1);
           jglo[0] = geom->jglooff[jlat1-1]+jlon1p-1; 
           jglo[1] = geom->jglooff[jlat2-1]+jlon2 -1; 
           jglo[2] = geom->jglooff[jlat1-1]+jlon1 -1; 
-	}
-	break;
+        }
+        break;
       case  0:
         {
           int jlon2n = JNEXT (jlon2, iloen2);
           jglo[0] = geom->jglooff[jlat2-1]+jlon2 -1; 
           jglo[1] = geom->jglooff[jlat2-1]+jlon2n-1; 
           jglo[2] = geom->jglooff[jlat1-1]+jlon1 -1; 
-	}
+        }
         break;
       default:
         abort ();
@@ -454,6 +452,7 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
 
 }
 
+static
 void roll3 (int jglo[3])
 {
   int l = std::min_element (jglo, jglo + 3) - &jglo[0];
@@ -468,6 +467,7 @@ void roll3 (int jglo[3])
     }
 }
         
+static
 void check_tri (const geom_t * geom, int np, int nt)
 {
 
@@ -573,6 +573,9 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   geom->pl = (long int *)malloc (sizeof (long int) * pl_len);
   codes_get_long_array (h, "pl", geom->pl, &pl_len);
 
+//geom->pl[ 0] = geom->pl[ 0] / 2;
+//geom->pl[49] = geom->pl[49] / 2;
+
   fclose (in);
 
   *nt = 0;
@@ -632,6 +635,10 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   for (int jlat = 2; jlat <= geom->Nj+1; jlat++)
      geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
+  check_tri (geom, *np, *nt);
+  exit (0);
+
+
   *lonlat = (unsigned short *)malloc (2 * sizeof (unsigned short) * v_len);
 
 
@@ -661,7 +668,6 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   codes_handle_delete (h);
 
 
-  check_tri (geom, *np, *nt);
 
 }
 
