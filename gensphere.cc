@@ -416,7 +416,7 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
   if (jlon2 == iloen2+1) jlon2 = 1;
   
   int itriu2 = get_triu (geom, jlat2, jlon2);
-  
+
   int dtri = itriu2 - itri;
   
   switch (dtri)
@@ -573,9 +573,6 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   geom->pl = (long int *)malloc (sizeof (long int) * pl_len);
   codes_get_long_array (h, "pl", geom->pl, &pl_len);
 
-//geom->pl[ 0] = geom->pl[ 0] / 2;
-//geom->pl[49] = geom->pl[49] / 2;
-
   fclose (in);
 
   *nt = 0;
@@ -593,7 +590,7 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   geom->indoff_per_lat[0] = 0;
   for (int jlat = 1; jlat <= geom->Nj; jlat++)
     {
-      if (jlat <= geom->Nj)
+      if (jlat < geom->Nj)
         geom->indcnt_per_lat[jlat-1] = geom->pl[jlat-1] + geom->pl[jlat];
       if (jlat > 1)
         geom->indoff_per_lat[jlat-1] = geom->indoff_per_lat[jlat-2] + geom->indcnt_per_lat[jlat-2];
@@ -614,14 +611,14 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
   geom->ind_stripoff_per_lat[0] = 0;
   for (int jlat = 1; jlat <= geom->Nj+1; jlat++)
     {
-      if (jlat <= geom->Nj) // k1^k2 < (k1 - k2); k1^k2 is the number of possible restarts
+      if (jlat < geom->Nj) // k1^k2 < (k1 - k2); k1^k2 is the number of possible restarts
         geom->ind_stripcnt_per_lat[jlat-1] = geom->pl[jlat-1] + geom->pl[jlat] + 4 * (2 + abs (geom->pl[jlat-1] - geom->pl[jlat]));
       if (jlat > 1)
         geom->ind_stripoff_per_lat[jlat-1] = geom->ind_stripcnt_per_lat[jlat-2] + geom->ind_stripoff_per_lat[jlat-2];
     }
 
   geom->ind_strip_size = 0;
-  for (int jlat = 1; jlat <= geom->Nj; jlat++)
+  for (int jlat = 1; jlat < geom->Nj; jlat++)
     geom->ind_strip_size += geom->ind_stripcnt_per_lat[jlat-1];
   
   geom->ind_strip = (unsigned int *)malloc (geom->ind_strip_size * sizeof (unsigned int));
@@ -636,7 +633,6 @@ void gensphere (geom_t * geom, int * np, unsigned short ** lonlat,
      geom->jglooff[jlat-1] = geom->jglooff[jlat-2] + geom->pl[jlat-2];
 
   check_tri (geom, *np, *nt);
-  exit (0);
 
 
   *lonlat = (unsigned short *)malloc (2 * sizeof (unsigned short) * v_len);
