@@ -556,6 +556,7 @@ static
 void check_tri (const geom_t * geom, int np, int nt)
 {
 
+  if(0){
   printf (" %8s %8s %8s\n", "jlat", "pl", "jglo");
   int jglo = 0;
   for (int i = 0; i < geom->Nj; i++)
@@ -563,6 +564,7 @@ void check_tri (const geom_t * geom, int np, int nt)
       printf (" %8d %8d %8d\n", i+1, geom->pl[i], jglo);
       jglo += geom->pl[i];
     }
+  }
 
   printf ("----ITRID----\n");
 
@@ -617,7 +619,7 @@ void check_tri (const geom_t * geom, int np, int nt)
     }
 
   printf ("-----IND-----\n");
-
+#pragma omp parallel for
   for (int it = 0; it < nt; it++)
     {
       int jglo0[3];
