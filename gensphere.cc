@@ -374,7 +374,7 @@ int get_triu (const geom_t * geom, int jlat, int jlon)
 
 void get_ind (const geom_t * geom, int itri, int jglo[3])
 {
-  bool dbg = itri == 2;
+  bool dbg = itri == 50;
 
   jglo[0] = jglo[1] = jglo[2] = 0;
 
@@ -386,12 +386,12 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
       if (jlat2 - jlat1 <= 1)
         break;
 
-      if ((geom->indoff_per_lat[jlat1-1] <= itri) && (itri <= geom->indoff_per_lat[jlat-1]))
+      if ((geom->indoff_per_lat[jlat1-1] <= itri) && (itri < geom->indoff_per_lat[jlat-1]))
         {
           jlat2 = jlat;
 	}
       else
-      if ((geom->indoff_per_lat[jlat-1] <= itri) && (itri <= geom->indoff_per_lat[jlat2-1]))
+      if ((geom->indoff_per_lat[jlat-1] <= itri) && (itri < geom->indoff_per_lat[jlat2-1]))
         {
           jlat1 = jlat;
 	}
@@ -410,52 +410,64 @@ void get_ind (const geom_t * geom, int itri, int jglo[3])
 
   int jtri = itri - geom->indoff_per_lat[jlat1-1];
 
-  int jlon1 = 1 + (jtri * iloen1) / (iloen1 + iloen2);
   int jlon2 = 1 + (jtri * iloen2) / (iloen1 + iloen2);
+
+  int jlon1 = jtri + 2 - jlon2;
 
   int itriu2 = get_triu (geom, jlat2, jlon2);
 
   int dtri = itriu2 - itri;
 
+  if (jlon1  == iloen1+1) jlon1 = 1;
+  if (jlon2  == iloen2+1) jlon2 = 1;
+
   switch (dtri)
     {
       case +1:
-        jglo[0] = 0;
-        jglo[1] = 0;
-        jglo[2] = 0;
+        {
+          int jlon1n = JNEXT (jlon1, iloen1);
+          int jlon2n = JNEXT (jlon2, iloen2);
+          jglo[0] = geom->jglooff[jlat1-1]+jlon1 -1; 
+          jglo[1] = geom->jglooff[jlat1-1]+jlon1n-1; 
+          jglo[2] = geom->jglooff[jlat2-1]+jlon2n-1; 
+	}
 	break;
       case -1:
-        jglo[0] = 0;
-        jglo[1] = 0;
-        jglo[2] = 0;
+        {
+          int jlon1p = JPREV (jlon1, iloen1);
+          jglo[0] = geom->jglooff[jlat1-1]+jlon1p-1; 
+          jglo[1] = geom->jglooff[jlat2-1]+jlon2 -1; 
+          jglo[2] = geom->jglooff[jlat1-1]+jlon1 -1; 
+	}
 	break;
       case  0:
         {
           int jlon2n = JNEXT (jlon2, iloen2);
-	  if (JDLON (jlon1, jlon2) < 0)
-            jlon1 = JNEXT (jlon1, iloen1);
-          jglo[0] = geom->jglooff[jlat2-1]+jlon2-1; 
+          jglo[0] = geom->jglooff[jlat2-1]+jlon2 -1; 
           jglo[1] = geom->jglooff[jlat2-1]+jlon2n-1; 
-          jglo[2] = geom->jglooff[jlat1-1]+jlon1-1; 
+          jglo[2] = geom->jglooff[jlat1-1]+jlon1 -1; 
 	}
         break;
       default:
         abort ();
     }
 
-//if (abs (dtri) > 1)
-  {
-  {
-  static int pr = 1;
-  if (pr)
-  printf (" %8s | %8s | %8s | %8s | %8s | %8s \n", "itri", "itriu2", "jlat1", "jlon1", "jlon2", "dtri");
-  pr = 0;
-  }
-  printf (" %8d | %8d | %8d | %8d | %8d | %8d \n", itri, itriu2, jlat1, jlon1, jlon2, dtri);
-  }
-
 }
 
+void roll3 (int jglo[3])
+{
+  int l = std::min_element (jglo, jglo + 3) - &jglo[0];
+
+  if (l == 1)
+    {
+      int t = jglo[0]; jglo[0] = jglo[1]; jglo[1] = jglo[2]; jglo[2] = t;
+    }
+  if (l == 2)
+    {
+      int t = jglo[0]; jglo[0] = jglo[2]; jglo[2] = jglo[1]; jglo[1] = t;
+    }
+}
+        
 void check_tri (const geom_t * geom, int np, int nt)
 {
 
@@ -517,18 +529,25 @@ void check_tri (const geom_t * geom, int np, int nt)
 
   printf ("-----IND-----\n");
 
-  for (int it = 0; it < geom->indoff_per_lat[2]; it++)
-//for (int it = 0; it < nt; it++)
+  for (int it = 0; it < nt; it++)
     {
       int jglo0[3];
       int jglo1[3];
       for (int i = 0; i < 3; i++)
         jglo0[i] = geom->ind[3*it+i];
+ 
       get_ind (geom, it, jglo1);
-      if (jglo1[0] || jglo1[1] || jglo1[2])
-      printf (">> %8d -> %8d %8d %8d | %8d %8d %8d\n", it,
+
+      roll3 (jglo0);
+      roll3 (jglo1);
+
+      int diff = ((jglo0[0] != jglo1[0]) &&
+                  (jglo0[1] != jglo1[1]) &&
+                  (jglo0[2] != jglo1[2]));
+      if (diff)
+      printf (">> %8d -> %8d %8d %8d | %8d %8d %8d | %s\n", it,
               jglo0[0], jglo0[1], jglo0[2],
-              jglo1[0], jglo1[1], jglo1[2]);
+              jglo1[0], jglo1[1], jglo1[2], diff ? "X" : " ");
     }
 
 end:
