@@ -179,37 +179,35 @@ int main (int argc, char * argv[])
   eglMakeCurrent (display, eglSurf, eglSurf, context); pre ();
 
 
+  // Create framebuffer for rendering
 
   GLuint fbo;
   GLuint rbo_color;
   GLuint rbo_depth;
   GLuint err;
 
-
-  glGenFramebuffers(1, &fbo);
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
+  glGenFramebuffers (1, &fbo);
+  glBindFramebuffer (GL_FRAMEBUFFER, fbo);
 
 
-  glGenRenderbuffers(1, &rbo_color);
-  glBindRenderbuffer(GL_RENDERBUFFER, rbo_color);
+  glGenRenderbuffers (1, &rbo_color);
+  glBindRenderbuffer (GL_RENDERBUFFER, rbo_color);
   /* Storage must be one of: */
   /* GL_RGBA4, GL_RGB565, GL_RGB5_A1, GL_DEPTH_COMPONENT16, GL_STENCIL_INDEX8. */
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGB565, width, height);
-  glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                            GL_RENDERBUFFER, rbo_color);
+  glRenderbufferStorage (GL_RENDERBUFFER, GL_RGB565, width, height);
+  glFramebufferRenderbuffer (GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                             GL_RENDERBUFFER, rbo_color);
 
-
-  glGenRenderbuffers(1, &rbo_depth);
-  glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
-  glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                            GL_RENDERBUFFER, rbo_depth);
-
+  glGenRenderbuffers (1, &rbo_depth);
+  glBindRenderbuffer (GL_RENDERBUFFER, rbo_depth);
+  glRenderbufferStorage (GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+  glFramebufferRenderbuffer (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                             GL_RENDERBUFFER, rbo_depth);
 
 
   glReadBuffer (GL_COLOR_ATTACHMENT0);
   glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
+
   glViewport(0, 0, width, height);
 
   glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
@@ -221,6 +219,8 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
+
+  // Prepare texture & coordinates
 
   int Nj = atoi (argv[1]);
   int np; 
@@ -234,7 +234,7 @@ int main (int argc, char * argv[])
 
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
-
+  // Create Vertex array 
 
   GLuint VertexArrayID;
   GLuint vertexbuffer, colorbuffer, elementbuffer;
@@ -251,6 +251,8 @@ int main (int argc, char * argv[])
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
   glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
+
+  // Create shader
 
   GLuint programID = shader 
 (
