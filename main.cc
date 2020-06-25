@@ -25,14 +25,14 @@
 #include <string.h>
 
 
-static void pre (EGLint e)
+static void pre ()
 {
   const char * m = nullptr;
+  EGLint e = eglGetError (); 
   switch (e)
     {
       case EGL_SUCCESS:
-        m = "The last function succeeded without error.";
-        break;
+        return;
       case EGL_NOT_INITIALIZED:
         m = "EGL is not initialized, or could not be initialized, for the specified EGL display connection.";
         break;
@@ -78,10 +78,9 @@ static void pre (EGLint e)
     }
   if (m != nullptr)
     printf ("%s\n", m);
+
+  exit (1);
 }
-
-#define CHECK_EGL_ERROR() { EGLint error = eglGetError (); if (error != EGL_SUCCESS) { pre (error); std::cerr << __FILE__ << ":" << __LINE__ << std::endl; } }
-
 
 static void screenshot_ppm
 (const char *filename, unsigned int width,
@@ -109,17 +108,8 @@ int main (int argc, char * argv[])
 
   // Initialize EGL
 
-  EGLDisplay display;
-  const int MAX_NUM_CONFIG = 50;
-  EGLConfig config[MAX_NUM_CONFIG];
-  EGLContext context;
-  EGLSurface surface;
-  EGLint numConfig;
   bool verbose = false;
 
-  memset (config, sizeof (config), 0);
-
-  EGLint major, minor;
 
   int fd = open ("/dev/dri/renderD128", O_RDWR);
   assert (fd > 0);
@@ -128,14 +118,15 @@ int main (int argc, char * argv[])
   struct gbm_device * gbm = gbm_create_device (fd);
   assert (gbm != nullptr);
 
-  display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_MESA, gbm, nullptr);
+  EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_MESA, gbm, nullptr);
 
   if (verbose)
     std::cerr << "display: " << std::hex << display << std::endl;
   assert (display != nullptr);
 
 
-  EGLBoolean result = eglInitialize (display, &major, &minor); CHECK_EGL_ERROR ();
+  EGLint major, minor;
+  EGLBoolean result = eglInitialize (display, &major, &minor); pre ();
   if (result == EGL_FALSE)
     std::cerr << "eglInitialize failed" << std::endl;
 
@@ -159,7 +150,12 @@ int main (int argc, char * argv[])
     EGL_NONE
   };
 
-  eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig); CHECK_EGL_ERROR ();
+  const int MAX_NUM_CONFIG = 50;
+  EGLint numConfig;
+  EGLConfig config[MAX_NUM_CONFIG];
+  memset (config, sizeof (config), 0);
+
+  eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig); pre ();
 
 
   if (verbose)
@@ -182,7 +178,7 @@ int main (int argc, char * argv[])
 
   EGLSurface eglSurf = eglCreatePbufferSurface(display, config[0], surfAttr);
 
-  eglBindAPI (EGL_OPENGL_API); CHECK_EGL_ERROR();
+  eglBindAPI (EGL_OPENGL_API); pre ();
 
   const EGLint ctxAttr[] = 
   {
@@ -191,8 +187,8 @@ int main (int argc, char * argv[])
     EGL_NONE
   };
 
-  context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); CHECK_EGL_ERROR ();
-  eglMakeCurrent (display, eglSurf, eglSurf, context); CHECK_EGL_ERROR ();
+  EGLContext context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); pre ();
+  eglMakeCurrent (display, eglSurf, eglSurf, context); pre ();
 
 
   int Nj = atoi (argv[1]);
