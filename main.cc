@@ -208,8 +208,10 @@ int main (int argc, char * argv[])
   glReadBuffer (GL_COLOR_ATTACHMENT0);
   glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
 
-  glViewport(0, 0, width, height);
 
+  // Init OpenGL
+
+  glViewport (0, 0, width, height);
   glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
   glEnable (GL_DEPTH_TEST);
   glEnable (GL_BLEND);
@@ -219,18 +221,14 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
-
-  // Prepare texture & coordinates
+  // Generate coordinates
 
   int Nj = atoi (argv[1]);
+
   int np; 
   float * xyz;
   unsigned int nt;
   unsigned int * ind;
-  int w, h;
-  unsigned char * rgb = nullptr;
-
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
   gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
@@ -300,10 +298,15 @@ void main()
   glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
 
 
+  // Create texture
+  int w, h;
+  unsigned char * rgb = nullptr;
+  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
+
   unsigned int texture;
   glGenTextures (1, &texture);
   glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -311,37 +314,26 @@ void main()
 
   glUniform1i (glGetUniformLocation (programID, "texture"), 0);
 
+  // Render
   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
   glBindVertexArray (VertexArrayID);
   glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, nullptr);
-
   glFlush ();
 
 
-
+  // Write image to disk
   unsigned char * pixels = (unsigned char *)malloc(3 * sizeof (unsigned char) * width * height);
   memset (pixels, 0, 3 * sizeof (unsigned char) * width * height);
   glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
-  int c[3] = {0, 0, 0};
-  for (int i = 0; i < width * height; i++)
-    for (int j = 0; j < 3; j++)
-      if (pixels[3*i+j] != 0)
-        c[j]++;
-
-  for (int j = 0; j < 3; j++)
-    printf (" c[%d] = %d\n", j, c[j]);
-
   screenshot_ppm ("toto.ppm", width, height, pixels);
   free (pixels);
 
+  glDeleteFramebuffers (1, &fbo);
+  glDeleteRenderbuffers (1, &rbo_color);
+  glDeleteRenderbuffers (1, &rbo_depth);
 
-  glDeleteFramebuffers(1, &fbo);
-  glDeleteRenderbuffers(1, &rbo_color);
-  glDeleteRenderbuffers(1, &rbo_depth);
-
-  eglTerminate(display);
+  eglTerminate (display);
 
   return 0;
 }
