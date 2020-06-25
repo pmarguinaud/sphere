@@ -164,7 +164,7 @@ int main (int argc, char * argv[])
     EGL_NONE,
   };
 
-  EGLSurface eglSurf = eglCreatePbufferSurface(display, config[0], surfAttr);
+  EGLSurface eglSurf = eglCreatePbufferSurface (display, config[0], surfAttr);
 
   eglBindAPI (EGL_OPENGL_API); pre ();
 
@@ -177,19 +177,6 @@ int main (int argc, char * argv[])
 
   EGLContext context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); pre ();
   eglMakeCurrent (display, eglSurf, eglSurf, context); pre ();
-
-
-  int Nj = atoi (argv[1]);
-  int np; 
-  float * xyz;
-  unsigned int nt;
-  unsigned int * ind;
-  int w, h;
-  unsigned char * rgb = nullptr;
-
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
-
-  gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
 
 
@@ -233,6 +220,19 @@ int main (int argc, char * argv[])
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
+
+
+  int Nj = atoi (argv[1]);
+  int np; 
+  float * xyz;
+  unsigned int nt;
+  unsigned int * ind;
+  int w, h;
+  unsigned char * rgb = nullptr;
+
+  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
+
+  gensphere1 (Nj, &np, &xyz, &nt, &ind);
 
 
 
