@@ -143,11 +143,8 @@ int main (int argc, char * argv[])
   const EGLint cfgAttr[] = 
   {
     EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
-    EGL_RED_SIZE, 8,
-    EGL_GREEN_SIZE, 8,
-    EGL_BLUE_SIZE, 8,
-    EGL_DEPTH_SIZE, 8,
-    EGL_NONE
+    EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8,
+    EGL_BLUE_SIZE, 8, EGL_DEPTH_SIZE, 8, EGL_NONE
   };
 
   const int MAX_NUM_CONFIG = 50;
@@ -156,15 +153,6 @@ int main (int argc, char * argv[])
   memset (config, sizeof (config), 0);
 
   eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig); pre ();
-
-
-  if (verbose)
-    {
-      std::cout << " numConfig = " << numConfig << std::endl;
-      printf (" numConfig = %8d\n", numConfig);
-      for (int i = 0; i < numConfig; i++)
-        printf (" %8d => 0x%llx\n", i, (unsigned long long)config[i]);
-    }
 
   if (verbose)
     std::cout << "numConfig:" << numConfig << std::endl;
