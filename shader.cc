@@ -1,5 +1,10 @@
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
+#define EGL_EGLEXT_PROTOTYPES
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "shader.h"
 #include <stdio.h>
@@ -25,7 +30,7 @@ GLuint shader (const char * FragmentShaderCode, const char * VertexShaderCode)
     {
       char mess[len+1];
       glGetShaderInfoLog (VertexShaderID, len, NULL, &mess[0]);
-      printf("%s\n", mess);
+      printf(">>%s\n", mess);
     }
 
 
@@ -39,7 +44,7 @@ GLuint shader (const char * FragmentShaderCode, const char * VertexShaderCode)
     {
       char mess[len+1];
       glGetShaderInfoLog (FragmentShaderID, len, NULL, &mess[0]);
-      printf("%s\n", mess);
+      printf(">>%s\n", mess);
     }
 
   // Link the program
@@ -55,7 +60,7 @@ GLuint shader (const char * FragmentShaderCode, const char * VertexShaderCode)
     {
       char mess[len+1];
       glGetProgramInfoLog (ProgramID, len, NULL, &mess[0]);
-      printf("%s\n", mess);
+      printf("link: %s\n", mess);
     }
   
   
