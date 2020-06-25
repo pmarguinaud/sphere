@@ -109,9 +109,6 @@ int main (int argc, char * argv[])
 
   // Initialize EGL
 
-  bool verbose = false;
-
-
   int fd = open ("/dev/dri/renderD128", O_RDWR);
   assert (fd > 0);
 
@@ -120,26 +117,9 @@ int main (int argc, char * argv[])
   assert (gbm != nullptr);
 
   EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_MESA, gbm, nullptr);
+  display || pre ();
 
-  if (verbose)
-    std::cerr << "display: " << std::hex << display << std::endl;
-  assert (display != nullptr);
-
-
-  EGLint major, minor;
-  EGLBoolean result = eglInitialize (display, &major, &minor); pre ();
-  if (result == EGL_FALSE)
-    std::cerr << "eglInitialize failed" << std::endl;
-
-
-  if (verbose)
-    {
-      std::cout << "Initialized EGL context version " << major << "." << minor << std::endl;
-      std::cerr << "EGL_VERSION: " << eglQueryString(display, EGL_VERSION) << std::endl;
-      std::cerr << "EGL_CLIENT_APIS: " << eglQueryString(display, EGL_CLIENT_APIS) << std::endl;
-      std::cerr << "EGL_VENDOR: " << eglQueryString(display, EGL_VENDOR) << std::endl;
-      std::cerr << "display EGL_EXTENSIONS: " << eglQueryString(display, EGL_EXTENSIONS) << std::endl;
-    }
+  eglInitialize (display, nullptr, nullptr) || pre ();
 
   const EGLint cfgAttr[] = 
   {
@@ -151,14 +131,10 @@ int main (int argc, char * argv[])
   const int MAX_NUM_CONFIG = 50;
   EGLint numConfig;
   EGLConfig config[MAX_NUM_CONFIG];
-  memset (config, sizeof (config), 0);
 
-  eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig); pre ();
+  eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig) || pre ();
 
-  if (verbose)
-    std::cout << "numConfig:" << numConfig << std::endl;
-
-  eglBindAPI (EGL_OPENGL_API); pre ();
+  eglBindAPI (EGL_OPENGL_API) || pre ();
 
   const EGLint ctxAttr[] = 
   {
@@ -167,8 +143,10 @@ int main (int argc, char * argv[])
     EGL_NONE
   };
 
-  EGLContext context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); pre ();
-  eglMakeCurrent (display, nullptr, nullptr, context); pre ();
+  EGLContext context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); 
+  context || pre ();
+
+  eglMakeCurrent (display, nullptr, nullptr, context) || pre ();
 
 
   // Create framebuffer for rendering
@@ -215,7 +193,7 @@ int main (int argc, char * argv[])
 
   // Generate coordinates
 
-  int Nj = atoi (argv[1]);
+  int Nj = argc == 2 ? atoi (argv[1]) : 100;
 
   int np; 
   float * xyz;
