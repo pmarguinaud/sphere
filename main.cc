@@ -124,16 +124,18 @@ int main (int argc, char * argv[])
 R"CODE(
 #version 330 core
 
-in vec4 fragmentColor;
+in vec3 fragmentPos;
 
 out vec4 color;
 
+uniform sampler2D texture;
+
 void main()
 {
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = fragmentColor.a;
+  float lon = (atan (fragmentPos.y, fragmentPos.x) / 3.1415926 + 1.0) * 0.5;
+  float lat = asin (fragmentPos.z) / 3.1415926 + 0.5;
+  color = texture2D (texture, vec2 (lon, lat));
+  color.a = 1.0;
 }
 )CODE",
 R"CODE(
@@ -141,24 +143,14 @@ R"CODE(
 
 layout(location = 0) in vec3 vertexPos;
 
-out vec4 fragmentColor;
+out vec3 fragmentPos;
 
 uniform mat4 MVP;
 
-uniform sampler2D texture;
-
 void main()
 {
-  float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
   gl_Position =  MVP * vec4 (vertexPos, 1);
-
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-  fragmentColor.r = col.r;
-  fragmentColor.g = col.g;
-  fragmentColor.b = col.b;
-  fragmentColor.a = 1.;
-
+  fragmentPos = vertexPos;
 }
 )CODE");
 
