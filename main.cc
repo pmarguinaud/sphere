@@ -27,7 +27,7 @@
 
 static void pre (EGLint e)
 {
-  const char * m = NULL;
+  const char * m = nullptr;
   switch (e)
     {
       case EGL_SUCCESS:
@@ -76,7 +76,7 @@ static void pre (EGLint e)
         m = "A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering. ";
         break;
     }
-  if (m != NULL)
+  if (m != nullptr)
     printf ("%s\n", m);
 }
 
@@ -87,24 +87,27 @@ static void screenshot_ppm
 (const char *filename, unsigned int width,
  unsigned int height, unsigned char *pixels)
 {
-  size_t i, j, cur;
   const size_t format_nchannels = 3;
-  FILE *f = fopen(filename, "w");
-  fprintf(f, "P3\n%d %d\n%d\n", width, height, 255);
-  for (i = 0; i < height; i++) {
-      for (j = 0; j < width; j++) {
-          cur = format_nchannels * ((height - i - 1) * width + j);
-          fprintf(f, "%3d %3d %3d ", (pixels)[cur], (pixels)[cur + 1], (pixels)[cur + 2]);
-      }
-      fprintf(f, "\n");
-  }
-  fclose(f);
+  FILE * fp = fopen (filename, "w");
+  fprintf (fp, "P3\n%d %d\n%d\n", width, height, 255);
+  for (int i = 0; i < height; i++) 
+    {
+      for (int j = 0; j < width; j++) 
+        {
+          int cur = format_nchannels * ((height - i - 1) * width + j);
+          fprintf (fp, "%3d %3d %3d ", (pixels)[cur], (pixels)[cur + 1], (pixels)[cur + 2]);
+        }
+      fprintf(fp, "\n");
+    }
+  fclose (fp);
 }
 
 
 int main (int argc, char * argv[])
 {
-  const int width = 128, height = 128;
+  const int width = 512, height = 512;
+
+  // Initialize EGL
 
   EGLDisplay display;
   const int MAX_NUM_CONFIG = 50;
@@ -112,49 +115,24 @@ int main (int argc, char * argv[])
   EGLContext context;
   EGLSurface surface;
   EGLint numConfig;
-  bool verbose = true;
+  bool verbose = false;
 
   memset (config, sizeof (config), 0);
 
   EGLint major, minor;
 
-  const EGLint attribList[] = 
-  {
-    EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
-    EGL_RED_SIZE, 8,
-    EGL_GREEN_SIZE, 8,
-    EGL_BLUE_SIZE, 8,
-    EGL_DEPTH_SIZE, 8,
-    EGL_NONE
-  };
-
-  const EGLint ctxAttribList[] = 
-  {
-    EGL_CONTEXT_MAJOR_VERSION, 4,
-    EGL_CONTEXT_MINOR_VERSION, 3,
-    EGL_NONE
-  };
-
-  int32_t fd = open ("/dev/dri/renderD128", O_RDWR);
+  int fd = open ("/dev/dri/renderD128", O_RDWR);
   assert (fd > 0);
 
 
-  const EGLint pbufferAttribs[] = 
-  {
-    EGL_WIDTH, width,
-    EGL_HEIGHT, height,
-    EGL_NONE,
-  };
+  struct gbm_device * gbm = gbm_create_device (fd);
+  assert (gbm != nullptr);
 
-
-  struct gbm_device *gbm = gbm_create_device(fd);
-  assert (gbm != NULL);
-
-  display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_MESA, gbm, NULL);
+  display = eglGetPlatformDisplay(EGL_PLATFORM_GBM_MESA, gbm, nullptr);
 
   if (verbose)
     std::cerr << "display: " << std::hex << display << std::endl;
-  assert (display != NULL);
+  assert (display != nullptr);
 
 
   EGLBoolean result = eglInitialize (display, &major, &minor); CHECK_EGL_ERROR ();
@@ -171,25 +149,50 @@ int main (int argc, char * argv[])
       std::cerr << "display EGL_EXTENSIONS: " << eglQueryString(display, EGL_EXTENSIONS) << std::endl;
     }
 
-  eglChooseConfig (display, attribList, config, MAX_NUM_CONFIG, &numConfig); CHECK_EGL_ERROR ();
+  const EGLint cfgAttr[] = 
+  {
+    EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+    EGL_RED_SIZE, 8,
+    EGL_GREEN_SIZE, 8,
+    EGL_BLUE_SIZE, 8,
+    EGL_DEPTH_SIZE, 8,
+    EGL_NONE
+  };
+
+  eglChooseConfig (display, cfgAttr, config, MAX_NUM_CONFIG, &numConfig); CHECK_EGL_ERROR ();
 
 
-  std::cout << " numConfig = " << numConfig << std::endl;
-  printf (" numConfig = %8d\n", numConfig);
-  for (int i = 0; i < numConfig; i++)
-    printf (" %8d => 0x%llx\n", i, (unsigned long long)config[i]);
+  if (verbose)
+    {
+      std::cout << " numConfig = " << numConfig << std::endl;
+      printf (" numConfig = %8d\n", numConfig);
+      for (int i = 0; i < numConfig; i++)
+        printf (" %8d => 0x%llx\n", i, (unsigned long long)config[i]);
+    }
 
   if (verbose)
     std::cout << "numConfig:" << numConfig << std::endl;
 
-  EGLSurface eglSurf = eglCreatePbufferSurface(display, config[0],
-                                               pbufferAttribs);
+  const EGLint surfAttr[] = 
+  {
+    EGL_WIDTH, width,
+    EGL_HEIGHT, height,
+    EGL_NONE,
+  };
+
+  EGLSurface eglSurf = eglCreatePbufferSurface(display, config[0], surfAttr);
 
   eglBindAPI (EGL_OPENGL_API); CHECK_EGL_ERROR();
 
-  context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttribList); CHECK_EGL_ERROR ();
-  eglMakeCurrent (display, eglSurf, eglSurf, context); CHECK_EGL_ERROR ();
+  const EGLint ctxAttr[] = 
+  {
+    EGL_CONTEXT_MAJOR_VERSION, 4,
+    EGL_CONTEXT_MINOR_VERSION, 3,
+    EGL_NONE
+  };
 
+  context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); CHECK_EGL_ERROR ();
+  eglMakeCurrent (display, eglSurf, eglSurf, context); CHECK_EGL_ERROR ();
 
 
   int Nj = atoi (argv[1]);
@@ -198,7 +201,7 @@ int main (int argc, char * argv[])
   unsigned int nt;
   unsigned int * ind;
   int w, h;
-  unsigned char * rgb = NULL;
+  unsigned char * rgb = nullptr;
 
   bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
@@ -259,7 +262,7 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
   glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
   glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, nullptr); 
   
   glGenBuffers (1, &elementbuffer);
   glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
@@ -300,8 +303,6 @@ void main()
 }
 )CODE");
 
-  std::cout << " programID = " << programID << std::endl;
-
   glUseProgram (programID);
 
   glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
@@ -327,7 +328,7 @@ void main()
   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glBindVertexArray (VertexArrayID);
-  glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+  glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, nullptr);
 
   glFlush ();
 
