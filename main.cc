@@ -25,14 +25,14 @@
 #include <string.h>
 
 
-static void pre ()
+static bool pre ()
 {
   const char * m = nullptr;
   EGLint e = eglGetError (); 
   switch (e)
     {
       case EGL_SUCCESS:
-        return;
+        return true;
       case EGL_NOT_INITIALIZED:
         m = "EGL is not initialized, or could not be initialized, for the specified EGL display connection.";
         break;
@@ -80,6 +80,7 @@ static void pre ()
     printf ("%s\n", m);
 
   exit (1);
+  return false;
 }
 
 static void screenshot_ppm
@@ -157,15 +158,6 @@ int main (int argc, char * argv[])
   if (verbose)
     std::cout << "numConfig:" << numConfig << std::endl;
 
-  const EGLint surfAttr[] = 
-  {
-    EGL_WIDTH, width,
-    EGL_HEIGHT, height,
-    EGL_NONE,
-  };
-
-  EGLSurface eglSurf = eglCreatePbufferSurface (display, config[0], surfAttr);
-
   eglBindAPI (EGL_OPENGL_API); pre ();
 
   const EGLint ctxAttr[] = 
@@ -176,7 +168,7 @@ int main (int argc, char * argv[])
   };
 
   EGLContext context = eglCreateContext (display, config[0], EGL_NO_CONTEXT, ctxAttr); pre ();
-  eglMakeCurrent (display, eglSurf, eglSurf, context); pre ();
+  eglMakeCurrent (display, nullptr, nullptr, context); pre ();
 
 
   // Create framebuffer for rendering
@@ -329,10 +321,12 @@ void main()
   screenshot_ppm ("toto.ppm", width, height, pixels);
   free (pixels);
 
+  // Cleanup
   glDeleteFramebuffers (1, &fbo);
   glDeleteRenderbuffers (1, &rbo_color);
   glDeleteRenderbuffers (1, &rbo_depth);
 
+  eglDestroyContext (display, context) || pre ();
   eglTerminate (display);
 
   return 0;
