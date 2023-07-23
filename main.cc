@@ -5,10 +5,9 @@
 #include "bmp.h"
 #include "gensphere.h"
 #include "shader.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <stdexcept>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -132,6 +131,8 @@ class tex
 
   void bind (GLuint target) const
   {
+    if (target != 0)
+      throw std::runtime_error ("Unexpected texture target");
     glActiveTexture (GL_TEXTURE0);
     glBindTexture (GL_TEXTURE_2D, texture);
   }
