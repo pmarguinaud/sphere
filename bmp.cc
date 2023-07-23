@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "bmp.h"
+
 static int S4 (unsigned char * h)
 {
   return h[0] + 256 * (h[1] + 256 * (h[2] + 256 * h[3]));
 }
   
   
-void bmp (const char * file, unsigned char ** rgb, int * width, int * height)
+void bmp (const char * file, std::vector<unsigned char> * rgb, int * width, int * height)
 {
 
   unsigned char h[54];
@@ -19,11 +21,11 @@ void bmp (const char * file, unsigned char ** rgb, int * width, int * height)
   int ncol = S4 (&h[18]);
   int nrow = S4 (&h[22]);
   
-  *rgb = (unsigned char *)malloc (3 * ncol * nrow * sizeof (unsigned char));
+  rgb->resize (3 * ncol * nrow);
   
   fseek (fp, ioff, SEEK_SET);
 
-  fread ((*rgb), 3 * ncol * nrow, 1, fp);
+  fread (&(*rgb)[0], 3 * ncol * nrow, 1, fp);
 
   for (int i = 0; i < ncol * nrow; i++)
     {

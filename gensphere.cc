@@ -154,14 +154,14 @@ void glgauss (const int Nj, const int pl[], int pass, unsigned int * ind, int ns
 }
 
 
-void gensphere (const int Nj, int * np, float ** xyz, 
-                unsigned int * nt, unsigned int ** ind)
+void gensphere (const int Nj, int * np, std::vector<float> * xyz, 
+                unsigned int * nt, std::vector<unsigned int> * ind)
 {
   int * pl = NULL;
   const int nstripe = 8;
   int indoff[nstripe];
 
-  *xyz = NULL;
+  xyz->resize (0);
 
   pl = (int *)malloc (sizeof (int) * Nj);
 
@@ -173,8 +173,8 @@ void gensphere (const int Nj, int * np, float ** xyz,
     }
 
   glgauss (Nj, pl, 1, nt, nstripe, indoff);
-  *ind = (unsigned int *)malloc (3 * (*nt) * sizeof (unsigned int));
-  glgauss (Nj, pl, 2, *ind, nstripe, indoff);
+  ind->resize (3 * (*nt));
+  glgauss (Nj, pl, 2, &(*ind)[0], nstripe, indoff);
 
 
   int v_len = 0;
@@ -186,7 +186,7 @@ void gensphere (const int Nj, int * np, float ** xyz,
   for (int jlat = 2; jlat <= Nj; jlat++)
      iglooff[jlat-1] = iglooff[jlat-2] + pl[jlat-2];
 
-  *xyz = (float *)malloc (3 * sizeof (float) * v_len);
+  xyz->resize (3 * v_len);
   *np  = v_len;
 
 //#pragma omp parallel for

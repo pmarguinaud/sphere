@@ -1,6 +1,8 @@
 #ifndef _GENSPHERE_H
 #define _GENSPHERE_H
 
-void gensphere (const int, int *, float **, unsigned int *, unsigned int **);
+#include <vector>
+
+void gensphere (const int, int *, std::vector<float> *, unsigned int *, std::vector<unsigned int> *);
 
 #endif

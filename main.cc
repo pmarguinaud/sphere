@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <vector>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,11 +19,13 @@ class tex
 public:
   const unsigned int nt = 2;
   const int width = 1024, height = 1024;
-  unsigned int ind[3*2] = {0, 1, 2, 0, 2, 3};
+  std::vector<unsigned int> ind;
   const int Nx = 4, Ny = 4;
   GLuint programID;
-  void create ()
+  tex ()
   {
+    ind = std::vector<unsigned int>{0, 1, 2, 0, 2, 3};
+
     programID = shader 
 (
 R"CODE(
@@ -99,107 +102,34 @@ void main ()
   {
     glUseProgram (programID);
     glViewport (0, 0, width, height);
-    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, ind, Nx * Ny);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
 };
 
-
-int main (int argc, char * argv[])
+class sphere
 {
-  tex tt;
-  
-
-  if (! glfwInit ()) 
-    {   
-      fprintf (stderr, "Failed to initialize GLFW\n");
-      return -1;
-    }   
-
-  GLFWwindow * window;
-  
-  glfwWindowHint (GLFW_SAMPLES, 4);
-  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  window = glfwCreateWindow (tt.width, tt.height, "", NULL, NULL);
-    
-  if (window == NULL)
-    { 
-      fprintf (stderr, "Failed to open GLFW window\n");
-      glfwTerminate ();
-      return -1;
-    }
-  
-  glfwMakeContextCurrent (window);
-  
-  glewExperimental = true; 
-  if (glewInit () != GLEW_OK)
-    {
-      fprintf (stderr, "Failed to initialize GLEW\n");
-      glfwTerminate ();
-      return -1;
-    }
-
-
-  glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
-  glEnable (GL_DEPTH_TEST);
-  glEnable (GL_BLEND);
-  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glCullFace (GL_BACK);
-  glFrontFace (GL_CCW);
-  glEnable (GL_CULL_FACE);
-  glDepthFunc (GL_LESS); 
-
-  tt.create ();
-
-
-  while (1) 
-    {   
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      tt.render ();
-
-      glfwSwapBuffers (window);
-      glfwPollEvents (); 
-  
-      if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        break;
-      if (glfwWindowShouldClose (window) != 0)  
-        break;
-    }   
-
-  int Nj = atoi (argv[1]);
+  public:
+  int Nj;
   int np; 
-  float * xyz;
+  std::vector<float> xyz;
   unsigned int nt; 
-  unsigned int * ind;
-  const int width = 1024, height = 1024;
+  std::vector<unsigned int> ind;
   int w, h;
-  unsigned char * rgb = NULL;
-
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
-
-  gensphere (Nj, &np, &xyz, &nt, &ind);
-
+  std::vector<unsigned char> rgb;
   GLuint VertexArrayID;
-  GLuint vertexbuffer, colorbuffer, elementbuffer;
+  GLuint vertexbuffer, elementbuffer;
+  GLuint programID;
 
-  glGenVertexArrays (1, &VertexArrayID);
-  glBindVertexArray (VertexArrayID);
 
-  glGenBuffers (1, &vertexbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-  
-  glGenBuffers (1, &elementbuffer);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
+  sphere (int _Nj)
+  {
+    Nj = _Nj;
 
-  GLuint programID = shader 
+    bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
+
+    gensphere (Nj, &np, &xyz, &nt, &ind);
+
+    programID = shader 
 (
 R"CODE(
 #version 330 core
@@ -241,31 +171,119 @@ void main()
 }
 )CODE");
 
-  glUseProgram (programID);
+    glUseProgram (programID);
 
-  glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-  glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 Model      = glm::mat4 (1.0f);
+    glGenVertexArrays (1, &VertexArrayID);
+    glBindVertexArray (VertexArrayID);
 
-  glm::mat4 MVP = Projection * View * Model; 
+    glGenBuffers (1, &vertexbuffer);
+    glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), &xyz[0], GL_STATIC_DRAW);
+    glEnableVertexAttribArray (0); 
+    glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+    
+    glGenBuffers (1, &elementbuffer);
+    glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+    glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), &ind[0], GL_STATIC_DRAW);
 
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+    glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+    glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+    glm::mat4 Model      = glm::mat4 (1.0f);
 
-  unsigned int texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
+    glm::mat4 MVP = Projection * View * Model; 
+
+    glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+
+    unsigned int texture;
+    glGenTextures (1, &texture);
+    glBindTexture (GL_TEXTURE_2D, texture); 
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
+  }
+
+  void render () const
+  {
+    glUseProgram (programID);
+    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+  }
+};
+
+int main (int argc, char * argv[])
+{
+  if (! glfwInit ()) 
+    {   
+      fprintf (stderr, "Failed to initialize GLFW\n");
+      return -1;
+    }   
+
+  GLFWwindow * window;
+  
+  glfwWindowHint (GLFW_SAMPLES, 4);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  const int width = 1024, height = 1024;
+  window = glfwCreateWindow (width, height, "", NULL, NULL);
+    
+  if (window == NULL)
+    { 
+      fprintf (stderr, "Failed to open GLFW window\n");
+      glfwTerminate ();
+      return -1;
+    }
+  
+  glfwMakeContextCurrent (window);
+  
+  glewExperimental = true; 
+  if (glewInit () != GLEW_OK)
+    {
+      fprintf (stderr, "Failed to initialize GLEW\n");
+      glfwTerminate ();
+      return -1;
+    }
+
+
+  glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+  glEnable (GL_DEPTH_TEST);
+  glEnable (GL_BLEND);
+  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glCullFace (GL_BACK);
+  glFrontFace (GL_CCW);
+  glEnable (GL_CULL_FACE);
+  glDepthFunc (GL_LESS); 
+
+  tex tt;
+
 
   while (1) 
     {   
-      glUseProgram (programID);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      tt.render ();
+
+      glfwSwapBuffers (window);
+      glfwPollEvents (); 
+  
+      if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        break;
+      if (glfwWindowShouldClose (window) != 0)  
+        break;
+    }   
+
+  int Nj = atoi (argv[1]);
+
+  sphere ss (Nj);
+
+  while (1) 
+    {   
+      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      ss.render ();
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
