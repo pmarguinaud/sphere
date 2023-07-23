@@ -425,7 +425,7 @@ int main (int argc, char * argv[])
 
 //    ss.render (tt);
       ss.render (ttland);
-      ss.render (ttuv, 1.05);
+      ss.render (ttuv, 1.01);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
