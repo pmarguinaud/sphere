@@ -299,11 +299,28 @@ int main (int argc, char * argv[])
   glDepthFunc (GL_LESS); 
 
   tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
+//tex tt (8000, 4000);
 
-  checker ck (1024, 1024, 4, 4);
-
+  checker ck (8000, 4000, 4, 4);
 
   if (1){
+    unsigned framebuffer;
+    glGenFramebuffers (1, &framebuffer);
+    glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tt.texture, 0);
+
+    glViewport (0, 0, ck.width, ck.height);
+
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    ck.render ();
+
+    glDeleteFramebuffers (1, &framebuffer);
+
+    glBindFramebuffer (GL_FRAMEBUFFER, 0); 
+
+
+  }else if (0){
   while (1) 
     {   
       glViewport (0, 0, ck.width, ck.height);
@@ -324,6 +341,8 @@ int main (int argc, char * argv[])
 
 
   int Nj = atoi (argv[1]);
+
+  std::cout << " Nj = " << Nj << std::endl;
 
   sphere ss (Nj);
 
