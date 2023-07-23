@@ -162,6 +162,7 @@ class tex
         rgba[4*i+0] = r; rgba[4*i+1] = g;
         rgba[4*i+2] = b; rgba[4*i+3] = a;
 
+//      Beautiful !
 //      rgba[4*i+1] = 0;
 //      rgba[4*i+3] = 255;
       }
