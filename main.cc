@@ -3,9 +3,11 @@
 
 
 #include "bmp.h"
+#include "grib.h"
 #include "gensphere.h"
 #include "shader.h"
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <stdexcept>
 #include <cmath>
@@ -114,11 +116,11 @@ class tex
   public:
 
   int width, height;
-  std::vector<unsigned char> rgb;
   unsigned int texture;
 
   tex (const std::string & path) 
   {
+    std::vector<unsigned char> rgb;
     bmp (path, &rgb, &width, &height);
     glGenTextures (1, &texture);
     glBindTexture (GL_TEXTURE_2D, texture); 
@@ -127,6 +129,50 @@ class tex
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
+  }
+
+  tex (const std::string & u, const std::string & v)
+  {
+    std::vector<double> val_u, val_v;
+    long int nlon_u, nlat_u, nlon_v, nlat_v;
+    grib (u, &val_u, &nlon_u, &nlat_u);
+    grib (v, &val_v, &nlon_v, &nlat_v);
+
+    double umax = *( std::max_element (val_u.begin (), val_u.end ()) );
+    double umin = *( std::min_element (val_u.begin (), val_u.end ()) );
+
+    double vmax = *( std::max_element (val_v.begin (), val_v.end ()) );
+    double vmin = *( std::min_element (val_v.begin (), val_v.end ()) );
+
+    if ((nlon_u != nlon_v) || (nlat_u != nlat_v))
+      throw std::runtime_error ("Dimension mismatch");
+
+    width = nlon_u; height = nlat_u;
+
+    std::vector<unsigned char> rgba (width * height * 4);
+
+    for (int i = 0; i < width * height; i++)
+      {
+        double un = (val_u[i] - umin) / (umax - umin);
+        double vn = (val_v[i] - vmin) / (vmax - vmin);
+        unsigned short ku = un * std::numeric_limits<unsigned short>::max ();
+        unsigned short kv = vn * std::numeric_limits<unsigned short>::max ();
+	unsigned char r = (ku & 0xff00) >> 8, g = ku & 0xff;
+	unsigned char b = (kv & 0xff00) >> 8, a = kv & 0xff;
+        rgba[4*i+0] = r; rgba[4*i+1] = g;
+        rgba[4*i+2] = b; rgba[4*i+3] = a;
+
+//      rgba[4*i+1] = 0;
+//      rgba[4*i+3] = 255;
+      }
+
+    glGenTextures (1, &texture);
+    glBindTexture (GL_TEXTURE_2D, texture); 
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba[0]);
   }
 
   tex (int _width, int _height) : width (_width), height (_height)
@@ -211,7 +257,7 @@ void main()
   fragmentColor.r = col.r;
   fragmentColor.g = col.g;
   fragmentColor.b = col.b;
-  fragmentColor.a = 1.;
+  fragmentColor.a = col.a;
 }
 )CODE");
 
@@ -319,6 +365,8 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
+  tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
+
   tex tt (800, 400);
 
   checker ck (tt.width, tt.height, 8, 4);
@@ -369,7 +417,8 @@ int main (int argc, char * argv[])
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ss.render (tt);
+//    ss.render (tt);
+      ss.render (ttuv);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
