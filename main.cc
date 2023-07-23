@@ -13,64 +13,17 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-
-int main (int argc, char * argv[])
+class tex
 {
-  unsigned int nt; 
+public:
+  const unsigned int nt = 2;
   const int width = 1024, height = 1024;
-
-  nt = 2;
-
-  unsigned int ind[3*nt] = {0, 1, 2, 0, 2, 3};
+  unsigned int ind[3*2] = {0, 1, 2, 0, 2, 3};
   const int Nx = 4, Ny = 4;
-  
-
-  if (! glfwInit ()) 
-    {   
-      fprintf (stderr, "Failed to initialize GLFW\n");
-      return -1;
-    }   
-
-  GLFWwindow * window;
-  
-  glfwWindowHint (GLFW_SAMPLES, 4);
-  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-  window = glfwCreateWindow (width, height, "", NULL, NULL);
-    
-  if (window == NULL)
-    { 
-      fprintf (stderr, "Failed to open GLFW window\n");
-      glfwTerminate ();
-      return -1;
-    }
-  
-  glfwMakeContextCurrent (window);
-  
-  glewExperimental = true; 
-  if (glewInit () != GLEW_OK)
-    {
-      fprintf (stderr, "Failed to initialize GLEW\n");
-      glfwTerminate ();
-      return -1;
-    }
-
-
-  glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
-  glEnable (GL_DEPTH_TEST);
-  glEnable (GL_BLEND);
-  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glCullFace (GL_BACK);
-  glFrontFace (GL_CCW);
-  glEnable (GL_CULL_FACE);
-  glDepthFunc (GL_LESS); 
-
-
-
-  GLuint programID = shader 
+  GLuint programID;
+  void create ()
+  {
+    programID = shader 
 (
 R"CODE(
 #version 420 core
@@ -79,7 +32,7 @@ in float instance;
 
 out vec4 color;
 
-void main()
+void main ()
 {
   color = vec4 (0., 0., 0., 0.);
 
@@ -98,7 +51,7 @@ uniform int Ny = 0;
 
 out float instance;
 
-void main()
+void main ()
 {
   int i = gl_VertexID;
   int j = gl_InstanceID;
@@ -129,23 +82,83 @@ void main()
 }
 )CODE");
 
-  glUseProgram (programID);
-  GLuint VertexArrayID;
-  GLuint elementbuffer;
-  
-  glGenVertexArrays (1, &VertexArrayID);
-  glBindVertexArray (VertexArrayID);
-  
-  glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
-  glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    glUseProgram (programID);
+    GLuint VertexArrayID;
+    GLuint elementbuffer;
+    
+    glGenVertexArrays (1, &VertexArrayID);
+    glBindVertexArray (VertexArrayID);
+    
+    glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
+    glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
 
-  glViewport (0, 0, width, height);
+
+  }
+
+  void render () const
+  {
+    glViewport (0, 0, width, height);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, ind, Nx * Ny);
+  }
+};
+
+
+int main (int argc, char * argv[])
+{
+  tex tt;
+  
+
+  if (! glfwInit ()) 
+    {   
+      fprintf (stderr, "Failed to initialize GLFW\n");
+      return -1;
+    }   
+
+  GLFWwindow * window;
+  
+  glfwWindowHint (GLFW_SAMPLES, 4);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint (GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint (GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  window = glfwCreateWindow (tt.width, tt.height, "", NULL, NULL);
+    
+  if (window == NULL)
+    { 
+      fprintf (stderr, "Failed to open GLFW window\n");
+      glfwTerminate ();
+      return -1;
+    }
+  
+  glfwMakeContextCurrent (window);
+  
+  glewExperimental = true; 
+  if (glewInit () != GLEW_OK)
+    {
+      fprintf (stderr, "Failed to initialize GLEW\n");
+      glfwTerminate ();
+      return -1;
+    }
+
+
+  glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+  glEnable (GL_DEPTH_TEST);
+  glEnable (GL_BLEND);
+  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glCullFace (GL_BACK);
+  glFrontFace (GL_CCW);
+  glEnable (GL_CULL_FACE);
+  glDepthFunc (GL_LESS); 
+
+  tt.create ();
+
 
   while (1) 
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, ind, Nx * Ny);
+      tt.render ();
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
