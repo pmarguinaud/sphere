@@ -16,22 +16,14 @@
 
 int main (int argc, char * argv[])
 {
-  int Nj = atoi (argv[1]);
-  int np; 
-  float * xyz;
   unsigned int nt; 
-  unsigned int * ind;
   const int width = 1024, height = 1024;
-  int w, h;
-  unsigned char * rgb = NULL;
 
-//bmp ("10px-SNice.svg.bmp", &rgb, &w, &h);
-//bmp ("800px-SNice.svg.bmp", &rgb, &w, &h);
-  bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
+  nt = 2;
 
-  gensphere (Nj, &np, &xyz, &nt, &ind);
-
-
+  unsigned int ind[3*nt] = {0, 1, 2, 0, 2, 3};
+  const int Nx = 4, Ny = 4;
+  
 
   if (! glfwInit ()) 
     {   
@@ -78,105 +70,82 @@ int main (int argc, char * argv[])
 
 
 
-  GLuint VertexArrayID;
-  GLuint vertexbuffer, colorbuffer, elementbuffer;
-
-  glGenVertexArrays (1, &VertexArrayID);
-  glBindVertexArray (VertexArrayID);
-
-  glGenBuffers (1, &vertexbuffer);
-  glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), xyz, GL_STATIC_DRAW);
-  glEnableVertexAttribArray (0); 
-  glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
-  
-  glGenBuffers (1, &elementbuffer);
-  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
-  glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), ind , GL_STATIC_DRAW);
-
   GLuint programID = shader 
 (
 R"CODE(
-#version 330 core
+#version 420 core
 
-in vec4 fragmentColor;
+in float instance;
 
 out vec4 color;
 
 void main()
 {
-  color.r = fragmentColor.r;
-  color.g = fragmentColor.g;
-  color.b = fragmentColor.b;
-  color.a = fragmentColor.a;
+  color = vec4 (0., 0., 0., 0.);
+
+  int i = int (instance) % 3;
+  
+  color[i] = 1.;  
+
+  color.a = 1.;
 }
 )CODE",
 R"CODE(
-#version 330 core
+#version 420 core
 
-layout(location = 0) in vec3 vertexPos;
+uniform int Nx = 0;
+uniform int Ny = 0;
 
-out vec4 fragmentColor;
-
-uniform mat4 MVP;
-
-uniform sampler2D texture;
+out float instance;
 
 void main()
 {
-  float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
-  float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
-  gl_Position =  MVP * vec4 (vertexPos, 1);
+  int i = gl_VertexID;
+  int j = gl_InstanceID;
+  float dx = 2. / float (Nx);
+  float dy = 2. / float (Ny);
 
-  vec4 col = texture2D (texture, vec2 (lon, lat));
-  fragmentColor.r = col.r;
-  fragmentColor.g = col.g;
-  fragmentColor.b = col.b;
-  fragmentColor.a = 1.;
+  instance = j;
 
-//fragmentColor.r = lon;
-//fragmentColor.g = 0.;
-//fragmentColor.b = lat;
-//fragmentColor.a = 1.;
+  int jx = j % Nx;
+  int jy = j / Ny;
 
-//fragmentColor.r = 1.;
-//fragmentColor.g = 1.;
-//fragmentColor.b = 1.;
-//fragmentColor.a = 1.;
+  vec3 vertexPos;
+  if (i == 0) 
+    vertexPos = vec3 (0.0f, 0.0f, 0.0f);
+  else if (i == 1)
+    vertexPos = vec3 (0.0f,   dx, 0.0f);
+  else if (i == 2)
+    vertexPos = vec3 (0.0f,   dx,   dy);
+  else if (i == 3)
+    vertexPos = vec3 (0.0f, 0.0f,   dy);
 
+  float x = float (jx) * dx;
+  float y = float (jy) * dy;
+
+  vertexPos = vertexPos + vec3 (0.0f, x-1.0, y-1.0);
+
+  gl_Position = vec4 (vertexPos.y, vertexPos.z, 0., 1.);
 }
 )CODE");
 
   glUseProgram (programID);
+  GLuint VertexArrayID;
+  GLuint elementbuffer;
+  
+  glGenVertexArrays (1, &VertexArrayID);
+  glBindVertexArray (VertexArrayID);
+  
+  glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
+  glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
 
-  glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-  glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-//glm::mat4 Projection = glm::perspective (glm::radians (10.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-//glm::mat4 View       = glm::lookAt (glm::vec3 (3.0f,0.0f,5.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-  glm::mat4 Model      = glm::mat4 (1.0f);
-
-  glm::mat4 MVP = Projection * View * Model; 
-
-  glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
-
-  unsigned int texture;
-  glGenTextures (1, &texture);
-  glBindTexture (GL_TEXTURE_2D, texture); 
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
-
-  glUniform1i (glGetUniformLocation (programID, "texture"), 0);
+  glViewport (0, 0, width, height);
 
   while (1) 
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      glBindVertexArray (VertexArrayID);
-      glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+      glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, ind, Nx * Ny);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
