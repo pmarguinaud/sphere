@@ -248,14 +248,14 @@ layout(location = 0) in vec3 vertexPos;
 out vec4 fragmentColor;
 
 uniform mat4 MVP;
-
 uniform sampler2D tex;
+uniform float scale;
 
 void main()
 {
   float lon = (atan (vertexPos.y, vertexPos.x) / 3.1415926 + 1.0) * 0.5;
   float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
-  gl_Position =  MVP * vec4 (vertexPos, 1);
+  gl_Position =  MVP * vec4 (scale * vertexPos, 1);
 
   vec4 col = texture (tex, vec2 (lon, lat));
   fragmentColor.r = col.r;
@@ -282,7 +282,7 @@ void main()
 
   }
 
-  void render (const tex & tt) const
+  void render (const tex & tt, float scale = 1.0) const
   {
     glUseProgram (programID);
 
@@ -300,6 +300,7 @@ void main()
     glm::mat4 Model      = glm::mat4 (1.0f);
     glm::mat4 MVP = Projection * View * Model; 
     glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+    glUniform1f (glGetUniformLocation (programID, "scale"), scale);
 
     tt.bind (0);
     glUniform1i (glGetUniformLocation (programID, "tex"), 0);
@@ -423,8 +424,8 @@ int main (int argc, char * argv[])
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 //    ss.render (tt);
-      ss.render (ttuv);
-//    ss.render (ttland);
+      ss.render (ttland);
+      ss.render (ttuv, 1.05);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
