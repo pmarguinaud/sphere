@@ -144,6 +144,9 @@ class tex
     double vmax = *( std::max_element (val_v.begin (), val_v.end ()) );
     double vmin = *( std::min_element (val_v.begin (), val_v.end ()) );
 
+    vmin = std::min (umin, vmin);
+    vmax = std::max (umax, vmax);
+
     if ((nlon_u != nlon_v) || (nlat_u != nlat_v))
       throw std::runtime_error ("Dimension mismatch");
 
@@ -153,7 +156,7 @@ class tex
 
     for (int i = 0; i < width * height; i++)
       {
-        double un = (val_u[i] - umin) / (umax - umin);
+        double un = (val_u[i] - vmin) / (umax - vmin);
         double vn = (val_v[i] - vmin) / (vmax - vmin);
         unsigned short ku = un * std::numeric_limits<unsigned short>::max ();
         unsigned short kv = vn * std::numeric_limits<unsigned short>::max ();
@@ -366,6 +369,7 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
+  tex ttland ("Whole_world_-_land_and_oceans_8000.bmp");
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
 
   tex tt (800, 400);
@@ -420,6 +424,7 @@ int main (int argc, char * argv[])
 
 //    ss.render (tt);
       ss.render (ttuv);
+//    ss.render (ttland);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
