@@ -99,7 +99,6 @@ void main ()
   void render () const
   {
     glUseProgram (programID);
-    glViewport (0, 0, width, height);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
 
@@ -113,20 +112,31 @@ class tex
 {
   public:
 
-  int w, h;
+  int width, height;
   std::vector<unsigned char> rgb;
   unsigned int texture;
 
   tex (const std::string & path) 
   {
-    bmp (path, &rgb, &w, &h);
+    bmp (path, &rgb, &width, &height);
     glGenTextures (1, &texture);
     glBindTexture (GL_TEXTURE_2D, texture); 
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
+  }
+
+  tex (int _width, int _height) : width (_width), height (_height)
+  {
+    glGenTextures (1, &texture);
+    glBindTexture (GL_TEXTURE_2D, texture); 
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
   }
 
   void bind (GLuint target) const
@@ -213,7 +223,7 @@ void main()
     glBindBuffer (GL_ARRAY_BUFFER, vertexbuffer);
     glBufferData (GL_ARRAY_BUFFER, 3 * np * sizeof (float), &xyz[0], GL_STATIC_DRAW);
     glEnableVertexAttribArray (0); 
-    glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, NULL); 
+    glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 0, nullptr); 
     
     glGenBuffers (1, &elementbuffer);
     glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
@@ -233,7 +243,7 @@ void main()
     glUseProgram (programID);
     tt.bind (0);
     glUniform1i (glGetUniformLocation (programID, "tex"), 0);
-    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, nullptr);
   }
 
   ~sphere ()
@@ -259,9 +269,9 @@ int main (int argc, char * argv[])
   glfwWindowHint (GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   const int width = 1024, height = 1024;
-  window = glfwCreateWindow (width, height, "", NULL, NULL);
+  window = glfwCreateWindow (width, height, "", nullptr, nullptr);
     
-  if (window == NULL)
+  if (window == nullptr)
     { 
       fprintf (stderr, "Failed to open GLFW window\n");
       glfwTerminate ();
@@ -288,11 +298,16 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
+  tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
+
   checker ck (1024, 1024, 4, 4);
 
 
+  if (1){
   while (1) 
     {   
+      glViewport (0, 0, ck.width, ck.height);
+
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       ck.render ();
@@ -305,8 +320,8 @@ int main (int argc, char * argv[])
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
+  }
 
-  tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
 
   int Nj = atoi (argv[1]);
 
@@ -314,6 +329,8 @@ int main (int argc, char * argv[])
 
   while (1) 
     {   
+      glViewport (0, 0, width, height);
+
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       ss.render (tt);
