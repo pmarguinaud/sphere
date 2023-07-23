@@ -91,7 +91,6 @@ void main ()
     glGenVertexArrays (1, &VertexArrayID);
     glBindVertexArray (VertexArrayID);
     
-    std::cout << " Nx = " << Nx << " Ny = " << Ny << std::endl;
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
 
@@ -320,7 +319,6 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
-//tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
   tex tt (800, 400);
 
   checker ck (tt.width, tt.height, 8, 4);
@@ -340,8 +338,6 @@ int main (int argc, char * argv[])
     glDeleteFramebuffers (1, &framebuffer);
 
     glBindFramebuffer (GL_FRAMEBUFFER, 0); 
-
-
   }else if (1){
   while (1) 
     {   
@@ -364,8 +360,6 @@ int main (int argc, char * argv[])
 
 
   int Nj = atoi (argv[1]);
-
-  std::cout << " Nj = " << Nj << std::endl;
 
   sphere ss (Nj);
 
