@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <stdexcept>
+#include <cmath>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -62,24 +63,24 @@ void main ()
   instance = j;
 
   int jx = j % Nx;
-  int jy = j / Ny;
+  int jy = j / Nx;
 
-  vec3 vertexPos;
+  vec2 vertexPos;
   if (i == 0) 
-    vertexPos = vec3 (0.0f, 0.0f, 0.0f);
+    vertexPos = vec2 (0.0f, 0.0f);
   else if (i == 1)
-    vertexPos = vec3 (0.0f,   dx, 0.0f);
+    vertexPos = vec2 (  dx, 0.0f);
   else if (i == 2)
-    vertexPos = vec3 (0.0f,   dx,   dy);
+    vertexPos = vec2 (  dx,   dy);
   else if (i == 3)
-    vertexPos = vec3 (0.0f, 0.0f,   dy);
+    vertexPos = vec2 (0.0f,   dy);
 
   float x = float (jx) * dx;
   float y = float (jy) * dy;
 
-  vertexPos = vertexPos + vec3 (0.0f, x-1.0, y-1.0);
+  vertexPos = vertexPos + vec2 (x-1.0, y-1.0);
 
-  gl_Position = vec4 (vertexPos.y, vertexPos.z, 0., 1.);
+  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
 }
 )CODE");
 
@@ -90,6 +91,7 @@ void main ()
     glGenVertexArrays (1, &VertexArrayID);
     glBindVertexArray (VertexArrayID);
     
+    std::cout << " Nx = " << Nx << " Ny = " << Ny << std::endl;
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
 
@@ -164,7 +166,7 @@ class sphere
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer;
   GLuint programID;
-
+  float lon = 0., lat = 0.;
 
   sphere (int _Nj)
   {
@@ -229,18 +231,27 @@ void main()
     glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
     glBufferData (GL_ELEMENT_ARRAY_BUFFER, 3 * nt * sizeof (unsigned int), &ind[0], GL_STATIC_DRAW);
 
-    glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
-    glm::mat4 View       = glm::lookAt (glm::vec3 (6.0f,0.0f,0.0f), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
-    glm::mat4 Model      = glm::mat4 (1.0f);
-
-    glm::mat4 MVP = Projection * View * Model; 
-
-    glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
   }
 
   void render (const tex & tt) const
   {
     glUseProgram (programID);
+
+    glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+
+    const float deg2rad = M_PI / 180.0f;
+    const float R = 6.0;
+    float coslon = std::cos (deg2rad * lon), sinlon = std::sin (deg2rad * lon);
+    float coslat = std::cos (deg2rad * lat), sinlat = std::sin (deg2rad * lat);
+    float X = R * coslon * coslat;
+    float Y = R * sinlon * coslat;
+    float Z = R *          sinlat;
+
+    glm::mat4 View       = glm::lookAt (glm::vec3 (X,Y,Z), glm::vec3 (0,0,0), glm::vec3 (0,0,1));
+    glm::mat4 Model      = glm::mat4 (1.0f);
+    glm::mat4 MVP = Projection * View * Model; 
+    glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+
     tt.bind (0);
     glUniform1i (glGetUniformLocation (programID, "tex"), 0);
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, nullptr);
@@ -250,6 +261,17 @@ void main()
   {
     glDeleteProgram (programID);
   }
+
+  void incLon (float dlon)
+  {
+    lon += dlon;
+  }
+
+  void incLat (float dlat)
+  {
+    lat += dlat;
+  }
+
 };
 
 int main (int argc, char * argv[])
@@ -298,10 +320,10 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
-  tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
-//tex tt (8000, 4000);
+//tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
+  tex tt (800, 400);
 
-  checker ck (8000, 4000, 4, 4);
+  checker ck (tt.width, tt.height, 8, 4);
 
   if (1){
     unsigned framebuffer;
@@ -320,7 +342,7 @@ int main (int argc, char * argv[])
     glBindFramebuffer (GL_FRAMEBUFFER, 0); 
 
 
-  }else if (0){
+  }else if (1){
   while (1) 
     {   
       glViewport (0, 0, ck.width, ck.height);
@@ -337,6 +359,7 @@ int main (int argc, char * argv[])
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
+    return 0;
   }
 
 
@@ -359,6 +382,14 @@ int main (int argc, char * argv[])
   
       if (glfwGetKey (window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         break;
+      if (glfwGetKey (window, GLFW_KEY_UP) == GLFW_PRESS)
+        ss.incLat (+1);
+      if (glfwGetKey (window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        ss.incLat (-1);
+      if (glfwGetKey (window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        ss.incLon (-1);
+      if (glfwGetKey (window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        ss.incLon (+1);
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
