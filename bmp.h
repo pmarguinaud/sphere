@@ -2,6 +2,7 @@
 #define _BMP_H
 
 #include <vector>
+#include <string>
 
-void bmp (const char *, std::vector<unsigned char> *, int *, int *);
+void bmp (const std::string &, std::vector<unsigned char> *, int *, int *);
 #endif

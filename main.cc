@@ -14,18 +14,17 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-class tex
+class checker
 {
 public:
   const unsigned int nt = 2;
-  const int width = 1024, height = 1024;
-  std::vector<unsigned int> ind;
-  const int Nx = 4, Ny = 4;
+  const int width, height;
+  const std::vector<unsigned int> ind;
+  const int Nx, Ny;
   GLuint programID;
-  tex ()
+  checker (int _width, int _height, int _Nx, int _Ny) : width (_width), height (_height), 
+    ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), Nx (_Nx), Ny (_Ny)
   {
-    ind = std::vector<unsigned int>{0, 1, 2, 0, 2, 3};
-
     programID = shader 
 (
 R"CODE(
@@ -104,6 +103,43 @@ void main ()
     glViewport (0, 0, width, height);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
+
+  ~checker ()
+  {
+    glDeleteProgram (programID);
+  }
+};
+
+class tex
+{
+  public:
+
+  int w, h;
+  std::vector<unsigned char> rgb;
+  unsigned int texture;
+
+  tex (const std::string & path) 
+  {
+    bmp (path, &rgb, &w, &h);
+    glGenTextures (1, &texture);
+    glBindTexture (GL_TEXTURE_2D, texture); 
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
+  }
+
+  void bind (GLuint target) const
+  {
+    glActiveTexture (GL_TEXTURE0);
+    glBindTexture (GL_TEXTURE_2D, texture);
+  }
+
+  ~tex ()
+  {
+    glDeleteTextures (1, &texture);
+  }
 };
 
 class sphere
@@ -114,8 +150,6 @@ class sphere
   std::vector<float> xyz;
   unsigned int nt; 
   std::vector<unsigned int> ind;
-  int w, h;
-  std::vector<unsigned char> rgb;
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer;
   GLuint programID;
@@ -124,8 +158,6 @@ class sphere
   sphere (int _Nj)
   {
     Nj = _Nj;
-
-    bmp ("Whole_world_-_land_and_oceans_8000.bmp", &rgb, &w, &h);
 
     gensphere (Nj, &np, &xyz, &nt, &ind);
 
@@ -155,7 +187,7 @@ out vec4 fragmentColor;
 
 uniform mat4 MVP;
 
-uniform sampler2D texture;
+uniform sampler2D tex;
 
 void main()
 {
@@ -163,7 +195,7 @@ void main()
   float lat = asin (vertexPos.z) / 3.1415926 + 0.5;
   gl_Position =  MVP * vec4 (vertexPos, 1);
 
-  vec4 col = texture2D (texture, vec2 (lon, lat));
+  vec4 col = texture (tex, vec2 (lon, lat));
   fragmentColor.r = col.r;
   fragmentColor.g = col.g;
   fragmentColor.b = col.b;
@@ -193,21 +225,19 @@ void main()
     glm::mat4 MVP = Projection * View * Model; 
 
     glUniformMatrix4fv (glGetUniformLocation (programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
-
-    unsigned int texture;
-    glGenTextures (1, &texture);
-    glBindTexture (GL_TEXTURE_2D, texture); 
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, &rgb[0]);
   }
 
-  void render () const
+  void render (const tex & tt) const
   {
     glUseProgram (programID);
+    tt.bind (0);
+    glUniform1i (glGetUniformLocation (programID, "tex"), 0);
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, NULL);
+  }
+
+  ~sphere ()
+  {
+    glDeleteProgram (programID);
   }
 };
 
@@ -257,14 +287,14 @@ int main (int argc, char * argv[])
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
 
-  tex tt;
+  checker ck (1024, 1024, 4, 4);
 
 
   while (1) 
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      tt.render ();
+      ck.render ();
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
@@ -275,6 +305,8 @@ int main (int argc, char * argv[])
         break;
     }   
 
+  tex tt ("Whole_world_-_land_and_oceans_8000.bmp");
+
   int Nj = atoi (argv[1]);
 
   sphere ss (Nj);
@@ -283,7 +315,7 @@ int main (int argc, char * argv[])
     {   
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ss.render ();
+      ss.render (tt);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 

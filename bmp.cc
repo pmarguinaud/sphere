@@ -9,12 +9,12 @@ static int S4 (unsigned char * h)
 }
   
   
-void bmp (const char * file, std::vector<unsigned char> * rgb, int * width, int * height)
+void bmp (const std::string & file, std::vector<unsigned char> * rgb, int * width, int * height)
 {
 
   unsigned char h[54];
   
-  FILE * fp = fopen (file, "r");
+  FILE * fp = fopen (&file[0], "r");
   fread (h, sizeof (h), 1, fp);
   
   int ioff = S4 (&h[10]); 
