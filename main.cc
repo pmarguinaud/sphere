@@ -210,6 +210,7 @@ void main ()
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
@@ -218,6 +219,7 @@ void main ()
   void render () const
   {
     glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
@@ -311,6 +313,7 @@ void main()
   void render (const tex & tt, float scale = 1.0) const
   {
     glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
 
     glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
 
@@ -439,8 +442,8 @@ int main (int argc, char * argv[])
 
   while (1) 
     {   
-      glViewport (0, 0, width, height);
 
+      glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       ss.render (ttck);
