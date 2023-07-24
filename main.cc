@@ -178,54 +178,6 @@ void main ()
   }
 };
 
-class dotter
-{
-public:
-  GLuint programID;
-  dotter ()
-  {
-    programID = shader (nullptr, nullptr, 
-R"CODE(
-#version 430 core
-
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-layout (rgba16f) uniform image2D imgOutput;
-
-uniform float scale = 1.0;
-
-void main () 
-{
-  vec4 value;
-
-  ivec2 texelCoord = ivec2 (gl_GlobalInvocationID.xy);
-  
-  value = imageLoad (imgOutput, texelCoord);
-
-  value.a = value.a * scale;
-
-  imageStore (imgOutput, texelCoord, value);
-}
-)CODE");
-
-
-  } 
-  void apply (tex & tt, float scale)
-  {
-    glUseProgram (programID);
-    tt.bind (0);
-    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
-    glUniform1f (glGetUniformLocation (programID, "scale"), scale);
-
-    glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
-    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-  }
-  ~dotter ()
-  {
-    glDeleteProgram (programID);
-  }
-};
-
-
 class checker
 {
 public:
