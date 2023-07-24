@@ -280,6 +280,68 @@ void main ()
   }
 };
 
+class checker2
+{
+public:
+  const int Nx, Ny;
+  GLuint programID;
+  checker2 (int _Nx, int _Ny) : Nx (_Nx), Ny (_Ny)
+  {
+    programID = shader (nullptr, nullptr,
+R"CODE(
+#version 430 core
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (rgba16f) uniform image2D imgOutput;
+
+uniform int Nx;
+uniform int Ny;
+uniform int Sx;
+uniform int Sy;
+
+void main ()
+{
+  ivec2 texelCoord = ivec2 (gl_GlobalInvocationID.xy);
+  
+  int jx = int (Nx * float (texelCoord.x) / float (Sx));
+  int jy = int (Ny * float (texelCoord.y) / float (Sy));
+
+  int j = jx + Nx * jy;
+
+  vec4 value = vec4 (0., 0., 0., 1.);
+  
+  j = j % 3;
+
+  value[j] = 1.;
+
+  imageStore (imgOutput, texelCoord, value);
+}
+)CODE");
+
+    glUseProgram (programID);
+  }
+
+  void apply (tex & tt) const
+  {
+    glUseProgram (programID);
+    glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
+    glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    glUniform1i (glGetUniformLocation (programID, "Sx"), tt.width);
+    glUniform1i (glGetUniformLocation (programID, "Sy"), tt.height);
+    tt.bind (0);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
+
+    int W = (tt.width+31)/32, H = (tt.height+31)/32;
+    glDispatchCompute (W, H, 1);
+    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
+
+  ~checker2 ()
+  {
+    glDeleteProgram (programID);
+  }
+};
+
 class fader2
 {
 public:
@@ -533,6 +595,10 @@ int main (int argc, char * argv[])
   checker ck (8, 4);
 
   if (1){
+    std::cout << " ck2 " << std::endl;
+    checker2 ck2 (8, 4);
+    ck2.apply (ttck);
+  }else if (1){
     texModifier texm (ttck);
 
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -569,9 +635,6 @@ int main (int argc, char * argv[])
 
   while (1) 
     {   
-      glViewport (0, 0, width, height);
-      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
       if (1)
         {
           ff.apply (ttck, 0.99);
