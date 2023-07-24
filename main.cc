@@ -92,7 +92,7 @@ class tex
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   }
 
   void bind (GLuint target) const
@@ -141,7 +141,7 @@ R"CODE(
 #version 430 core
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-layout (rgba) uniform image2D imgOutput;
+layout (rgba8) uniform image2D imgOutput;
 
 void main() 
 {
@@ -163,7 +163,7 @@ void main()
   {
     glUseProgram (programID);
     tt.bind (0);
-    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
 
     glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
     glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
