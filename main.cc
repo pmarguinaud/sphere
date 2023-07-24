@@ -16,101 +16,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-class checker
-{
-public:
-  const unsigned int nt = 2;
-  const int width, height;
-  const std::vector<unsigned int> ind;
-  const int Nx, Ny;
-  GLuint programID;
-  checker (int _width, int _height, int _Nx, int _Ny) : width (_width), height (_height), 
-    ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), Nx (_Nx), Ny (_Ny)
-  {
-    programID = shader 
-(
-R"CODE(
-#version 420 core
-
-in float instance;
-
-out vec4 color;
-
-void main ()
-{
-  color = vec4 (0., 0., 0., 0.);
-
-  int i = int (instance) % 3;
-  
-  color[i] = 1.;  
-
-  color.a = 1.;
-}
-)CODE",
-R"CODE(
-#version 420 core
-
-uniform int Nx = 0;
-uniform int Ny = 0;
-
-out float instance;
-
-void main ()
-{
-  int i = gl_VertexID;
-  int j = gl_InstanceID;
-  float dx = 2. / float (Nx);
-  float dy = 2. / float (Ny);
-
-  instance = j;
-
-  int jx = j % Nx;
-  int jy = j / Nx;
-
-  vec2 vertexPos;
-  if (i == 0) 
-    vertexPos = vec2 (0.0f, 0.0f);
-  else if (i == 1)
-    vertexPos = vec2 (  dx, 0.0f);
-  else if (i == 2)
-    vertexPos = vec2 (  dx,   dy);
-  else if (i == 3)
-    vertexPos = vec2 (0.0f,   dy);
-
-  float x = float (jx) * dx;
-  float y = float (jy) * dy;
-
-  vertexPos = vertexPos + vec2 (x-1.0, y-1.0);
-
-  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
-}
-)CODE");
-
-    glUseProgram (programID);
-    GLuint VertexArrayID;
-    GLuint elementbuffer;
-    
-    glGenVertexArrays (1, &VertexArrayID);
-    glBindVertexArray (VertexArrayID);
-    
-    glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
-    glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
-
-
-  }
-
-  void render () const
-  {
-    glUseProgram (programID);
-    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
-  }
-
-  ~checker ()
-  {
-    glDeleteProgram (programID);
-  }
-};
-
 class tex
 {
   public:
@@ -202,6 +107,127 @@ class tex
   {
     glDeleteTextures (1, &texture);
   }
+
+};
+
+class texModifier
+{
+  public:
+  unsigned framebuffer;
+
+  texModifier (const tex & tt)
+  {
+    glGenFramebuffers (1, &framebuffer);
+    glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
+    glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tt.texture, 0);
+    glViewport (0, 0, tt.width, tt.height);
+  }
+
+  ~texModifier ()
+  {
+    glDeleteFramebuffers (1, &framebuffer);
+    glBindFramebuffer (GL_FRAMEBUFFER, 0); 
+  }
+};
+
+class checker
+{
+public:
+  const unsigned int nt = 2;
+  const std::vector<unsigned int> ind;
+  const int Nx, Ny;
+  GLuint programID;
+  GLuint VertexArrayID;
+  checker (int _Nx, int _Ny) : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), 
+	                       Nx (_Nx), Ny (_Ny)
+  {
+    programID = shader 
+(
+R"CODE(
+#version 420 core
+
+in float instance;
+
+out vec4 color;
+
+void main ()
+{
+  color = vec4 (0., 0., 0., 0.);
+
+  int i = int (instance) % 3;
+  
+  color[i] = 1.;  
+
+  color.a = 1.;
+}
+)CODE",
+R"CODE(
+#version 420 core
+
+uniform int Nx = 0;
+uniform int Ny = 0;
+
+out float instance;
+
+void main ()
+{
+  int i = gl_VertexID;
+  int j = gl_InstanceID;
+  float dx = 2. / float (Nx);
+  float dy = 2. / float (Ny);
+
+  instance = j;
+
+  int jx = j % Nx;
+  int jy = j / Nx;
+
+  vec2 vertexPos;
+  if (i == 0) 
+    vertexPos = vec2 (0.0f, 0.0f);
+  else if (i == 1)
+    vertexPos = vec2 (  dx, 0.0f);
+  else if (i == 2)
+    vertexPos = vec2 (  dx,   dy);
+  else if (i == 3)
+    vertexPos = vec2 (0.0f,   dy);
+
+  float x = float (jx) * dx;
+  float y = float (jy) * dy;
+
+  vertexPos = vertexPos + vec2 (x-1.0, y-1.0);
+
+  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
+}
+)CODE");
+
+    glUseProgram (programID);
+    
+    glGenVertexArrays (1, &VertexArrayID);
+    glBindVertexArray (VertexArrayID);
+  }
+
+  void render (tex & tt) const
+  {
+    glViewport (0, 0, tt.width, tt.height);
+    glUseProgram (programID);
+    glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
+    glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
+  }
+
+  void render () const
+  {
+    glUseProgram (programID);
+    glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
+    glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
+  }
+
+  ~checker ()
+  {
+    glDeleteVertexArrays (1, &VertexArrayID);
+    glDeleteProgram (programID);
+  }
 };
 
 class sphere
@@ -226,7 +252,7 @@ class sphere
     programID = shader 
 (
 R"CODE(
-#version 330 core
+#version 420 core
 
 in vec4 fragmentColor;
 
@@ -241,7 +267,7 @@ void main()
 }
 )CODE",
 R"CODE(
-#version 330 core
+#version 420 core
 
 layout(location = 0) in vec3 vertexPos;
 
@@ -309,6 +335,9 @@ void main()
 
   ~sphere ()
   {
+    glDeleteBuffers (1, &vertexbuffer);
+    glDeleteBuffers (1, &elementbuffer);
+    glDeleteVertexArrays (1, &VertexArrayID);
     glDeleteProgram (programID);
   }
 
@@ -373,29 +402,20 @@ int main (int argc, char * argv[])
   tex ttland ("Whole_world_-_land_and_oceans_8000.bmp");
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
 
-  tex tt (800, 400);
-
-  checker ck (tt.width, tt.height, 8, 4);
+  tex ttck (800, 400);
+  checker ck (8, 4);
 
   if (1){
-    unsigned framebuffer;
-    glGenFramebuffers (1, &framebuffer);
-    glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tt.texture, 0);
-
-    glViewport (0, 0, ck.width, ck.height);
+    texModifier texm (ttck);
 
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    ck.render ();
+    ck.render (ttck);
 
-    glDeleteFramebuffers (1, &framebuffer);
-
-    glBindFramebuffer (GL_FRAMEBUFFER, 0); 
   }else if (1){
   while (1) 
     {   
-      glViewport (0, 0, ck.width, ck.height);
+      glViewport (0, 0, ttck.width, ttck.height);
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -423,9 +443,9 @@ int main (int argc, char * argv[])
 
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-//    ss.render (tt);
-      ss.render (ttland);
-      ss.render (ttuv, 1.01);
+      ss.render (ttck);
+//    ss.render (ttland);
+//    ss.render (ttuv, 1.01);
 
       glfwSwapBuffers (window);
       glfwPollEvents (); 
