@@ -130,6 +130,55 @@ class texModifier
   }
 };
 
+class dotterCompute
+{
+public:
+  GLuint programID;
+  dotterCompute ()
+  {
+    programID = shader (nullptr, nullptr, 
+R"CODE(
+#version 430 core
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (rgba16f) uniform image2D imgOutput;
+
+void main () 
+{
+  ivec2 center = ivec2 (800, 400);
+  int r = 10;
+  
+  int ix, iy;
+
+  vec4 value = vec4 (0., 0., 0., 1.);
+  for (ix = -r; ix <= r; ix++)
+    {
+      for (iy = -r; iy <= r; iy++)
+        {
+          ivec2 texelCoord = ivec2 (ix, iy) + center;
+          imageStore (imgOutput, texelCoord, value);
+        }
+    }
+}
+)CODE");
+
+
+  } 
+  void apply (tex & tt)
+  {
+    glUseProgram (programID);
+    tt.bind (0);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
+
+    glDispatchCompute (1, 1, 1);
+    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
+  ~dotterCompute ()
+  {
+    glDeleteProgram (programID);
+  }
+};
+
 class faderCompute
 {
 public:
@@ -430,7 +479,7 @@ class sphere
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer;
   GLuint programID;
-  float lon = 0., lat = 0.;
+  float lon = 0., lat = 0., fov = 20.0f;
 
   sphere (int _Nj)
   {
@@ -502,7 +551,7 @@ void main()
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
 
-    glm::mat4 Projection = glm::perspective (glm::radians (20.0f), 1.0f / 1.0f, 0.1f, 100.0f);
+    glm::mat4 Projection = glm::perspective (glm::radians (fov), 1.0f / 1.0f, 0.1f, 100.0f);
 
     const float deg2rad = M_PI / 180.0f;
     const float R = 6.0;
@@ -520,6 +569,7 @@ void main()
 
     tt.bind (0);
     glUniform1i (glGetUniformLocation (programID, "tex"), 0);
+//  glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, nullptr);
   }
 
@@ -539,6 +589,11 @@ void main()
   void incLat (float dlat)
   {
     lat += dlat;
+  }
+
+  void incFov (float dfov)
+  {
+    fov += dfov;
   }
 
 };
@@ -592,12 +647,16 @@ int main (int argc, char * argv[])
   tex ttland ("Whole_world_-_land_and_oceans_8000.bmp");
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
 
-  tex ttck (800, 400);
+  tex ttck (1600, 800);
   checkerRender ck (8, 4);
 
   if (1){
     checkerCompute ck2 (8, 4);
     ck2.apply (ttck);
+
+    dotterCompute dd;
+    dd.apply (ttck);
+
   }else if (1){
     texModifier texm (ttck);
 
@@ -637,7 +696,7 @@ int main (int argc, char * argv[])
     {   
       if (1)
         {
-          ff.apply (ttck, 0.99);
+       // ff.apply (ttck, 0.99);
         }
       else
         {
@@ -666,6 +725,10 @@ int main (int argc, char * argv[])
         ss.incLon (-1);
       if (glfwGetKey (window, GLFW_KEY_RIGHT) == GLFW_PRESS)
         ss.incLon (+1);
+      if (glfwGetKey (window, GLFW_KEY_O) == GLFW_PRESS)
+        ss.incFov (+1);
+      if (glfwGetKey (window, GLFW_KEY_P) == GLFW_PRESS)
+        ss.incFov (-1);
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
