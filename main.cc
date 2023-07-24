@@ -92,7 +92,7 @@ class tex
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   }
 
   void bind (GLuint target) const
@@ -141,7 +141,7 @@ R"CODE(
 #version 430 core
 
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-layout (rgba8) uniform image2D imgOutput;
+layout (rgba16f) uniform image2D imgOutput;
 
 uniform float scale = 1.0;
 
@@ -165,10 +165,11 @@ void main ()
   {
     glUseProgram (programID);
     tt.bind (0);
-    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
     glUniform1f (glGetUniformLocation (programID, "scale"), scale);
 
-    glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
+    int W = (tt.width+31)/32, H = (tt.height+31)/32;
+    glDispatchCompute (W, H, 1);
     glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
   ~fader ()
@@ -176,6 +177,54 @@ void main ()
     glDeleteProgram (programID);
   }
 };
+
+class dotter
+{
+public:
+  GLuint programID;
+  dotter ()
+  {
+    programID = shader (nullptr, nullptr, 
+R"CODE(
+#version 430 core
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (rgba16f) uniform image2D imgOutput;
+
+uniform float scale = 1.0;
+
+void main () 
+{
+  vec4 value;
+
+  ivec2 texelCoord = ivec2 (gl_GlobalInvocationID.xy);
+  
+  value = imageLoad (imgOutput, texelCoord);
+
+  value.a = value.a * scale;
+
+  imageStore (imgOutput, texelCoord, value);
+}
+)CODE");
+
+
+  } 
+  void apply (tex & tt, float scale)
+  {
+    glUseProgram (programID);
+    tt.bind (0);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16F);
+    glUniform1f (glGetUniformLocation (programID, "scale"), scale);
+
+    glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
+    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
+  ~dotter ()
+  {
+    glDeleteProgram (programID);
+  }
+};
+
 
 class checker
 {
@@ -489,15 +538,12 @@ int main (int argc, char * argv[])
 
   fader ff;
 
-  float scale = 1.0f;
-
   while (1) 
     {   
       glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ff.apply (ttck, scale);
-      scale = scale * 0.99;
+      ff.apply (ttck, 0.99);
 
       ss.render (ttck);
 //    ss.render (ttland);
