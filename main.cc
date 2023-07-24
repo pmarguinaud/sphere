@@ -182,12 +182,10 @@ class checkerRender
 {
 public:
   const unsigned int nt = 2;
-  const std::vector<unsigned int> ind;
   const int Nx, Ny;
   GLuint programID;
   GLuint VertexArrayID;
-  checkerRender (int _Nx, int _Ny) : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), 
-	                             Nx (_Nx), Ny (_Ny)
+  checkerRender (int _Nx, int _Ny) : Nx (_Nx), Ny (_Ny)
   {
     programID = shader 
 (
@@ -261,6 +259,7 @@ void main ()
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    const std::vector<unsigned int> ind = {0, 1, 2, 0, 2, 3}; 
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
 
@@ -270,6 +269,7 @@ void main ()
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "Nx"), Nx);
     glUniform1i (glGetUniformLocation (programID, "Ny"), Ny);
+    const std::vector<unsigned int> ind = {0, 1, 2, 0, 2, 3}; 
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
 
@@ -346,10 +346,9 @@ class faderRender
 {
 public:
   const unsigned int nt = 2;
-  const std::vector<unsigned int> ind;
   GLuint programID;
   GLuint VertexArrayID;
-  faderRender () : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3})
+  faderRender () 
   {
     programID = shader 
 (
@@ -401,6 +400,7 @@ void main ()
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
+    const std::vector<unsigned int> ind = {0, 1, 2, 0, 2, 3};
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0]);
   }
 
@@ -408,6 +408,7 @@ void main ()
   {
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
+    const std::vector<unsigned int> ind = {0, 1, 2, 0, 2, 3};
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0]);
   }
 
