@@ -143,7 +143,9 @@ R"CODE(
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 layout (rgba8) uniform image2D imgOutput;
 
-void main() 
+uniform float scale = 1.0;
+
+void main () 
 {
   vec4 value;
 
@@ -151,7 +153,7 @@ void main()
   
   value = imageLoad (imgOutput, texelCoord);
 
-  value.a = value.a * 0.99;
+  value.a = value.a * scale;
 
   imageStore (imgOutput, texelCoord, value);
 }
@@ -159,11 +161,12 @@ void main()
 
 
   } 
-  void apply (tex & tt)
+  void apply (tex & tt, float scale)
   {
     glUseProgram (programID);
     tt.bind (0);
     glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+    glUniform1f (glGetUniformLocation (programID, "scale"), scale);
 
     glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
     glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -486,12 +489,15 @@ int main (int argc, char * argv[])
 
   fader ff;
 
+  float scale = 1.0f;
+
   while (1) 
     {   
       glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ff.apply (ttck);
+      ff.apply (ttck, scale);
+      scale = scale * 0.99;
 
       ss.render (ttck);
 //    ss.render (ttland);
