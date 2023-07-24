@@ -130,11 +130,11 @@ class texModifier
   }
 };
 
-class fader
+class faderCompute
 {
 public:
   GLuint programID;
-  fader ()
+  faderCompute ()
   {
     programID = shader (nullptr, nullptr, 
 R"CODE(
@@ -172,13 +172,13 @@ void main ()
     glDispatchCompute (W, H, 1);
     glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
-  ~fader ()
+  ~faderCompute ()
   {
     glDeleteProgram (programID);
   }
 };
 
-class checker
+class checkerRender
 {
 public:
   const unsigned int nt = 2;
@@ -186,8 +186,8 @@ public:
   const int Nx, Ny;
   GLuint programID;
   GLuint VertexArrayID;
-  checker (int _Nx, int _Ny) : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), 
-	                       Nx (_Nx), Ny (_Ny)
+  checkerRender (int _Nx, int _Ny) : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3}), 
+	                             Nx (_Nx), Ny (_Ny)
   {
     programID = shader 
 (
@@ -273,19 +273,19 @@ void main ()
     glDrawElementsInstanced (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0], Nx * Ny);
   }
 
-  ~checker ()
+  ~checkerRender ()
   {
     glDeleteVertexArrays (1, &VertexArrayID);
     glDeleteProgram (programID);
   }
 };
 
-class checker2
+class checkerCompute
 {
 public:
   const int Nx, Ny;
   GLuint programID;
-  checker2 (int _Nx, int _Ny) : Nx (_Nx), Ny (_Ny)
+  checkerCompute (int _Nx, int _Ny) : Nx (_Nx), Ny (_Ny)
   {
     programID = shader (nullptr, nullptr,
 R"CODE(
@@ -336,20 +336,20 @@ void main ()
     glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
 
-  ~checker2 ()
+  ~checkerCompute ()
   {
     glDeleteProgram (programID);
   }
 };
 
-class fader2
+class faderRender
 {
 public:
   const unsigned int nt = 2;
   const std::vector<unsigned int> ind;
   GLuint programID;
   GLuint VertexArrayID;
-  fader2 () : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3})
+  faderRender () : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3})
   {
     programID = shader 
 (
@@ -411,7 +411,7 @@ void main ()
     glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0]);
   }
 
-  ~fader2 ()
+  ~faderRender ()
   {
     glDeleteVertexArrays (1, &VertexArrayID);
     glDeleteProgram (programID);
@@ -592,11 +592,10 @@ int main (int argc, char * argv[])
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
 
   tex ttck (800, 400);
-  checker ck (8, 4);
+  checkerRender ck (8, 4);
 
   if (1){
-    std::cout << " ck2 " << std::endl;
-    checker2 ck2 (8, 4);
+    checkerCompute ck2 (8, 4);
     ck2.apply (ttck);
   }else if (1){
     texModifier texm (ttck);
@@ -630,8 +629,8 @@ int main (int argc, char * argv[])
 
   sphere ss (Nj);
 
-  fader ff;
-  fader2 ff2;
+  faderCompute ff;
+  faderRender ff2;
 
   while (1) 
     {   
