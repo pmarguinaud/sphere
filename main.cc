@@ -280,6 +280,82 @@ void main ()
   }
 };
 
+class fader2
+{
+public:
+  const unsigned int nt = 2;
+  const std::vector<unsigned int> ind;
+  GLuint programID;
+  GLuint VertexArrayID;
+  fader2 () : ind (std::vector<unsigned int>{0, 1, 2, 0, 2, 3})
+  {
+    programID = shader 
+(
+R"CODE(
+#version 420 core
+
+out vec4 color;
+in vec2 texPos;
+uniform sampler2D tex;
+
+void main ()
+{
+  color = texture (tex, texPos);
+  color.a = color.a * 0.99;
+}
+)CODE",
+R"CODE(
+#version 420 core
+
+out vec2 texPos;
+
+void main ()
+{
+  int i = gl_VertexID;
+
+  if (i == 0) 
+    texPos = vec2 (0.0f, 0.0f);
+  else if (i == 1)
+    texPos = vec2 (1.0f, 0.0f);
+  else if (i == 2)
+    texPos = vec2 (1.0f, 1.0f);
+  else if (i == 3)
+    texPos = vec2 (0.0f, 1.0f);
+
+  vec2 vertexPos = 2 * texPos + vec2 (-1.0, -1.0);
+
+  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
+}
+)CODE");
+
+    glUseProgram (programID);
+    
+    glGenVertexArrays (1, &VertexArrayID);
+    glBindVertexArray (VertexArrayID);
+  }
+
+  void render (tex & tt) const
+  {
+    glViewport (0, 0, tt.width, tt.height);
+    glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
+    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0]);
+  }
+
+  void render () const
+  {
+    glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
+    glDrawElements (GL_TRIANGLES, 3 * nt, GL_UNSIGNED_INT, &ind[0]);
+  }
+
+  ~fader2 ()
+  {
+    glDeleteVertexArrays (1, &VertexArrayID);
+    glDeleteProgram (programID);
+  }
+};
+
 class sphere
 {
   public:
@@ -489,13 +565,26 @@ int main (int argc, char * argv[])
   sphere ss (Nj);
 
   fader ff;
+  fader2 ff2;
 
   while (1) 
     {   
       glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ff.apply (ttck, 0.99);
+      if (1)
+        {
+          ff.apply (ttck, 0.99);
+        }
+      else
+        {
+          texModifier texm (ttck);
+          ttck.bind (0);
+          ff2.render (ttck);
+        }
+
+      glViewport (0, 0, width, height);
+      glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       ss.render (ttck);
 //    ss.render (ttland);
