@@ -92,7 +92,7 @@ class tex
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   }
 
   void bind (GLuint target) const
@@ -127,6 +127,50 @@ class texModifier
   {
     glDeleteFramebuffers (1, &framebuffer);
     glBindFramebuffer (GL_FRAMEBUFFER, 0); 
+  }
+};
+
+class fader
+{
+public:
+  GLuint programID;
+  fader ()
+  {
+    programID = shader (nullptr, nullptr, 
+R"CODE(
+#version 430 core
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (rgba8) uniform image2D imgOutput;
+
+void main() 
+{
+  vec4 value;
+
+  ivec2 texelCoord = ivec2 (gl_GlobalInvocationID.xy);
+  
+  value = imageLoad (imgOutput, texelCoord);
+
+  value.a = value.a * 0.99;
+
+  imageStore (imgOutput, texelCoord, value);
+}
+)CODE");
+
+
+  } 
+  void apply (tex & tt)
+  {
+    glUseProgram (programID);
+    tt.bind (0);
+    glBindImageTexture (0, tt.texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA8);
+
+    glDispatchCompute ((unsigned int)tt.width/32, (unsigned int)tt.height/32, 1);
+    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
+  ~fader ()
+  {
+    glDeleteProgram (programID);
   }
 };
 
@@ -440,11 +484,14 @@ int main (int argc, char * argv[])
 
   sphere ss (Nj);
 
+  fader ff;
+
   while (1) 
     {   
-
       glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      ff.apply (ttck);
 
       ss.render (ttck);
 //    ss.render (ttland);
