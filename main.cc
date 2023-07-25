@@ -22,6 +22,7 @@ class tex
 
   int width, height;
   unsigned int texture;
+  float Vmin, Vmax;
 
   tex (const std::string & path) 
   {
@@ -49,8 +50,8 @@ class tex
     double vmax = *( std::max_element (val_v.begin (), val_v.end ()) );
     double vmin = *( std::min_element (val_v.begin (), val_v.end ()) );
 
-    vmin = std::min (umin, vmin);
-    vmax = std::max (umax, vmax);
+    Vmin = std::min (umin, vmin);
+    Vmax = std::max (umax, vmax);
 
     if ((nlon_u != nlon_v) || (nlat_u != nlat_v))
       throw std::runtime_error ("Dimension mismatch");
@@ -61,8 +62,8 @@ class tex
 
     for (int i = 0; i < width * height; i++)
       {
-        double un = (val_u[i] - vmin) / (umax - vmin);
-        double vn = (val_v[i] - vmin) / (vmax - vmin);
+        double un = (val_u[i] - Vmin) / (Vmax - Vmin);
+        double vn = (val_v[i] - Vmin) / (Vmax - Vmin);
         unsigned short ku = un * std::numeric_limits<unsigned short>::max ();
         unsigned short kv = vn * std::numeric_limits<unsigned short>::max ();
 	unsigned char r = (ku & 0xff00) >> 8, g = ku & 0xff;
@@ -73,6 +74,12 @@ class tex
 //      Beautiful !
 //      rgba[4*i+1] = 0;
 //      rgba[4*i+3] = 255;
+
+//      rgba[4*i+0] = 255; 
+//      rgba[4*i+1] =   0; 
+//      rgba[4*i+2] = 120; 
+//      rgba[4*i+3] =   0; 
+
       }
 
     glGenTextures (1, &texture);
@@ -97,9 +104,9 @@ class tex
 
   void bind (GLuint target) const
   {
-    if (target != 0)
-      throw std::runtime_error ("Unexpected texture target");
-    glActiveTexture (GL_TEXTURE0);
+//  if (target != 0)
+//    throw std::runtime_error ("Unexpected texture target");
+    glActiveTexture (GL_TEXTURE0 + target);
     glBindTexture (GL_TEXTURE_2D, texture);
   }
 
@@ -431,10 +438,12 @@ R"CODE(
 
 uniform int N;
 uniform float R;
-uniform float Ox;
-uniform float Oy;
 
 const float pi = 3.1415927;
+
+uniform sampler2D texuv;
+uniform float Vmin;
+uniform float Vmax;
 
 layout (std430, binding=0) buffer lonLat
 {
@@ -446,8 +455,16 @@ void main ()
   int j = gl_InstanceID;
   int i = gl_VertexID;
   
-  lonlat[2*j+0] = lonlat[2*j+0] + 0.001;
-  lonlat[2*j+1] = lonlat[2*j+1] + 0.0005;
+  float x = 0.5 *(lonlat[2*j+0]+1.0);
+  float y = 0.5 *(lonlat[2*j+1]+1.0);
+
+  vec4 uv = texture (texuv, vec2 (x, y));
+  float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
+  float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
+
+  lonlat[2*j+0] = lonlat[2*j+0] + 0.001 * u; // + 0.001;
+  lonlat[2*j+1] = lonlat[2*j+1] + 0.001 * v; // + 0.0005;
+
 
   if (lonlat[2*j+0] > 1.0)
     lonlat[2*j+0] = -1.0;
@@ -455,7 +472,7 @@ void main ()
   if (lonlat[2*j+1] > 1.0)
     lonlat[2*j+1] = -1.0;
 
-  float coslat = cos (0.5 * pi * (Oy + lonlat[2*j+1]));
+  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
 
   vec2 pos;
   if (i == 0) 
@@ -471,7 +488,7 @@ void main ()
 
   pos = pos * R;
 
-  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox + lonlat[2*j+0], Oy + lonlat[2*j+1]);
+  pos = vec2 (pos.x / coslat, pos.y) + vec2 (lonlat[2*j+0], lonlat[2*j+1]);
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
 }
@@ -482,16 +499,18 @@ void main ()
     glBindVertexArray (VertexArrayID);
   }
 
-  void render (tex & tt, GLuint bufferid, float Ox = 0.0f, float Oy = 0.0f) const
+  void render (tex & tt, GLuint bufferid, tex & ttuv) const
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "N"), N);
     glUniform1f (glGetUniformLocation (programID, "R"), R);
-    glUniform1f (glGetUniformLocation (programID, "Ox"), Ox);
-    glUniform1f (glGetUniformLocation (programID, "Oy"), Oy);
     glBindBufferBase (GL_SHADER_STORAGE_BUFFER, 0, bufferid);
+    ttuv.bind (0);
+    glUniform1i (glGetUniformLocation (programID, "texuv"), 0);
+    glUniform1f (glGetUniformLocation (programID, "Vmin"), ttuv.Vmin);
+    glUniform1f (glGetUniformLocation (programID, "Vmax"), ttuv.Vmax);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], 10);
   }
 
@@ -829,8 +848,8 @@ int main (int argc, char * argv[])
           ff.apply (ttck, 0.99);
           {
             texModifier texm (ttck);
-            dotterRender dd (4);
-            dd.render (ttck, bufferid);
+            dotterRender dd (4, 0.003);
+            dd.render (ttck, bufferid, ttuv);
           }
         }
       else
