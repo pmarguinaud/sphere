@@ -455,6 +455,8 @@ void main ()
   int j = gl_InstanceID;
   int i = gl_VertexID;
   
+  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
+
   float x = 0.5 *(lonlat[2*j+0]+1.0);
   float y = 0.5 *(lonlat[2*j+1]+1.0);
 
@@ -463,7 +465,7 @@ void main ()
   float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
 
   lonlat[2*j+0] = lonlat[2*j+0] + 0.001 * u; // + 0.001;
-  lonlat[2*j+1] = lonlat[2*j+1] + 0.001 * v; // + 0.0005;
+  lonlat[2*j+1] = lonlat[2*j+1] + 0.001 * v / coslat; // + 0.0005;
 
 
   if (lonlat[2*j+0] > 1.0)
@@ -472,7 +474,6 @@ void main ()
   if (lonlat[2*j+1] > 1.0)
     lonlat[2*j+1] = -1.0;
 
-  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
 
   vec2 pos;
   if (i == 0) 
@@ -499,7 +500,7 @@ void main ()
     glBindVertexArray (VertexArrayID);
   }
 
-  void render (tex & tt, GLuint bufferid, tex & ttuv) const
+  void render (tex & tt, GLuint bufferid, unsigned int buffer_size, tex & ttuv) const
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
@@ -511,7 +512,7 @@ void main ()
     glUniform1i (glGetUniformLocation (programID, "texuv"), 0);
     glUniform1f (glGetUniformLocation (programID, "Vmin"), ttuv.Vmin);
     glUniform1f (glGetUniformLocation (programID, "Vmax"), ttuv.Vmax);
-    glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], 10);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], buffer_size);
   }
 
   ~dotterRender ()
@@ -826,13 +827,16 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  unsigned int buffer_size = 10;
+  int nx = 10, ny = 10;
+  unsigned int buffer_size = nx * ny;
   float data[2 * buffer_size];
 
   for (int i = 0; i < buffer_size; i++)
     {
-      data[2*i+0] = 0.1 * (i-5);
-      data[2*i+1] = 0.;
+      int ix = i % nx;
+      int iy = i / nx;
+      data[2*i+0] = -1. + 2. * (float)ix / (float)nx;
+      data[2*i+1] = -1. + 2. * (float)iy / (float)ny;
     }
 
   glGenBuffers (1, &bufferid);
@@ -849,7 +853,7 @@ int main (int argc, char * argv[])
           {
             texModifier texm (ttck);
             dotterRender dd (4, 0.003);
-            dd.render (ttck, bufferid, ttuv);
+            dd.render (ttck, bufferid, buffer_size, ttuv);
           }
         }
       else
