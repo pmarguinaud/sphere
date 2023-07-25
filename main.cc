@@ -446,12 +446,16 @@ void main ()
   int j = gl_InstanceID;
   int i = gl_VertexID;
   
-  float lon0 = lonlat[2*j+0];
-  float lat0 = lonlat[2*j+1];
+  lonlat[2*j+0] = lonlat[2*j+0] + 0.001;
+  lonlat[2*j+1] = lonlat[2*j+1] + 0.0005;
 
-  float lat = 0.5 * pi * Oy;
+  if (lonlat[2*j+0] > 1.0)
+    lonlat[2*j+0] = -1.0;
 
-  float coslat = cos (lat0 + lat);
+  if (lonlat[2*j+1] > 1.0)
+    lonlat[2*j+1] = -1.0;
+
+  float coslat = cos (0.5 * pi * (Oy + lonlat[2*j+1]));
 
   vec2 pos;
   if (i == 0) 
@@ -467,7 +471,7 @@ void main ()
 
   pos = pos * R;
 
-  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox + lon0, Oy + lat0);
+  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox + lonlat[2*j+0], Oy + lonlat[2*j+1]);
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
 }
@@ -808,7 +812,7 @@ int main (int argc, char * argv[])
 
   for (int i = 0; i < buffer_size; i++)
     {
-      data[2*i+0] = 0.1 * i;
+      data[2*i+0] = 0.1 * (i-5);
       data[2*i+1] = 0.;
     }
 
@@ -818,7 +822,6 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
-  float offset = 0.0;
   while (1) 
     {   
       if (1)
@@ -827,10 +830,7 @@ int main (int argc, char * argv[])
           {
             texModifier texm (ttck);
             dotterRender dd (4);
-            dd.render (ttck, bufferid, offset, offset);
-	    offset += 0.001;
-	    if (offset > 1.0)
-              offset = -1.0;
+            dd.render (ttck, bufferid);
           }
         }
       else
