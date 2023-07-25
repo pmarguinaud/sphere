@@ -150,13 +150,17 @@ void main ()
   
   int ix, iy;
 
-  vec4 value = vec4 (0., 0., 0., 1.);
+  vec4 value = vec4 (1., 1., 1., 1.);
   for (ix = -r; ix <= r; ix++)
     {
       for (iy = -r; iy <= r; iy++)
         {
-          ivec2 texelCoord = ivec2 (ix, iy) + center;
-          imageStore (imgOutput, texelCoord, value);
+          float dist = sqrt (ix * ix + iy * iy);
+          if (dist < r)
+            {
+              ivec2 texelCoord = ivec2 (ix, iy) + center;
+              imageStore (imgOutput, texelCoord, value);
+            }
         }
     }
 }
@@ -387,6 +391,94 @@ void main ()
 
   ~checkerCompute ()
   {
+    glDeleteProgram (programID);
+  }
+};
+
+class dotterRender
+{
+public:
+  unsigned int N;
+  GLuint programID;
+  GLuint VertexArrayID;
+  std::vector<unsigned int> ind;
+  dotterRender (int _N) : N (_N)
+  {
+    ind.resize (3 * N);
+
+    for (int i = 0; i < N; i++)
+      {
+        ind[3*i+0] = 0;
+        ind[3*i+1] = (i+1);
+        ind[3*i+2] = 1 + (i+1) % N;
+      }
+
+    programID = shader 
+(
+R"CODE(
+#version 420 core
+
+out vec4 color;
+
+void main ()
+{
+  color = vec4 (1., 1., 1., 1.);
+}
+)CODE",
+R"CODE(
+#version 420 core
+
+uniform int N;
+
+const float pi = 3.1415927;
+
+void main ()
+{
+  int i = gl_VertexID;
+  
+  vec2 pos;
+  if (i == 0) 
+    {
+      pos = vec2 (0.0f, 0.0f);
+    }
+  else 
+    {
+      int k = i - 1;
+      float a = 2 * pi * float (k) / float (N);
+      pos = vec2 (cos (a), sin (a));
+    }
+
+  vec2 vertexPos = 0.01 * pos;
+
+  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
+}
+)CODE");
+
+    glUseProgram (programID);
+    glGenVertexArrays (1, &VertexArrayID);
+    glBindVertexArray (VertexArrayID);
+  }
+
+  void render (tex & tt) const
+  {
+    glViewport (0, 0, tt.width, tt.height);
+    glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
+    glUniform1i (glGetUniformLocation (programID, "N"), N);
+    glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
+  }
+
+  void render () const
+  {
+    glUseProgram (programID);
+    glBindVertexArray (VertexArrayID);
+    glUniform1i (glGetUniformLocation (programID, "N"), N);
+    glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
+  }
+
+  ~dotterRender ()
+  {
+    glDeleteVertexArrays (1, &VertexArrayID);
     glDeleteProgram (programID);
   }
 };
@@ -654,8 +746,14 @@ int main (int argc, char * argv[])
     checkerCompute ck2 (8, 4);
     ck2.apply (ttck);
 
-    dotterCompute dd;
-    dd.apply (ttck);
+//  dotterCompute dd;
+//  dd.apply (ttck);
+
+    {
+      texModifier texm (ttck);
+      dotterRender dd (6);
+      dd.render (ttck);
+    }
 
   }else if (1){
     texModifier texm (ttck);
