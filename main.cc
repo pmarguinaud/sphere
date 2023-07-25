@@ -417,7 +417,7 @@ public:
     programID = shader 
 (
 R"CODE(
-#version 420 core
+#version 440 core
 
 out vec4 color;
 
@@ -427,7 +427,7 @@ void main ()
 }
 )CODE",
 R"CODE(
-#version 420 core
+#version 440 core
 
 uniform int N;
 uniform float R;
@@ -436,13 +436,22 @@ uniform float Oy;
 
 const float pi = 3.1415927;
 
+layout (std430, binding=0) buffer lonLat
+{
+  float lonlat[];
+};
+
 void main ()
 {
+  int j = gl_InstanceID;
   int i = gl_VertexID;
   
+  float lon0 = lonlat[2*j+0];
+  float lat0 = lonlat[2*j+1];
+
   float lat = 0.5 * pi * Oy;
 
-  float coslat = cos (lat);
+  float coslat = cos (lat0 + lat);
 
   vec2 pos;
   if (i == 0) 
@@ -458,7 +467,7 @@ void main ()
 
   pos = pos * R;
 
-  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox, Oy);
+  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox + lon0, Oy + lat0);
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
 }
@@ -469,7 +478,7 @@ void main ()
     glBindVertexArray (VertexArrayID);
   }
 
-  void render (tex & tt, float Ox = 0.0f, float Oy = 0.0f) const
+  void render (tex & tt, GLuint bufferid, float Ox = 0.0f, float Oy = 0.0f) const
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
@@ -478,18 +487,8 @@ void main ()
     glUniform1f (glGetUniformLocation (programID, "R"), R);
     glUniform1f (glGetUniformLocation (programID, "Ox"), Ox);
     glUniform1f (glGetUniformLocation (programID, "Oy"), Oy);
-    glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
-  }
-
-  void render (float Ox = 0.0f, float Oy = 0.0f) const
-  {
-    glUseProgram (programID);
-    glBindVertexArray (VertexArrayID);
-    glUniform1i (glGetUniformLocation (programID, "N"), N);
-    glUniform1f (glGetUniformLocation (programID, "R"), R);
-    glUniform1f (glGetUniformLocation (programID, "Ox"), Ox);
-    glUniform1f (glGetUniformLocation (programID, "Oy"), Oy);
-    glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
+    glBindBufferBase (GL_SHADER_STORAGE_BUFFER, 0, bufferid);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], 10);
   }
 
   ~dotterRender ()
@@ -765,11 +764,6 @@ int main (int argc, char * argv[])
 //  dotterCompute dd;
 //  dd.apply (ttck);
 
-    {
-      texModifier texm (ttck);
-      dotterRender dd (4);
-      dd.render (ttck);
-    }
 
   }else if (1){
     texModifier texm (ttck);
@@ -806,6 +800,24 @@ int main (int argc, char * argv[])
   faderCompute ff;
   faderRender ff2;
 
+
+
+  GLuint bufferid;
+  unsigned int buffer_size = 10;
+  float data[2 * buffer_size];
+
+  for (int i = 0; i < buffer_size; i++)
+    {
+      data[2*i+0] = 0.1 * i;
+      data[2*i+1] = 0.;
+    }
+
+  glGenBuffers (1, &bufferid);
+  glBindBuffer (GL_ARRAY_BUFFER, bufferid);
+  glBufferData (GL_ARRAY_BUFFER, 2 * sizeof (float) * buffer_size, data, GL_STATIC_DRAW);
+  glBindBuffer (GL_ARRAY_BUFFER, 0);
+
+
   float offset = 0.0;
   while (1) 
     {   
@@ -815,7 +827,7 @@ int main (int argc, char * argv[])
           {
             texModifier texm (ttck);
             dotterRender dd (4);
-            dd.render (ttck, offset, offset);
+            dd.render (ttck, bufferid, offset, offset);
 	    offset += 0.001;
 	    if (offset > 1.0)
               offset = -1.0;
