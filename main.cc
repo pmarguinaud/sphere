@@ -748,7 +748,7 @@ int main (int argc, char * argv[])
 
   if (1){
     checkerCompute ck2 (8, 4);
-    ck2.apply (ttck);
+//  ck2.apply (ttck);
 
 //  dotterCompute dd;
 //  dd.apply (ttck);
