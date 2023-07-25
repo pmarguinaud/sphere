@@ -399,10 +399,11 @@ class dotterRender
 {
 public:
   unsigned int N;
+  float R;
   GLuint programID;
   GLuint VertexArrayID;
   std::vector<unsigned int> ind;
-  dotterRender (int _N) : N (_N)
+  dotterRender (int _N, float _R = 0.01) : N (_N), R (_R)
   {
     ind.resize (3 * N);
 
@@ -429,6 +430,7 @@ R"CODE(
 #version 420 core
 
 uniform int N;
+uniform float R;
 
 const float pi = 3.1415927;
 
@@ -445,12 +447,12 @@ void main ()
     {
       int k = i - 1;
       float a = 2 * pi * float (k) / float (N);
-      pos = vec2 (cos (a), sin (a));
+      pos = vec2 (cos (a), 2 * sin (a));
     }
 
-  vec2 vertexPos = 0.01 * pos;
+  pos = pos * R;
 
-  gl_Position = vec4 (vertexPos.x, vertexPos.y, 0., 1.);
+  gl_Position = vec4 (pos.x, pos.y, 0., 1.);
 }
 )CODE");
 
@@ -465,6 +467,7 @@ void main ()
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "N"), N);
+    glUniform1f (glGetUniformLocation (programID, "R"), R);
     glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
   }
 
@@ -473,6 +476,7 @@ void main ()
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "N"), N);
+    glUniform1f (glGetUniformLocation (programID, "R"), R);
     glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
   }
 
