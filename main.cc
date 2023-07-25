@@ -431,6 +431,8 @@ R"CODE(
 
 uniform int N;
 uniform float R;
+uniform float Ox;
+uniform float Oy;
 
 const float pi = 3.1415927;
 
@@ -438,6 +440,10 @@ void main ()
 {
   int i = gl_VertexID;
   
+  float lat = 0.5 * pi * Oy;
+
+  float coslat = cos (lat);
+
   vec2 pos;
   if (i == 0) 
     {
@@ -452,6 +458,8 @@ void main ()
 
   pos = pos * R;
 
+  pos = vec2 (pos.x / coslat, pos.y) + vec2 (Ox, Oy);
+
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
 }
 )CODE");
@@ -461,22 +469,26 @@ void main ()
     glBindVertexArray (VertexArrayID);
   }
 
-  void render (tex & tt) const
+  void render (tex & tt, float Ox = 0.0f, float Oy = 0.0f) const
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "N"), N);
     glUniform1f (glGetUniformLocation (programID, "R"), R);
+    glUniform1f (glGetUniformLocation (programID, "Ox"), Ox);
+    glUniform1f (glGetUniformLocation (programID, "Oy"), Oy);
     glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
   }
 
-  void render () const
+  void render (float Ox = 0.0f, float Oy = 0.0f) const
   {
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
     glUniform1i (glGetUniformLocation (programID, "N"), N);
     glUniform1f (glGetUniformLocation (programID, "R"), R);
+    glUniform1f (glGetUniformLocation (programID, "Ox"), Ox);
+    glUniform1f (glGetUniformLocation (programID, "Oy"), Oy);
     glDrawElements (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0]);
   }
 
@@ -794,11 +806,20 @@ int main (int argc, char * argv[])
   faderCompute ff;
   faderRender ff2;
 
+  float offset = 0.0;
   while (1) 
     {   
       if (1)
         {
-       // ff.apply (ttck, 0.99);
+          ff.apply (ttck, 0.99);
+          {
+            texModifier texm (ttck);
+            dotterRender dd (6);
+            dd.render (ttck, 0., offset);
+	    offset += 0.001;
+	    if (offset > 0.5)
+              offset = -0.5;
+          }
         }
       else
         {
@@ -831,6 +852,11 @@ int main (int argc, char * argv[])
         ss.incFov (+1);
       if (glfwGetKey (window, GLFW_KEY_P) == GLFW_PRESS)
         ss.incFov (-1);
+      if (glfwGetKey (window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+          ss.lat = 0.;
+          ss.lon = 0.;
+        }
       if (glfwWindowShouldClose (window) != 0)  
         break;
     }   
