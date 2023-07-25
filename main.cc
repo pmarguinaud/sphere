@@ -767,7 +767,7 @@ int main (int argc, char * argv[])
 
     {
       texModifier texm (ttck);
-      dotterRender dd (6);
+      dotterRender dd (4);
       dd.render (ttck);
     }
 
@@ -814,11 +814,11 @@ int main (int argc, char * argv[])
           ff.apply (ttck, 0.99);
           {
             texModifier texm (ttck);
-            dotterRender dd (6);
-            dd.render (ttck, 0., offset);
+            dotterRender dd (4);
+            dd.render (ttck, offset, offset);
 	    offset += 0.001;
-	    if (offset > 0.5)
-              offset = -0.5;
+	    if (offset > 1.0)
+              offset = -1.0;
           }
         }
       else
@@ -831,8 +831,8 @@ int main (int argc, char * argv[])
       glViewport (0, 0, width, height);
       glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      ss.render (ttck);
-//    ss.render (ttland);
+      ss.render (ttland);
+      ss.render (ttck, 1.01);
 //    ss.render (ttuv, 1.01);
 
       glfwSwapBuffers (window);
