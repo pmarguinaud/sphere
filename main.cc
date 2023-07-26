@@ -426,15 +426,19 @@ public:
 R"CODE(
 #version 440 core
 
+in vec2 coords;
 out vec4 color;
 
 void main ()
 {
   color = vec4 (1., 1., 1., 1.);
+  color.a = exp (-sqrt (coords.x * coords.x + coords.y * coords.y));
 }
 )CODE",
 R"CODE(
 #version 440 core
+
+out vec2 coords;
 
 uniform int N;
 uniform float R;
@@ -464,8 +468,8 @@ void main ()
   float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
   float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
 
-  lonlat[2*j+0] = lonlat[2*j+0] + 0.005 * u; // + 0.001;
-  lonlat[2*j+1] = lonlat[2*j+1] + 0.005 * v / coslat; // + 0.0005;
+  lonlat[2*j+0] = lonlat[2*j+0] + 0.005 * u; 
+  lonlat[2*j+1] = lonlat[2*j+1] + 0.005 * v / coslat; 
 
 
   if (lonlat[2*j+0] > 1.0)
@@ -486,6 +490,8 @@ void main ()
       float a = 2 * pi * float (k) / float (N);
       pos = vec2 (cos (a), 2 * sin (a));
     }
+
+  coords = vec2 (pos.x / coslat, pos.y);
 
   pos = pos * R;
 
@@ -828,16 +834,24 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  int nx = 20, ny = 20;
-  unsigned int buffer_size = nx * ny;
+  int nx = 40, ny = 21;
+  unsigned int buffer_size = 0;
+
+  for (int iy = 1; iy < ny-1; iy++)
+  for (int ix = 0; ix < int (nx * std::cos (M_PI/2 * float (iy - ny/2) / float (ny/2))); ix++)
+    buffer_size++;
+
+  std::cout << buffer_size << std::endl;
   float data[2 * buffer_size];
 
-  for (int i = 0; i < buffer_size; i++)
+  for (int iy = 1, i = 0; iy < ny-1; iy++)
     {
-      int ix = i % nx;
-      int iy = i / nx;
-      data[2*i+0] = -1. + 2. * (float)ix / (float)nx;
-      data[2*i+1] = -1. + 2. * (float)iy / (float)ny;
+      int nnx = int (nx * std::cos (M_PI/2 * float (iy - ny/2) / float (ny/2))); 
+      for (int ix = 0; ix < nnx; ix++, i++)
+        {
+          data[2*i+0] = -1. + 2. * (float)ix / (float)nnx;
+          data[2*i+1] = -1. + 2. * (float)iy / (float)ny;
+        }
     }
 
   glGenBuffers (1, &bufferid);
@@ -846,7 +860,7 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
-  dotterRender dd (4, 0.002);
+  dotterRender dd (10, 0.005);
   while (1) 
     {   
       if (1)
