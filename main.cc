@@ -491,7 +491,8 @@ void main ()
       pos = vec2 (cos (a), 2 * sin (a));
     }
 
-  coords = vec2 (pos.x / coslat, pos.y);
+//coords = vec2 (pos.x / coslat, pos.y);
+  coords = vec2 (pos.x, pos.y);
 
   pos = pos * R;
 
