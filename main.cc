@@ -464,8 +464,8 @@ void main ()
   float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
   float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
 
-  lonlat[2*j+0] = lonlat[2*j+0] + 0.001 * u; // + 0.001;
-  lonlat[2*j+1] = lonlat[2*j+1] + 0.001 * v / coslat; // + 0.0005;
+  lonlat[2*j+0] = lonlat[2*j+0] + 0.005 * u; // + 0.001;
+  lonlat[2*j+1] = lonlat[2*j+1] + 0.005 * v / coslat; // + 0.0005;
 
 
   if (lonlat[2*j+0] > 1.0)
@@ -774,6 +774,7 @@ int main (int argc, char * argv[])
   glFrontFace (GL_CCW);
   glEnable (GL_CULL_FACE);
   glDepthFunc (GL_LESS); 
+  glEnable (GL_MULTISAMPLE);
 
   tex ttland ("Whole_world_-_land_and_oceans_8000.bmp");
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
@@ -827,7 +828,7 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  int nx = 10, ny = 10;
+  int nx = 20, ny = 20;
   unsigned int buffer_size = nx * ny;
   float data[2 * buffer_size];
 
@@ -845,6 +846,7 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
+  dotterRender dd (4, 0.002);
   while (1) 
     {   
       if (1)
@@ -852,7 +854,6 @@ int main (int argc, char * argv[])
           ff.apply (ttck, 0.99);
           {
             texModifier texm (ttck);
-            dotterRender dd (4, 0.003);
             dd.render (ttck, bufferid, buffer_size, ttuv);
           }
         }
