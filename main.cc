@@ -238,6 +238,104 @@ void main ()
   }
 };
 
+class moverCompute
+{
+public:
+  GLuint programID;
+  float R;
+  moverCompute (float _R) : R (_R)
+  {
+    programID = shader (nullptr, nullptr, 
+R"CODE(
+#version 430 core
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout (std430, binding=0) buffer lonLat
+{
+  float lonlat[];
+};
+
+uniform sampler2D texuv;
+uniform float Vmin;
+uniform float Vmax;
+uniform float R = 0.014;
+
+const float pi = 3.1415927;
+
+float rand (const vec2 co) 
+{
+  float t = dot (vec2 (12.9898, 78.233), co);
+  return fract (sin (t) * (4375.85453 + t));
+}
+
+void main () 
+{
+  int j = int (gl_GlobalInvocationID.x);
+
+  float x = 0.5 *(lonlat[2*j+0]+1.0);
+  float y = 0.5 *(lonlat[2*j+1]+1.0);
+
+  vec2 seed = vec2 (x, y);
+  if (false && (rand (seed) > 0.99))
+    {
+      x = rand (seed + 1.3);
+      y = rand (seed + 2.1);
+      lonlat[2*j+0] = clamp (2.0 * x - 1.0, -1.0, +1.0);
+      lonlat[2*j+1] = clamp (2.0 * y - 1.0, -1.0, +1.0);
+    }
+  else
+    {
+      float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
+     
+      vec4 uv = texture (texuv, vec2 (x, y));
+      float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
+      float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
+
+      u = 1.;
+      v = 0.;
+     
+      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u / coslat; 
+      lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
+     
+      if (lonlat[2*j+1] > +1.0)
+        {
+          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
+          lonlat[2*j+1] = +1.0 - (lonlat[2*j+1] - 1.0);
+        }
+      if (lonlat[2*j+1] < -1.0)
+        {
+          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
+          lonlat[2*j+1] = -1.0 - (lonlat[2*j+1] + 1.0);
+        }
+     
+      lonlat[2*j+0] = -1.0 + mod (lonlat[2*j+0] + 1.0, 2.0);
+    }
+}
+)CODE");
+
+
+  } 
+  void apply (GLuint bufferid, unsigned int buffer_size, tex & ttuv)
+  {
+    glUseProgram (programID);
+    ttuv.bind (0);
+    glUniform1i (glGetUniformLocation (programID, "texuv"), 0);
+    glUniform1f (glGetUniformLocation (programID, "Vmin"), ttuv.Vmin);
+    glUniform1f (glGetUniformLocation (programID, "Vmax"), ttuv.Vmax);
+    glUniform1f (glGetUniformLocation (programID, "R"), R);
+    glBindBufferBase (GL_SHADER_STORAGE_BUFFER, 0, bufferid);
+
+    int W = (buffer_size+31)/32;
+    glDispatchCompute (W, 1, 1);
+    glMemoryBarrier (GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
+  ~moverCompute ()
+  {
+    glDeleteProgram (programID);
+  }
+};
+
 class checkerRender
 {
 public:
@@ -427,10 +525,13 @@ R"CODE(
 #version 440 core
 
 in vec2 coords;
+in float skip;
 out vec4 color;
 
 void main ()
 {
+  if (skip > 0)
+    discard;
   color = vec4 (1., 1., 1., 1.);
   color.a = exp (- 2 * sqrt (4 * coords.x * coords.x + coords.y * coords.y));
 }
@@ -439,13 +540,13 @@ R"CODE(
 #version 440 core
 
 out vec2 coords;
+out float skip;
 
 uniform int N;
 uniform float R;
 
 const float pi = 3.1415927;
 
-uniform sampler2D texuv;
 uniform float Vmin;
 uniform float Vmax;
 
@@ -454,22 +555,18 @@ layout (std430, binding=0) buffer lonLat
   float lonlat[];
 };
 
-float rand (const vec2 co) 
-{
-  float t = dot (vec2 (12.9898, 78.233), co);
-  return fract (sin (t) * (4375.85453 + t));
-}
-
 void main ()
 {
   int j = gl_InstanceID;
 
-if (false && (j > 20))
-{
   coords = vec2 (0., 0.);
-  gl_Position = vec4 (0., 0., 0., 0.);
-  return;
-}
+  skip = 0.;
+
+  if (j != 250)
+    {
+      skip = 1.;
+      return;
+    }
 
   int i = gl_VertexID;
 
@@ -497,40 +594,7 @@ if (false && (j > 20))
   pos = vec2 (pos.x / coslat, pos.y) + vec2 (lonlat[2*j+0], lonlat[2*j+1]);
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
-
-  vec4 uv = texture (texuv, vec2 (x, y));
-  float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
-  float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
-
-  u = 1.;
-  v = 0.;
-
-  vec2 seed = vec2 (x, y);
-  if ((i == N-1) && rand (seed) > 0.99)
-    {
-      x = rand (seed + 1.3);
-      y = rand (seed + 2.1);
-      lonlat[2*j+0] = clamp (2.0 * x - 1.0, -1.0, +1.0);
-      lonlat[2*j+1] = clamp (2.0 * y - 1.0, -1.0, +1.0);
-    }
-  else
-    {
-      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u / coslat; 
-      lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
-
-      if (lonlat[2*j+1] > +1.0)
-        {
-          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
-          lonlat[2*j+1] = +1.0 - (lonlat[2*j+1] - 1.0);
-        }
-      if (lonlat[2*j+1] < -1.0)
-        {
-          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
-          lonlat[2*j+1] = -1.0 - (lonlat[2*j+1] + 1.0);
-        }
-
-      lonlat[2*j+0] = -1.0 + mod (lonlat[2*j+0] + 1.0, 2.0);
-    }
+ 
 }
 )CODE");
 
@@ -539,7 +603,7 @@ if (false && (j > 20))
     glBindVertexArray (VertexArrayID);
   }
 
-  void render (tex & tt, GLuint bufferid, unsigned int buffer_size, tex & ttuv) const
+  void render (tex & tt, GLuint bufferid, unsigned int buffer_size) const
   {
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
@@ -547,10 +611,6 @@ if (false && (j > 20))
     glUniform1i (glGetUniformLocation (programID, "N"), N);
     glUniform1f (glGetUniformLocation (programID, "R"), R);
     glBindBufferBase (GL_SHADER_STORAGE_BUFFER, 0, bufferid);
-    ttuv.bind (0);
-    glUniform1i (glGetUniformLocation (programID, "texuv"), 0);
-    glUniform1f (glGetUniformLocation (programID, "Vmin"), ttuv.Vmin);
-    glUniform1f (glGetUniformLocation (programID, "Vmax"), ttuv.Vmax);
     glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], buffer_size);
   }
 
@@ -649,7 +709,7 @@ class sphere
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer;
   GLuint programID;
-  float lon = 0., lat = 0., fov = 20.0f;
+  float lon = 180., lat = 0., fov = 5.0f;
 
   sphere (int _Nj)
   {
@@ -895,7 +955,11 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
-  dotterRender dd (4, 0.014);
+//const float R = 0.014;
+  const float R = 0.080;
+  dotterRender dd (4, R);
+  moverCompute mv (R);
+
   while (1) 
     {   
       if (1)
@@ -903,8 +967,9 @@ int main (int argc, char * argv[])
           ff.apply (ttck, 0.99);
           {
             texModifier texm (ttck);
-            dd.render (ttck, bufferid, buffer_size, ttuv);
+            dd.render (ttck, bufferid, buffer_size);
           }
+          mv.apply (bufferid, buffer_size, ttuv);
         }
       else
         {
