@@ -292,8 +292,8 @@ void main ()
       float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
       float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
 
-      u = 1.;
-      v = 0.;
+//    u = 1.;
+//    v = 0.;
      
       lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u / coslat; 
       lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
@@ -503,21 +503,13 @@ void main ()
 class dotterRender
 {
 public:
-  unsigned int N;
   float R;
   GLuint programID;
   GLuint VertexArrayID;
   std::vector<unsigned int> ind;
-  dotterRender (int _N, float _R = 0.01) : N (_N), R (_R)
+  dotterRender (float _R = 0.01) : R (_R)
   {
-    ind.resize (3 * N);
-
-    for (int i = 0; i < N; i++)
-      {
-        ind[3*i+0] = 0;
-        ind[3*i+1] = (i+1);
-        ind[3*i+2] = 1 + (i+1) % N;
-      }
+    ind = {0, 1, 2, 0, 2, 3};
 
     programID = shader 
 (
@@ -542,7 +534,6 @@ R"CODE(
 out vec2 coords;
 out float skip;
 
-uniform int N;
 uniform float R;
 
 const float pi = 3.1415927;
@@ -562,30 +553,26 @@ void main ()
   coords = vec2 (0., 0.);
   skip = 0.;
 
-  if (j != 250)
-    {
-      skip = 1.;
-      return;
-    }
+//if (j != 250)
+//  {
+//    skip = 1.;
+//    return;
+//  }
 
   int i = gl_VertexID;
-
-  float x = 0.5 *(lonlat[2*j+0]+1.0);
-  float y = 0.5 *(lonlat[2*j+1]+1.0);
 
   float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
 
   vec2 pos;
-  if (i == 0) 
-    {
-      pos = vec2 (0.0f, 0.0f);
-    }
-  else 
-    {
-      int k = i - 1;
-      float a = 2 * pi * float (k + 0.5) / float (N);
-      pos = vec2 (cos (a), 2 * sin (a));
-    }
+
+  if (i == 0)
+    pos = vec2 (-1.0, -2.0);
+  else if (i == 1)
+    pos = vec2 (+1.0, -2.0);
+  else if (i == 2)
+    pos = vec2 (+1.0, +2.0);
+  else if (i == 3)
+    pos = vec2 (-1.0, +2.0);
 
   coords = vec2 (pos.x, pos.y);
 
@@ -608,10 +595,9 @@ void main ()
     glViewport (0, 0, tt.width, tt.height);
     glUseProgram (programID);
     glBindVertexArray (VertexArrayID);
-    glUniform1i (glGetUniformLocation (programID, "N"), N);
     glUniform1f (glGetUniformLocation (programID, "R"), R);
     glBindBufferBase (GL_SHADER_STORAGE_BUFFER, 0, bufferid);
-    glDrawElementsInstanced (GL_TRIANGLES, 3 * N, GL_UNSIGNED_INT, &ind[0], buffer_size);
+    glDrawElementsInstanced (GL_TRIANGLES, 3 * 2, GL_UNSIGNED_INT, &ind[0], buffer_size);
   }
 
   ~dotterRender ()
@@ -709,7 +695,7 @@ class sphere
   GLuint VertexArrayID;
   GLuint vertexbuffer, elementbuffer;
   GLuint programID;
-  float lon = 180., lat = 0., fov = 5.0f;
+  float lon = 0., lat = 0., fov = 20.0f;
 
   sphere (int _Nj)
   {
@@ -955,9 +941,9 @@ int main (int argc, char * argv[])
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
-//const float R = 0.014;
-  const float R = 0.080;
-  dotterRender dd (4, R);
+//const float R = 0.080;
+  const float R = 0.014;
+  dotterRender dd (R);
   moverCompute mv (R);
 
   while (1) 
