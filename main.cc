@@ -276,8 +276,20 @@ void main ()
   float x = 0.5 *(lonlat[2*j+0]+1.0);
   float y = 0.5 *(lonlat[2*j+1]+1.0);
 
+  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
+
   vec2 seed = vec2 (x, y);
-  if (false && (rand (seed) > 0.99))
+
+  vec4 uv = texture (texuv, vec2 (x, y));
+  float u = (uv[0] * 256 + uv[1]) / 256.; 
+  float v = (uv[2] * 256 + uv[3]) / 256.; 
+
+  float drop = (0.8 + 0.2 * sqrt (u * u + v * v));
+
+  u = (Vmin + u * (Vmax - Vmin)) / Vmax; u = u / coslat;
+  v = (Vmin + v * (Vmax - Vmin)) / Vmax;
+
+  if ((rand (seed) > drop))
     {
       x = rand (seed + 1.3);
       y = rand (seed + 2.1);
@@ -286,16 +298,11 @@ void main ()
     }
   else
     {
-      float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
      
-      vec4 uv = texture (texuv, vec2 (x, y));
-      float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
-      float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
-
 //    u = 1.;
 //    v = 0.;
      
-      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u / coslat; 
+      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u;
       lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
      
       if (lonlat[2*j+1] > +1.0)
@@ -913,7 +920,7 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  int nx = 40; 
+  int nx = 400; 
   int ny = nx / 2 + 1;
   unsigned int buffer_size = 0;
 
@@ -942,7 +949,7 @@ int main (int argc, char * argv[])
 
 
 //const float R = 0.080;
-  const float R = 0.014;
+  const float R = 0.004;
   dotterRender dd (R);
   moverCompute mv (R);
 
