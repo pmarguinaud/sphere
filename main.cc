@@ -432,7 +432,7 @@ out vec4 color;
 void main ()
 {
   color = vec4 (1., 1., 1., 1.);
-  color.a = exp (-sqrt (coords.x * coords.x + coords.y * coords.y));
+  color.a = exp (- 2 * sqrt (4 * coords.x * coords.x + coords.y * coords.y));
 }
 )CODE",
 R"CODE(
@@ -454,30 +454,29 @@ layout (std430, binding=0) buffer lonLat
   float lonlat[];
 };
 
+float rand (const vec2 co) 
+{
+  float t = dot (vec2 (12.9898, 78.233), co);
+  return fract (sin (t) * (4375.85453 + t));
+}
+
 void main ()
 {
   int j = gl_InstanceID;
+
+if (false && (j > 20))
+{
+  coords = vec2 (0., 0.);
+  gl_Position = vec4 (0., 0., 0., 0.);
+  return;
+}
+
   int i = gl_VertexID;
-  
-  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
 
   float x = 0.5 *(lonlat[2*j+0]+1.0);
   float y = 0.5 *(lonlat[2*j+1]+1.0);
 
-  vec4 uv = texture (texuv, vec2 (x, y));
-  float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
-  float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
-
-  lonlat[2*j+0] = lonlat[2*j+0] + 0.005 * u; 
-  lonlat[2*j+1] = lonlat[2*j+1] + 0.005 * v / coslat; 
-
-
-  if (lonlat[2*j+0] > 1.0)
-    lonlat[2*j+0] = -1.0;
-
-  if (lonlat[2*j+1] > 1.0)
-    lonlat[2*j+1] = -1.0;
-
+  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
 
   vec2 pos;
   if (i == 0) 
@@ -487,11 +486,10 @@ void main ()
   else 
     {
       int k = i - 1;
-      float a = 2 * pi * float (k) / float (N);
+      float a = 2 * pi * float (k + 0.5) / float (N);
       pos = vec2 (cos (a), 2 * sin (a));
     }
 
-//coords = vec2 (pos.x / coslat, pos.y);
   coords = vec2 (pos.x, pos.y);
 
   pos = pos * R;
@@ -499,6 +497,40 @@ void main ()
   pos = vec2 (pos.x / coslat, pos.y) + vec2 (lonlat[2*j+0], lonlat[2*j+1]);
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
+
+  vec4 uv = texture (texuv, vec2 (x, y));
+  float u = (uv[0] * 256 + uv[1]) / 256.; u = (Vmin + u * (Vmax - Vmin)) / Vmax;
+  float v = (uv[2] * 256 + uv[3]) / 256.; v = (Vmin + v * (Vmax - Vmin)) / Vmax;
+
+  u = 1.;
+  v = 0.;
+
+  vec2 seed = vec2 (x, y);
+  if ((i == N-1) && rand (seed) > 0.99)
+    {
+      x = rand (seed + 1.3);
+      y = rand (seed + 2.1);
+      lonlat[2*j+0] = clamp (2.0 * x - 1.0, -1.0, +1.0);
+      lonlat[2*j+1] = clamp (2.0 * y - 1.0, -1.0, +1.0);
+    }
+  else
+    {
+      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u / coslat; 
+      lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
+
+      if (lonlat[2*j+1] > +1.0)
+        {
+          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
+          lonlat[2*j+1] = +1.0 - (lonlat[2*j+1] - 1.0);
+        }
+      if (lonlat[2*j+1] < -1.0)
+        {
+          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
+          lonlat[2*j+1] = -1.0 - (lonlat[2*j+1] + 1.0);
+        }
+
+      lonlat[2*j+0] = -1.0 + mod (lonlat[2*j+0] + 1.0, 2.0);
+    }
 }
 )CODE");
 
@@ -835,7 +867,8 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  int nx = 40, ny = 21;
+  int nx = 40; 
+  int ny = nx / 2 + 1;
   unsigned int buffer_size = 0;
 
   for (int iy = 1; iy < ny-1; iy++)
@@ -843,25 +876,26 @@ int main (int argc, char * argv[])
     buffer_size++;
 
   std::cout << buffer_size << std::endl;
-  float data[2 * buffer_size];
+
+  float lonlat[2 * buffer_size];
 
   for (int iy = 1, i = 0; iy < ny-1; iy++)
     {
       int nnx = int (nx * std::cos (M_PI/2 * float (iy - ny/2) / float (ny/2))); 
       for (int ix = 0; ix < nnx; ix++, i++)
         {
-          data[2*i+0] = -1. + 2. * (float)ix / (float)nnx;
-          data[2*i+1] = -1. + 2. * (float)iy / (float)ny;
+          lonlat[2*i+0] = -1. + 2. * (float)ix / (float)nnx;
+          lonlat[2*i+1] = -1. + 2. * (float)iy / (float)ny;
         }
     }
 
   glGenBuffers (1, &bufferid);
   glBindBuffer (GL_ARRAY_BUFFER, bufferid);
-  glBufferData (GL_ARRAY_BUFFER, 2 * sizeof (float) * buffer_size, data, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, 2 * sizeof (float) * buffer_size, lonlat, GL_STATIC_DRAW);
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
-  dotterRender dd (10, 0.005);
+  dotterRender dd (4, 0.014);
   while (1) 
     {   
       if (1)
