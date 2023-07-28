@@ -58,18 +58,15 @@ class tex
 
     width = nlon_u; height = nlat_u;
 
-    std::vector<unsigned char> rgba (width * height * 4);
+    std::vector<unsigned char> rg (width * height * 2);
 
     for (int i = 0; i < width * height; i++)
       {
         double un = (val_u[i] - Vmin) / (Vmax - Vmin);
         double vn = (val_v[i] - Vmin) / (Vmax - Vmin);
-        unsigned short ku = un * std::numeric_limits<unsigned short>::max ();
-        unsigned short kv = vn * std::numeric_limits<unsigned short>::max ();
-	unsigned char r = (ku & 0xff00) >> 8, g = ku & 0xff;
-	unsigned char b = (kv & 0xff00) >> 8, a = kv & 0xff;
-        rgba[4*i+0] = r; rgba[4*i+1] = g;
-        rgba[4*i+2] = b; rgba[4*i+3] = a;
+        unsigned char r = un * std::numeric_limits<unsigned char>::max ();
+        unsigned char g = vn * std::numeric_limits<unsigned char>::max ();
+        rg[2*i+0] = r; rg[2*i+1] = g;
 
 //      Beautiful !
 //      rgba[4*i+1] = 0;
@@ -88,7 +85,7 @@ class tex
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba[0]);
+    glTexImage2D (GL_TEXTURE_2D, 0, GL_RG8, width, height, 0, GL_RG, GL_UNSIGNED_BYTE, &rg[0]);
   }
 
   tex (int _width, int _height) : width (_width), height (_height)
@@ -281,8 +278,8 @@ void main ()
   vec2 seed = vec2 (x, y);
 
   vec4 uv = texture (texuv, vec2 (x, y));
-  float u = (uv[0] * 256 + uv[1]) / 256.; 
-  float v = (uv[2] * 256 + uv[3]) / 256.; 
+  float u = uv[0]; 
+  float v = uv[1]; 
 
   float drop = (0.8 + 0.2 * sqrt (u * u + v * v));
 
