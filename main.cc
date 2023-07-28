@@ -273,10 +273,10 @@ void main ()
 {
   int j = int (gl_GlobalInvocationID.x);
 
-  float x = 0.5 *(lonlat[2*j+0]+1.0);
-  float y = 0.5 *(lonlat[2*j+1]+1.0);
+  float x = 0.5 *(lonlat[3*j+0]+1.0);
+  float y = 0.5 *(lonlat[3*j+1]+1.0);
 
-  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
+  float coslat = cos (0.5 * pi * (lonlat[3*j+1]));
 
   vec2 seed = vec2 (x, y);
 
@@ -284,7 +284,8 @@ void main ()
   float u = (uv[0] * 256 + uv[1]) / 256.; 
   float v = (uv[2] * 256 + uv[3]) / 256.; 
 
-  float drop = (0.8 + 0.2 * sqrt (u * u + v * v));
+  float vn = sqrt (u * u + v * v);
+  float drop = (0.8 + 0.2 * vn);
 
   u = (Vmin + u * (Vmax - Vmin)) / Vmax; u = u / coslat;
   v = (Vmin + v * (Vmax - Vmin)) / Vmax;
@@ -293,8 +294,9 @@ void main ()
     {
       x = rand (seed + 1.3);
       y = rand (seed + 2.1);
-      lonlat[2*j+0] = clamp (2.0 * x - 1.0, -1.0, +1.0);
-      lonlat[2*j+1] = clamp (2.0 * y - 1.0, -1.0, +1.0);
+      lonlat[3*j+0] = clamp (2.0 * x - 1.0, -1.0, +1.0);
+      lonlat[3*j+1] = clamp (2.0 * y - 1.0, -1.0, +1.0);
+      lonlat[3*j+2] = 0.;
     }
   else
     {
@@ -302,21 +304,22 @@ void main ()
 //    u = 1.;
 //    v = 0.;
      
-      lonlat[2*j+0] = lonlat[2*j+0] + (R/2) * u;
-      lonlat[2*j+1] = lonlat[2*j+1] + (R/2) * v;
+      lonlat[3*j+0] = lonlat[3*j+0] + (R/2) * u;
+      lonlat[3*j+1] = lonlat[3*j+1] + (R/2) * v;
+      lonlat[3*j+2] = vn;
      
-      if (lonlat[2*j+1] > +1.0)
+      if (lonlat[3*j+1] > +1.0)
         {
-          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
-          lonlat[2*j+1] = +1.0 - (lonlat[2*j+1] - 1.0);
+          lonlat[3*j+0] = +1.0 + lonlat[3*j+0];
+          lonlat[3*j+1] = +1.0 - (lonlat[3*j+1] - 1.0);
         }
-      if (lonlat[2*j+1] < -1.0)
+      if (lonlat[3*j+1] < -1.0)
         {
-          lonlat[2*j+0] = +1.0 + lonlat[2*j+0];
-          lonlat[2*j+1] = -1.0 - (lonlat[2*j+1] + 1.0);
+          lonlat[3*j+0] = +1.0 + lonlat[3*j+0];
+          lonlat[3*j+1] = -1.0 - (lonlat[3*j+1] + 1.0);
         }
      
-      lonlat[2*j+0] = -1.0 + mod (lonlat[2*j+0] + 1.0, 2.0);
+      lonlat[3*j+0] = -1.0 + mod (lonlat[3*j+0] + 1.0, 2.0);
     }
 }
 )CODE");
@@ -525,13 +528,14 @@ R"CODE(
 
 in vec2 coords;
 in float skip;
+in float vn;
 out vec4 color;
 
 void main ()
 {
   if (skip > 0)
     discard;
-  color = vec4 (1., 1., 1., 1.);
+  color = vec4 (vn, 1.-vn, 0., 1.);
   color.a = exp (- 2 * sqrt (4 * coords.x * coords.x + coords.y * coords.y));
 }
 )CODE",
@@ -540,6 +544,7 @@ R"CODE(
 
 out vec2 coords;
 out float skip;
+out float vn;
 
 uniform float R;
 
@@ -560,15 +565,9 @@ void main ()
   coords = vec2 (0., 0.);
   skip = 0.;
 
-//if (j != 250)
-//  {
-//    skip = 1.;
-//    return;
-//  }
-
   int i = gl_VertexID;
 
-  float coslat = cos (0.5 * pi * (lonlat[2*j+1]));
+  float coslat = cos (0.5 * pi * (lonlat[3*j+1]));
 
   vec2 pos;
 
@@ -585,7 +584,9 @@ void main ()
 
   pos = pos * R;
 
-  pos = vec2 (pos.x / coslat, pos.y) + vec2 (lonlat[2*j+0], lonlat[2*j+1]);
+  pos = vec2 (pos.x / coslat, pos.y) + vec2 (lonlat[3*j+0], lonlat[3*j+1]);
+
+  vn = lonlat[3*j+2];
 
   gl_Position = vec4 (pos.x, pos.y, 0., 1.);
  
@@ -871,7 +872,7 @@ int main (int argc, char * argv[])
   tex ttland ("Whole_world_-_land_and_oceans_8000.bmp");
   tex ttuv ("sfc_200_200u.grib2", "sfc_200_200v.grib2");
 
-  tex ttck (1600, 800);
+  tex ttck (4000, 2000);
   checkerRender ck (8, 4);
 
   if (1){
@@ -920,7 +921,7 @@ int main (int argc, char * argv[])
 
 
   GLuint bufferid;
-  int nx = 400; 
+  int nx = 500; 
   int ny = nx / 2 + 1;
   unsigned int buffer_size = 0;
 
@@ -930,21 +931,22 @@ int main (int argc, char * argv[])
 
   std::cout << buffer_size << std::endl;
 
-  float lonlat[2 * buffer_size];
+  float lonlat[3 * buffer_size];
 
   for (int iy = 1, i = 0; iy < ny-1; iy++)
     {
       int nnx = int (nx * std::cos (M_PI/2 * float (iy - ny/2) / float (ny/2))); 
       for (int ix = 0; ix < nnx; ix++, i++)
         {
-          lonlat[2*i+0] = -1. + 2. * (float)ix / (float)nnx;
-          lonlat[2*i+1] = -1. + 2. * (float)iy / (float)ny;
+          lonlat[3*i+0] = -1. + 2. * (float)ix / (float)nnx;
+          lonlat[3*i+1] = -1. + 2. * (float)iy / (float)ny;
+          lonlat[3*i+1] = 0.;
         }
     }
 
   glGenBuffers (1, &bufferid);
   glBindBuffer (GL_ARRAY_BUFFER, bufferid);
-  glBufferData (GL_ARRAY_BUFFER, 2 * sizeof (float) * buffer_size, lonlat, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, 3 * sizeof (float) * buffer_size, lonlat, GL_STATIC_DRAW);
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
 
